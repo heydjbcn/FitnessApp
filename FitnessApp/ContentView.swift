@@ -141,10 +141,10 @@ struct ContentView: View {
         .onAppear {
             updateTabBarAppearance()
         }
-        .onChange(of: themeManager.isDarkMode) {
+        .onChange(of: themeManager.isDarkMode) { _, _ in
             updateTabBarAppearance()
         }
-        .onChange(of: selectedTab) { newValue in
+        .onChange(of: selectedTab) { _, newValue in
             // Resetear el estado cuando se cambia de pestaña
             if newValue != 2 {
                 shouldShowAddExerciseTab = false

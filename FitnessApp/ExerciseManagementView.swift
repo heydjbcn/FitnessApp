@@ -72,11 +72,18 @@ struct ExerciseManagementView: View {
     
     // MARK: - Función para obtener todos los ejercicios
     private func getAllExercises() -> [Exercise] {
-        var allExercises: [Exercise] = []
+        var uniqueExercises: [Exercise] = []
+        var seenIds: Set<UUID> = []
+        
         for exercises in viewModel.exercises.values {
-            allExercises.append(contentsOf: exercises)
+            for exercise in exercises {
+                if !seenIds.contains(exercise.id) {
+                    uniqueExercises.append(exercise)
+                    seenIds.insert(exercise.id)
+                }
+            }
         }
-        return allExercises
+        return uniqueExercises
     }
     
     // MARK: - Vista del Formulario de Añadir Ejercicio
@@ -292,12 +299,35 @@ struct EditableExerciseCard: View {
                     }
                     
                     if exercise.totalSets > 0 {
-                        Text("- \(exercise.totalSets) sets")
+                        Text("- \(exercise.totalSets) series")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     }
                     
                     Spacer()
+                }
+                
+                // Mostrar días configurados
+                if !getDaysForExercise(exercise.id).isEmpty {
+                    HStack {
+                        Text("Días:")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                        
+                        HStack(spacing: 4) {
+                            ForEach(getDaysForExercise(exercise.id), id: \.self) { day in
+                                Text(dayShortName(day))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.green)
+                                    .cornerRadius(4)
+                            }
+                        }
+                        
+                        Spacer()
+                    }
                 }
             }
         }
@@ -309,6 +339,29 @@ struct EditableExerciseCard: View {
             ExerciseEditView(exercise: exercise)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
+        }
+    }
+    
+    // Función para obtener los días donde está configurado el ejercicio
+    private func getDaysForExercise(_ exerciseId: UUID) -> [String] {
+        var days: [String] = []
+        for (day, exercises) in viewModel.exercises {
+            if exercises.contains(where: { $0.id == exerciseId }) {
+                days.append(day.rawValue)
+            }
+        }
+        return days.sorted()
+    }
+    
+    // Función para obtener nombre corto del día
+    private func dayShortName(_ day: String) -> String {
+        switch day {
+        case "Lunes": return "LUN"
+        case "Martes": return "MAR"
+        case "Miércoles": return "MIE"
+        case "Jueves": return "JUE"
+        case "Viernes": return "VIE"
+        default: return day
         }
     }
 }
@@ -583,6 +636,8 @@ struct AddExerciseForm: View {
     @State private var timerMinutes: Int = 0
     @State private var timerSeconds: Int = 30
     @State private var showingImagePicker = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
     
     let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
     
@@ -601,7 +656,7 @@ struct AddExerciseForm: View {
                 
                 // Botones horizontales para días
                 HStack(spacing: 4) {
-                    ForEach(days, id: \.self) { day in
+                    ForEach(Array(days.enumerated()), id: \.offset) { index, day in
                         Button(action: {
                             if selectedDays.contains(day) {
                                 selectedDays.remove(day)
@@ -673,6 +728,11 @@ struct AddExerciseForm: View {
                     .background(Color.green.opacity(0.1))
                     .cornerRadius(8)
                 }
+                .alert("Funcionalidad próximamente", isPresented: $showingImagePicker) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("La funcionalidad de añadir fotos estará disponible en una próxima actualización.")
+                }
             }
             
             // Repeticiones
@@ -713,18 +773,18 @@ struct AddExerciseForm: View {
                     .cornerRadius(8)
             }
             
-            // Total de Sets
+            // Total de Series
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "list.number.rtl")
                         .foregroundColor(.green)
                         .font(.system(size: 18))
-                    Text("Total de Sets")
+                    Text("Total de Series")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
-                TextField("Sets", value: $totalSets, format: .number)
+                TextField("Series", value: $totalSets, format: .number)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
                     .frame(height: 44)
@@ -782,30 +842,58 @@ struct AddExerciseForm: View {
             }
             
             // Botón para añadir ejercicio
-            Button(action: addExercise) {
+            Button(action: {
+                // Validar que todos los campos requeridos estén completos
+                if name.isEmpty {
+                    alertMessage = "Por favor, ingresa un nombre para el ejercicio."
+                    showingAlert = true
+                    return
+                }
+                
+                if selectedDays.isEmpty {
+                    alertMessage = "Por favor, selecciona al menos un día."
+                    showingAlert = true
+                    return
+                }
+                
+                // Crear y añadir el ejercicio
+                addExercise()
+                
+                // Dismissar el teclado
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(AppColors.primary) // Icono siempre verde de los iconos
+                        .foregroundColor(.white)
                         .font(.system(size: 18))
                     Text("Añadir Ejercicio")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AppColors.primary) // Texto siempre verde de los iconos
+                        .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                // Fondo: Verde claro (opacidad) cuando deshabilitado, verde brillante cuando habilitado
-                .background((name.isEmpty || selectedDays.isEmpty) ?
-                            AppColors.primary.opacity(0.4) : AppColors.primary)
+                .background(
+                    (name.isEmpty || selectedDays.isEmpty) ? 
+                    Color.gray.opacity(0.6) : AppColors.primary
+                )
                 .cornerRadius(12)
-                .shadow(color: (name.isEmpty || selectedDays.isEmpty) ? Color.clear : AppColors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
+                .shadow(color: (name.isEmpty || selectedDays.isEmpty) ? 
+                       Color.clear : AppColors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
             }
-            .disabled(name.isEmpty || selectedDays.isEmpty) // La propiedad disabled ya se encarga del comportamiento de deshabilitado
+            .disabled(name.isEmpty || selectedDays.isEmpty)
+            .alert(alertMessage, isPresented: $showingAlert) {
+                Button("OK", role: .cancel) { }
+            }
             
             
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
         .background(AppColors.background(isDark: themeManager.isDarkMode))
+        .onTapGesture {
+            // Dismissar el teclado al tocar fuera de los campos
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .sheet(isPresented: $showingImagePicker) {
             // Aquí iría el selector de imágenes
             // Por ahora mostramos un placeholder

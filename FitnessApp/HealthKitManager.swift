@@ -5,6 +5,7 @@ import Combine
 
 class HealthKitManager: ObservableObject {
     private let healthStore = HKHealthStore()
+    
     @Published var isHealthKitAvailable = false
     @Published var isAuthorized = false
     
@@ -130,7 +131,7 @@ class HealthKitManager: ObservableObject {
         startDate: Date,
         endDate: Date,
         totalEnergyBurned: Double? = nil,
-        exerciseName: String? = nil
+        totalDistance: Double? = nil
     ) async {
         guard isAuthorized else { return }
         
@@ -145,26 +146,22 @@ class HealthKitManager: ObservableObject {
         configuration.activityType = activityType
         configuration.locationType = .indoor
         
-        let workout = HKWorkout(
-            activityType: activityType,
-            start: startDate,
-            end: endDate,
-            workoutEvents: nil,
-            totalEnergyBurned: totalEnergyBurned.map { 
-                HKQuantity(unit: HKUnit.kilocalorie(), doubleValue: $0) 
-            },
-            totalDistance: nil,
-            metadata: exerciseName.map { [HKMetadataKeyWorkoutBrandName: $0] }
-        )
+        // Usar HKWorkoutBuilder para iOS 17+
+        let builder = HKWorkoutBuilder(healthStore: healthStore, configuration: configuration, device: .local())
         
         do {
-            // Usar timeout para la operación de guardado
-            try await withTimeout(seconds: 15) { [self] in
-                try await healthStore.save(workout)
-                print("Workout guardado en HealthKit")
+            try await builder.beginCollection(at: startDate)
+            try await builder.endCollection(at: endDate)
+            
+            guard let workout = try await builder.finishWorkout() else {
+                print("Error: No se pudo crear el workout")
+                return
             }
+            
+            try await healthStore.save(workout)
+            print("Workout guardado en HealthKit")
         } catch {
-            print("Error o timeout guardando workout: \(error)")
+            print("Error guardando workout: \(error)")
         }
     }
     
@@ -300,7 +297,7 @@ class HealthKitManager: ObservableObject {
                                 startDate: workout.startDate,
                                 endDate: workout.endDate,
                                 duration: workout.duration,
-                                totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                                totalEnergyBurned: workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()),
                                 totalDistance: workout.totalDistance?.doubleValue(for: .meter())
                             )
                         }

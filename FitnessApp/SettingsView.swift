@@ -57,6 +57,8 @@ struct SettingsView: View {
                         Text(tab.rawValue)
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(selectedTab == tab ? AppColors.primary : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                         
                         Rectangle()
                             .fill(selectedTab == tab ? AppColors.primary : Color.clear)
