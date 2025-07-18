@@ -80,6 +80,24 @@ struct ContentView: View {
                     Text("Calendario")
                 }
 
+            // EJERCICIOS
+            ExerciseManagementView()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+                .tabItem {
+                    Image(systemName: "dumbbell.fill")
+                    Text("Ejercicios")
+                }
+
+            // HISTORIAL
+            HistoryView()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+                .tabItem {
+                    Image(systemName: "clock.fill")
+                    Text("Historial")
+                }
+
             // PERFIL
             ProfileView()
                 .environmentObject(userManager)

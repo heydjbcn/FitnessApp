@@ -1,8 +1,6 @@
 import SwiftUI
 
 enum PresentedSheet: String, CaseIterable, Identifiable {
-    case history = "history"
-    case addExercise = "addExercise"
     case programSettings = "programSettings"
     
     var id: String { self.rawValue }
@@ -32,24 +30,6 @@ struct HeaderView: View {
             Spacer()
             
             HStack(spacing: 16) {
-                // Botón Historial
-                Button { 
-                    presentedSheet = .history
-                } label: { 
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.title3)
-                        .foregroundColor(AppColors.primary) 
-                }
-                
-                // Botón Añadir/Editar Ejercicios
-                Button { 
-                    presentedSheet = .addExercise
-                } label: { 
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(AppColors.primary) 
-                }
-                
                 // Botón Configuración del Programa
                 Button { 
                     presentedSheet = .programSettings
@@ -64,14 +44,6 @@ struct HeaderView: View {
         .sheet(item: $presentedSheet) { sheet in
             NavigationStack {
                 switch sheet {
-                case .history:
-                    HistoryView()
-                        .environmentObject(viewModel)
-                        .environmentObject(themeManager)
-                case .addExercise:
-                    SettingsView()
-                        .environmentObject(viewModel)
-                        .environmentObject(themeManager)
                 case .programSettings:
                     ProgramSettingsView()
                         .environmentObject(themeManager)
