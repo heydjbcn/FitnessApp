@@ -11,6 +11,7 @@ struct ExerciseManagementView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @State private var selectedTab: Int = 0 // 0: Ejercicios, 1: Añadir Ejercicio
+    var shouldShowAddExerciseTab: Bool = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -24,11 +25,17 @@ struct ExerciseManagementView: View {
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         .background(AppColors.background(isDark: themeManager.isDarkMode))
+        .onAppear {
+            // Si se debe mostrar la pestaña de añadir ejercicio, cambiar a esa pestaña
+            if shouldShowAddExerciseTab {
+                selectedTab = 1
+            }
+        }
     }
     
     // MARK: - Vista de Lista de Ejercicios
     private var exercisesListView: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 if getAllExercises().isEmpty {
                     VStack(spacing: 20) {
@@ -74,13 +81,13 @@ struct ExerciseManagementView: View {
     
     // MARK: - Vista del Formulario de Añadir Ejercicio
     private var addExerciseFormView: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
                 AddExerciseForm()
                     .environmentObject(viewModel)
                     .environmentObject(themeManager)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 0)
             .padding(.top, 20)
         }
         .background(AppColors.background(isDark: themeManager.isDarkMode))
@@ -94,16 +101,138 @@ struct ExerciseManagementView: View {
             }) {
                 Text("Resetear Todos los Datos")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(Color.red)
                     .cornerRadius(12)
             }
         }
-        .padding(20)
-        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        .cornerRadius(16)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(AppColors.background(isDark: themeManager.isDarkMode))
+    }
+    
+    // MARK: - Vista Completa de Lista de Ejercicios
+    private var exercisesListFullView: some View {
+        VStack(spacing: 0) {
+            // HEADER CON PESTAÑAS
+            VStack(spacing: 0) {
+                // Título y navegación
+                HStack {
+                    Text("Ejercicios")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                
+                // Navegación entre pestañas
+                HStack(spacing: 0) {
+                    // Pestaña Ejercicios (activa)
+                    Button(action: {
+                        selectedTab = 0
+                    }) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "dumbbell.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.green)
+                            Text("Ejercicios")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
+                    
+                    // Pestaña Añadir Ejercicio (inactiva)
+                    Button(action: {
+                        selectedTab = 1
+                    }) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            Text("Añadir")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
+                }
+                .background(AppColors.background(isDark: themeManager.isDarkMode))
+            }
+            .background(AppColors.background(isDark: themeManager.isDarkMode))
+            
+            // CONTENIDO
+            exercisesListView
+        }
+        .background(AppColors.background(isDark: themeManager.isDarkMode))
+    }
+    
+    // MARK: - Vista Completa de Añadir Ejercicio
+    private var addExerciseFullView: some View {
+        VStack(spacing: 0) {
+            // HEADER CON PESTAÑAS
+            VStack(spacing: 0) {
+                // Título y navegación
+                HStack {
+                    Text("Añadir Ejercicio")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                
+                // Navegación entre pestañas
+                HStack(spacing: 0) {
+                    // Pestaña Ejercicios (inactiva)
+                    Button(action: {
+                        selectedTab = 0
+                    }) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "dumbbell.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            Text("Ejercicios")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
+                    
+                    // Pestaña Añadir Ejercicio (activa)
+                    Button(action: {
+                        selectedTab = 1
+                    }) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.green)
+                            Text("Añadir")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
+                }
+                .background(AppColors.background(isDark: themeManager.isDarkMode))
+            }
+            .background(AppColors.background(isDark: themeManager.isDarkMode))
+            
+            // CONTENIDO
+            addExerciseFormView
+        }
+        .background(AppColors.background(isDark: themeManager.isDarkMode))
     }
 }
 
@@ -202,7 +331,7 @@ struct ExerciseEditView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     // Nombre del ejercicio
                     VStack(alignment: .leading, spacing: 8) {
@@ -310,6 +439,9 @@ struct ExerciseEditView: View {
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
+                            .frame(height: 44)
+                            .background(Color.clear)
+                            .cornerRadius(8)
                         
                         HStack(spacing: 16) {
                             // Minutos
@@ -324,7 +456,8 @@ struct ExerciseEditView: View {
                                     }
                                 }
                                 .pickerStyle(WheelPickerStyle())
-                                .frame(height: 80)
+                                .frame(height: 65)
+                                .clipped()
                             }
                             
                             // Segundos
@@ -339,11 +472,12 @@ struct ExerciseEditView: View {
                                     }
                                 }
                                 .pickerStyle(WheelPickerStyle())
-                                .frame(height: 80)
+                                .frame(height: 65)
+                                .clipped()
                             }
                         }
                         .padding(.vertical, 8)
-                        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                        .background(AppColors.background(isDark: themeManager.isDarkMode))
                         .cornerRadius(8)
                     }
                     
@@ -445,7 +579,7 @@ struct AddExerciseForm: View {
     @State private var repetitions: Int = 0
     @State private var weight: Double = 0.0
     @State private var totalSets: Int = 1
-    @State private var selectedDay: String = "Lunes"
+    @State private var selectedDays: Set<String> = []
     @State private var timerMinutes: Int = 0
     @State private var timerSeconds: Int = 30
     @State private var showingImagePicker = false
@@ -453,32 +587,42 @@ struct AddExerciseForm: View {
     let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             // Día selector
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "calendar.circle.fill")
                         .foregroundColor(.green)
                         .font(.system(size: 18))
-                    Text("Día de la Semana")
+                    Text("Días de la Semana")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
-                Picker("Día", selection: $selectedDay) {
+                // Botones horizontales para días
+                HStack(spacing: 4) {
                     ForEach(days, id: \.self) { day in
-                        Text(day).tag(day)
+                        Button(action: {
+                            if selectedDays.contains(day) {
+                                selectedDays.remove(day)
+                            } else {
+                                selectedDays.insert(day)
+                            }
+                        }) {
+                            Text(dayShortName(day))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(selectedDays.contains(day) ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(selectedDays.contains(day) ? Color.green : AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                                .cornerRadius(8)
+                        }
                     }
                 }
-                .pickerStyle(MenuPickerStyle())
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-                .cornerRadius(8)
             }
             
             // Nombre del ejercicio
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "dumbbell.fill")
                         .foregroundColor(.green)
@@ -490,10 +634,13 @@ struct AddExerciseForm: View {
                 
                 TextField("Ej: Press de banca", text: $name)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .frame(height: 44)
+                    .background(Color.clear)
+                    .cornerRadius(8)
             }
             
             // Información
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "info.circle.fill")
                         .foregroundColor(.green)
@@ -506,6 +653,9 @@ struct AddExerciseForm: View {
                 TextField("Información del ejercicio", text: $info, axis: .vertical)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .lineLimit(3...6)
+                    .frame(minHeight: 60)
+                    .background(Color.clear)
+                    .cornerRadius(8)
                 
                 // Botón para añadir foto
                 Button(action: {
@@ -526,7 +676,7 @@ struct AddExerciseForm: View {
             }
             
             // Repeticiones
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "repeat.circle.fill")
                         .foregroundColor(.green)
@@ -539,10 +689,13 @@ struct AddExerciseForm: View {
                 TextField("Repeticiones", value: $repetitions, format: .number)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
+                    .frame(height: 44)
+                    .background(Color.clear)
+                    .cornerRadius(8)
             }
             
             // Peso
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "scalemass.fill")
                         .foregroundColor(.green)
@@ -555,10 +708,13 @@ struct AddExerciseForm: View {
                 TextField("Peso", value: $weight, format: .number)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.decimalPad)
+                    .frame(height: 44)
+                    .background(Color.clear)
+                    .cornerRadius(8)
             }
             
             // Total de Sets
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "list.number.rtl")
                         .foregroundColor(.green)
@@ -571,10 +727,13 @@ struct AddExerciseForm: View {
                 TextField("Sets", value: $totalSets, format: .number)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.numberPad)
+                    .frame(height: 44)
+                    .background(Color.clear)
+                    .cornerRadius(8)
             }
             
             // Timer de descanso
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "timer.circle.fill")
                         .foregroundColor(.green)
@@ -597,7 +756,8 @@ struct AddExerciseForm: View {
                             }
                         }
                         .pickerStyle(WheelPickerStyle())
-                        .frame(height: 80)
+                        .frame(height: 65)
+                        .clipped()
                     }
                     
                     // Segundos
@@ -612,11 +772,12 @@ struct AddExerciseForm: View {
                             }
                         }
                         .pickerStyle(WheelPickerStyle())
-                        .frame(height: 80)
+                        .frame(height: 65)
+                        .clipped()
                     }
                 }
                 .padding(.vertical, 8)
-                .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                .background(AppColors.background(isDark: themeManager.isDarkMode))
                 .cornerRadius(8)
             }
             
@@ -624,24 +785,27 @@ struct AddExerciseForm: View {
             Button(action: addExercise) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.white)
+                        .foregroundColor(AppColors.primary) // Icono siempre verde de los iconos
                         .font(.system(size: 18))
                     Text("Añadir Ejercicio")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppColors.primary) // Texto siempre verde de los iconos
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(name.isEmpty ? Color.gray : Color.green)
+                // Fondo: Verde claro (opacidad) cuando deshabilitado, verde brillante cuando habilitado
+                .background((name.isEmpty || selectedDays.isEmpty) ?
+                            AppColors.primary.opacity(0.4) : AppColors.primary)
                 .cornerRadius(12)
-                .shadow(color: name.isEmpty ? Color.clear : Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
+                .shadow(color: (name.isEmpty || selectedDays.isEmpty) ? Color.clear : AppColors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
             }
-            .disabled(name.isEmpty)
+            .disabled(name.isEmpty || selectedDays.isEmpty) // La propiedad disabled ya se encarga del comportamiento de deshabilitado
+            
+            
         }
-        .padding()
-        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
+        .background(AppColors.background(isDark: themeManager.isDarkMode))
         .sheet(isPresented: $showingImagePicker) {
             // Aquí iría el selector de imágenes
             // Por ahora mostramos un placeholder
@@ -671,9 +835,11 @@ struct AddExerciseForm: View {
             info: info
         )
         
-        // Convertir el string del día a WorkoutDay
-        if let workoutDay = WorkoutDay.allCases.first(where: { $0.rawValue == selectedDay }) {
-            viewModel.addExercise(newExercise, to: workoutDay)
+        // Añadir el ejercicio a todos los días seleccionados
+        for selectedDay in selectedDays {
+            if let workoutDay = WorkoutDay.allCases.first(where: { $0.rawValue == selectedDay }) {
+                viewModel.addExercise(newExercise, to: workoutDay)
+            }
         }
         
         // Limpiar formulario
@@ -682,7 +848,19 @@ struct AddExerciseForm: View {
         repetitions = 0
         weight = 0.0
         totalSets = 1
+        selectedDays = []
         timerMinutes = 0
         timerSeconds = 30
+    }
+    
+    private func dayShortName(_ day: String) -> String {
+        switch day {
+        case "Lunes": return "LUN"
+        case "Martes": return "MAR"
+        case "Miércoles": return "MIE"
+        case "Jueves": return "JUE"
+        case "Viernes": return "VIE"
+        default: return day
+        }
     }
 }

@@ -5,9 +5,11 @@ struct ContentView: View {
     @StateObject private var viewModel = WorkoutViewModel()
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var userManager = UserManager()
+    @State private var selectedTab = 0
+    @State private var shouldShowAddExerciseTab = false
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             // DASHBOARD
             NavigationStack {
                 ZStack {
@@ -44,9 +46,19 @@ struct ContentView: View {
                                 .cardStyle(isDarkMode: themeManager.isDarkMode)
                                 
                                 // Estadísticas en tarjetas
-                                StatsCardsView()
-                                    .environmentObject(viewModel)
-                                    .environmentObject(themeManager)
+                                StatsCardsView(
+                                    onNavigateToBestDay: { bestDay in
+                                        // Cambiar a la pestaña de calendario
+                                        selectedTab = 1
+                                        // Aquí podrías añadir lógica para navegar al día específico
+                                    },
+                                    onNavigateToExercises: {
+                                        // Cambiar a la pestaña de ejercicios
+                                        selectedTab = 2
+                                    }
+                                )
+                                .environmentObject(viewModel)
+                                .environmentObject(themeManager)
                                 
                                 // Lista de ejercicios semanales
                                 WeeklyExercisesList()
@@ -69,9 +81,16 @@ struct ContentView: View {
                 Image(systemName: "house.fill")
                 Text("Inicio")
             }
+            .tag(0)
 
             // CALENDARIO SEMANAL
-            WeeklyCalendarView()
+            WeeklyCalendarView(
+                onNavigateToAddExercise: {
+                    // Cambiar a la pestaña de ejercicios y mostrar la pestaña de añadir
+                    shouldShowAddExerciseTab = true
+                    selectedTab = 2
+                }
+            )
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
                 .environmentObject(userManager)
@@ -79,14 +98,22 @@ struct ContentView: View {
                     Image(systemName: "calendar")
                     Text("Calendario")
                 }
+                .tag(1)
 
             // EJERCICIOS
-            ExerciseManagementView()
+            ExerciseManagementView(shouldShowAddExerciseTab: shouldShowAddExerciseTab)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
                 .tabItem {
                     Image(systemName: "dumbbell.fill")
                     Text("Ejercicios")
+                }
+                .tag(2)
+                .onAppear {
+                    // Resetear el estado cuando se cambia de pestaña
+                    if selectedTab != 2 {
+                        shouldShowAddExerciseTab = false
+                    }
                 }
 
             // HISTORIAL
@@ -97,15 +124,18 @@ struct ContentView: View {
                     Image(systemName: "clock.fill")
                     Text("Historial")
                 }
+                .tag(3)
 
             // PERFIL
             ProfileView()
                 .environmentObject(userManager)
                 .environmentObject(themeManager)
+                .environmentObject(viewModel)
                 .tabItem {
                     Image(systemName: "person.circle.fill")
                     Text("Perfil")
                 }
+                .tag(4)
         }
         .accentColor(AppColors.primary)
         .onAppear {
@@ -113,6 +143,16 @@ struct ContentView: View {
         }
         .onChange(of: themeManager.isDarkMode) {
             updateTabBarAppearance()
+        }
+        .onChange(of: selectedTab) { newValue in
+            // Resetear el estado cuando se cambia de pestaña
+            if newValue != 2 {
+                shouldShowAddExerciseTab = false
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Resetear la app al estado inicial cuando vuelve de estar completamente cerrada
+            selectedTab = 0
         }
     }
     

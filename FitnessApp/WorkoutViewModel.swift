@@ -21,6 +21,15 @@ class WorkoutViewModel: ObservableObject {
 
     private var timer: Timer?
     private let userDefaults = UserDefaults.standard
+    
+    // LiveActivityManager opcional para evitar errores en versiones anteriores
+    @MainActor
+    private var liveActivityManager: LiveActivityManager? = {
+        if #available(iOS 16.1, *) {
+            return LiveActivityManager()
+        }
+        return nil
+    }()
 
     init() {
         WorkoutDay.allCases.forEach { exercises[$0] = [] }
@@ -67,8 +76,51 @@ class WorkoutViewModel: ObservableObject {
     func updateBodyWeight(for date: Date, weight: Double) { let key = Calendar.current.startOfDay(for: date); bodyWeightHistory[key] = weight; saveData() }
     func bodyWeightForDate(_ date: Date) -> Double? { let key = Calendar.current.startOfDay(for: date); return bodyWeightHistory[key] }
     func progressForDay(_ day: WorkoutDay) -> Double { let arr = exercises[day] ?? []; let total = arr.reduce(0) { $0 + $1.totalSets }; let done = arr.reduce(0) { $0 + $1.completedSets }; return total > 0 ? Double(done) / Double(total) : 0 }
-    func startRestTimer() { timerActive = true; timeRemaining = restDuration; timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in if self.timeRemaining > 0 { self.timeRemaining -= 1 } else { self.stopTimer(); AudioServicesPlaySystemSound(1057) } } }
-    func stopTimer() { timer?.invalidate(); timer = nil; timerActive = false; timeRemaining = restDuration }
+    func startRestTimer() { 
+        timerActive = true
+        timeRemaining = restDuration
+        
+        // Iniciar Live Activity si está disponible
+        Task { @MainActor in
+            if #available(iOS 16.1, *) {
+                liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: restDuration)
+            }
+        }
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in 
+            if self.timeRemaining > 0 { 
+                self.timeRemaining -= 1
+                
+                // Actualizar Live Activity
+                Task { @MainActor in
+                    if #available(iOS 16.1, *) {
+                        self.liveActivityManager?.updateTimerActivity(
+                            timeRemaining: self.timeRemaining,
+                            totalTime: self.restDuration,
+                            isActive: true
+                        )
+                    }
+                }
+            } else { 
+                self.stopTimer()
+                AudioServicesPlaySystemSound(1057)
+            }
+        }
+    }
+    
+    func stopTimer() { 
+        timer?.invalidate()
+        timer = nil
+        timerActive = false
+        timeRemaining = restDuration
+        
+        // Terminar Live Activity
+        Task { @MainActor in
+            if #available(iOS 16.1, *) {
+                liveActivityManager?.endTimerActivity()
+            }
+        }
+    }
     private func loadData() { let d = JSONDecoder(); if let data = userDefaults.data(forKey: "WorkoutData"), let dec = try? d.decode([WorkoutDay: [Exercise]].self, from: data) { exercises = dec }; if let data = userDefaults.data(forKey: "WorkoutHistory"), let dec = try? d.decode([Date: [WorkoutDay: [Exercise]]].self, from: data) { workoutHistory = dec }; if let data = userDefaults.data(forKey: "BodyWeightHistory"), let dec = try? d.decode([Date: Double].self, from: data) { bodyWeightHistory = dec }; if let data = userDefaults.data(forKey: "ActiveDays"), let dec = try? d.decode([WorkoutDay].self, from: data) { activeDays = dec }; restDuration = userDefaults.object(forKey: "RestDuration") as? Int ?? 120 }
     func resetAllData() { self.exercises = [:]; self.workoutHistory = [:]; self.bodyWeightHistory = [:]; self.activeDays = WorkoutDay.allCases; WorkoutDay.allCases.forEach { exercises[$0] = [] }; userDefaults.removeObject(forKey: "WorkoutData"); userDefaults.removeObject(forKey: "WorkoutHistory"); userDefaults.removeObject(forKey: "BodyWeightHistory"); userDefaults.removeObject(forKey: "ActiveDays"); }
     
@@ -225,10 +277,28 @@ class WorkoutViewModel: ObservableObject {
         timeRemaining = duration
         timerActive = true
         
+        // Iniciar Live Activity si está disponible
+        Task { @MainActor in
+            if #available(iOS 16.1, *) {
+                liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration)
+            }
+        }
+        
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             DispatchQueue.main.async {
                 if self.timeRemaining > 0 {
                     self.timeRemaining -= 1
+                    
+                    // Actualizar Live Activity
+                    Task { @MainActor in
+                        if #available(iOS 16.1, *) {
+                            self.liveActivityManager?.updateTimerActivity(
+                                timeRemaining: self.timeRemaining,
+                                totalTime: duration,
+                                isActive: true
+                            )
+                        }
+                    }
                 } else {
                     self.completeTimer()
                 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfileView: View {
     @EnvironmentObject var userManager: UserManager
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var workoutViewModel: WorkoutViewModel
     @State private var showingProfileEdit = false
     
     private func calculateBMI() -> String {
@@ -17,19 +18,99 @@ struct ProfileView: View {
         return String(format: "%.1f", bmi)
     }
     
+    private func getWeeklyCompletedWorkouts() -> Int {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        
+        var completedWorkouts = 0
+        for (_, exercises) in workoutViewModel.exercises {
+            for exercise in exercises {
+                if let lastCompleted = exercise.lastSetCompletedAt,
+                   lastCompleted >= startOfWeek {
+                    completedWorkouts += exercise.completedSets
+                }
+            }
+        }
+        return completedWorkouts
+    }
+    
+    private func getWeeklyWorkoutTime() -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        
+        var totalMinutes = 0
+        for (_, exercises) in workoutViewModel.exercises {
+            for exercise in exercises {
+                if let lastCompleted = exercise.lastSetCompletedAt,
+                   lastCompleted >= startOfWeek {
+                    // Estimamos 2 minutos por set completado
+                    totalMinutes += exercise.completedSets * 2
+                }
+            }
+        }
+        
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+    
+    private func getWeeklyProgress() -> Double {
+        let completedWorkouts = getWeeklyCompletedWorkouts()
+        // Objetivo semanal de 15 entrenamientos (3 ejercicios x 5 días)
+        let weeklyGoal = 15
+        return min(Double(completedWorkouts) / Double(weeklyGoal), 1.0)
+    }
+    
+    private func getWeeklyTimeProgress() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        
+        var totalMinutes = 0
+        for (_, exercises) in workoutViewModel.exercises {
+            for exercise in exercises {
+                if let lastCompleted = exercise.lastSetCompletedAt,
+                   lastCompleted >= startOfWeek {
+                    totalMinutes += exercise.completedSets * 2
+                }
+            }
+        }
+        
+        // Objetivo semanal de 300 minutos (5 horas)
+        let weeklyGoalMinutes = 300
+        return min(Double(totalMinutes) / Double(weeklyGoalMinutes), 1.0)
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
                 AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                 
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 30) {
                         // Header del perfil
                         VStack(spacing: 20) {
                             // Foto de perfil
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 100))
-                                .foregroundColor(AppColors.primary)
+                            if let imageData = userManager.profileImageData,
+                               let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 100, height: 100)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(AppColors.primary, lineWidth: 3))
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 100))
+                                    .foregroundColor(AppColors.primary)
+                            }
                             
                             // Nombre
                             Text(userManager.currentUserName.isEmpty ? "Usuario" : userManager.currentUserName)
@@ -110,17 +191,17 @@ struct ProfileView: View {
                             VStack(spacing: 12) {
                                 ProfileProgressCard(
                                     title: "Entrenamientos completados",
-                                    value: "12",
+                                    value: "\(getWeeklyCompletedWorkouts())",
                                     subtitle: "Esta semana",
-                                    progress: 0.6,
+                                    progress: getWeeklyProgress(),
                                     themeManager: themeManager
                                 )
                                 
                                 ProfileProgressCard(
                                     title: "Tiempo total de ejercicio",
-                                    value: "4h 30m",
+                                    value: getWeeklyWorkoutTime(),
                                     subtitle: "Esta semana",
-                                    progress: 0.8,
+                                    progress: getWeeklyTimeProgress(),
                                     themeManager: themeManager
                                 )
                             }
@@ -128,6 +209,7 @@ struct ProfileView: View {
                         .padding(.horizontal)
                     }
                     .padding(.bottom, 20)
+                    .padding(.top, 8) // Agregar padding superior para evitar que se corte con la isla
                 }
             }
             .navigationTitle("Mi Perfil")
@@ -148,24 +230,27 @@ struct ProfileInfoCard: View {
     @EnvironmentObject var themeManager: ThemeManager
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 24))
+                .font(.system(size: 36, weight: .medium))
                 .foregroundColor(AppColors.primary)
+                .frame(height: 45)
             
             Text(title)
-                .font(AppFonts.caption)
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                .lineLimit(1)
             
             Text(value)
-                .font(AppFonts.body)
+                .font(.system(size: 16, weight: .bold))
                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                .fontWeight(.semibold)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, minHeight: 120)
-        .padding()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 16)
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)

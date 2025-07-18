@@ -12,6 +12,7 @@ struct ProfileEditView: View {
     @State private var weight: String = ""
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var profileImage: Image?
+    @State private var profileImageData: Data?
     
     var body: some View {
         NavigationStack {
@@ -144,6 +145,7 @@ struct ProfileEditView: View {
                 if let data = try? await newValue?.loadTransferable(type: Data.self),
                    let uiImage = UIImage(data: data) {
                     profileImage = Image(uiImage: uiImage)
+                    profileImageData = data
                 }
             }
         }
@@ -154,6 +156,13 @@ struct ProfileEditView: View {
         age = userManager.userAge
         height = userManager.userHeight  
         weight = userManager.userWeight
+        
+        // Cargar la imagen actual si existe
+        if let imageData = userManager.profileImageData,
+           let uiImage = UIImage(data: imageData) {
+            profileImage = Image(uiImage: uiImage)
+            profileImageData = imageData
+        }
     }
     
     private func saveProfile() {
@@ -161,7 +170,8 @@ struct ProfileEditView: View {
             name: name, 
             age: age, 
             height: height, 
-            weight: weight
+            weight: weight,
+            imageData: profileImageData
         )
         dismiss()
     }

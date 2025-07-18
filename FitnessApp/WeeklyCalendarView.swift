@@ -7,6 +7,7 @@ struct WeeklyCalendarView: View {
     @State private var selectedDay: WorkoutDay = .monday
     @State private var showingCompactTimer = false
     @State private var timerDuration = 60
+    var onNavigateToAddExercise: (() -> Void)?
     
     private var daysWithExercises: [WorkoutDay] {
         WorkoutDay.allCases.sorted { d1, d2 in
@@ -77,6 +78,27 @@ struct WeeklyCalendarView: View {
                                         .font(AppFonts.caption)
                                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                         .multilineTextAlignment(.center)
+                                    
+                                    // Botón para navegar a añadir ejercicios
+                                    Button(action: {
+                                        onNavigateToAddExercise?()
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "plus.circle.fill")
+                                                .foregroundColor(.white)
+                                                .font(.system(size: 16))
+                                            Text("Añadir Ejercicio")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(AppColors.primary)
+                                        .cornerRadius(12)
+                                        .shadow(color: AppColors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
+                                    }
+                                    .padding(.horizontal, 40)
+                                    .padding(.top, 8)
                                 }
                                 .padding(.top, 60)
                             }

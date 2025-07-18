@@ -10,6 +10,8 @@ import SwiftUI
 struct StatsCardsView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
+    let onNavigateToBestDay: (WorkoutDay) -> Void
+    let onNavigateToExercises: () -> Void
     
     var body: some View {
         LazyVGrid(columns: [
@@ -21,7 +23,8 @@ struct StatsCardsView: View {
                 iconColor: AppColors.danger,
                 title: "Racha",
                 value: "\(viewModel.consecutiveWorkoutDays())",
-                subtitle: "días seguidos"
+                subtitle: "días seguidos",
+                onTap: nil
             )
             
             StatCard(
@@ -29,7 +32,12 @@ struct StatsCardsView: View {
                 iconColor: AppColors.primary,
                 title: "Mejor día",
                 value: bestDayName(),
-                subtitle: "\(Int(bestDayProgress() * 100))% completado"
+                subtitle: "\(Int(bestDayProgress() * 100))% completado",
+                onTap: {
+                    if let bestDay = viewModel.bestWorkoutDay() {
+                        onNavigateToBestDay(bestDay)
+                    }
+                }
             )
             
             StatCard(
@@ -37,7 +45,8 @@ struct StatsCardsView: View {
                 iconColor: AppColors.accentCyan,
                 title: "Ejercicios",
                 value: "\(viewModel.totalUniqueExercises())",
-                subtitle: "únicos"
+                subtitle: "únicos",
+                onTap: onNavigateToExercises
             )
             
             StatCard(
@@ -45,7 +54,8 @@ struct StatsCardsView: View {
                 iconColor: AppColors.success,
                 title: "Tiempo",
                 value: "\(viewModel.estimatedWeeklyWorkoutTime())",
-                subtitle: "min semanales"
+                subtitle: "min semanales",
+                onTap: nil
             )
         }
     }
@@ -73,36 +83,43 @@ struct StatCard: View {
     let title: String
     let value: String
     let subtitle: String
+    let onTap: (() -> Void)?
     @EnvironmentObject var themeManager: ThemeManager
     
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(iconColor)
-                    .font(.system(size: 20))
+        Button(action: {
+            onTap?()
+        }) {
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: icon)
+                        .foregroundColor(iconColor)
+                        .font(.system(size: 20))
+                    Spacer()
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    
+                    Text(value)
+                        .font(.title2.bold())
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
                 Spacer()
             }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                
-                Text(value)
-                    .font(.title2.bold())
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Spacer()
+            .frame(height: 120)
+            .padding()
+            .cardStyle(isDarkMode: themeManager.isDarkMode)
         }
-        .frame(height: 120)
-        .padding()
-        .cardStyle(isDarkMode: themeManager.isDarkMode)
+        .disabled(onTap == nil)
+        .buttonStyle(PlainButtonStyle())
     }
 }
