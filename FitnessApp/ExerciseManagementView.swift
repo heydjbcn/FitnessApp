@@ -551,8 +551,6 @@ struct ExerciseEditView: View {
                             }
                         }
                         .padding(.vertical, 8)
-                        .background(AppColors.background(isDark: themeManager.isDarkMode))
-                        .cornerRadius(8)
                     }
                     
                     // Botón de eliminar ejercicio
@@ -929,8 +927,6 @@ struct AddExerciseForm: View {
                     }
                 }
                 .padding(.vertical, 8)
-                .background(AppColors.background(isDark: themeManager.isDarkMode))
-                .cornerRadius(8)
             }
             
             // Botón para añadir ejercicio
@@ -966,11 +962,11 @@ struct AddExerciseForm: View {
                 .padding(.vertical, 14)
                 .background(
                     (name.isEmpty || selectedDays.isEmpty) ? 
-                    Color.gray.opacity(0.6) : AppColors.primary
+                    Color.gray.opacity(0.6) : Color.green
                 )
                 .cornerRadius(12)
                 .shadow(color: (name.isEmpty || selectedDays.isEmpty) ? 
-                       Color.clear : AppColors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
+                       Color.clear : Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
             }
             .disabled(name.isEmpty || selectedDays.isEmpty)
             .alert(alertMessage, isPresented: $showingAlert) {

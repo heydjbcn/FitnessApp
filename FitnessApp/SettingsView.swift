@@ -1,7 +1,8 @@
 import SwiftUI
 
 enum SettingsTab: String, CaseIterable {
-    case configuration = "Añadir Ejercicio"
+    case configuration = "Configuración"
+    case addExercise = "Añadir Ejercicio"
     case exercises = "Ejercicios"
 }
 
@@ -76,6 +77,7 @@ struct FocusModeSettingsCard: View {
 struct SettingsView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var userManager: UserManager
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: SettingsTab = .configuration
     @State private var showingResetAlert = false
@@ -99,8 +101,11 @@ struct SettingsView: View {
                 
                 // Contenido según la pestaña seleccionada
                 TabView(selection: $selectedTab) {
-                    configurationView
+                    configurationMainView
                         .tag(SettingsTab.configuration)
+                    
+                    configurationView
+                        .tag(SettingsTab.addExercise)
                     
                     ExerciseManagementView()
                         .environmentObject(viewModel)
@@ -141,11 +146,85 @@ struct SettingsView: View {
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
     }
     
+    private var configurationMainView: some View {
+        ZStack(alignment: .top) {
+            AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 16) {
+                    // Card para modo enfoque
+                    FocusModeSettingsCard()
+                        .environmentObject(themeManager)
+                    
+                    // Card para tutorial
+                    VStack(spacing: 12) {
+                        Text("Tutorial")
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        
+                        Button(action: {
+                            viewModel.onboardingManager.resetOnboarding()
+                            viewModel.onboardingManager.startOnboarding()
+                            dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "questionmark.circle")
+                                Text("Ver Tutorial")
+                                    .font(AppFonts.body)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(AppColors.primary)
+                    }
+                    .padding()
+                    .cardStyle(isDarkMode: themeManager.isDarkMode)
+                }
+                .padding(.horizontal)
+                .padding(.top, 16)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+    
     private var configurationView: some View {
         ZStack(alignment: .top) {
             AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 8) { // Reducido de 16 a 8
+                    // Card para personalización de colores
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Color de Acento")
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        
+                        Text("Selecciona el color principal de la app")
+                            .font(AppFonts.caption)
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .padding(.bottom, 8)
+                        
+                        // Paleta de colores (las bolitas)
+                        HStack(spacing: 8) {
+                            ForEach(AccentColor.allCases, id: \.id) { color in
+                                Button(action: {
+                                    themeManager.setAccentColor(color)
+                                }) {
+                                    Circle()
+                                        .fill(color.color)
+                                        .frame(width: 30, height: 30)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 2)
+                                        )
+                                        .scaleEffect(themeManager.selectedAccentColor == color ? 1.1 : 1.0)
+                                        .animation(.spring(), value: themeManager.selectedAccentColor)
+                                }
+                            }
+                            Spacer() // Empuja las bolitas a la izquierda
+                        }
+                    }
+                    .padding()
+                    .cardStyle(isDarkMode: themeManager.isDarkMode)
+                    
                     // Card combinado para añadir ejercicios y timer
                     VStack(spacing: 20) {
                         // Sección para días/ejercicios
@@ -228,10 +307,6 @@ struct SettingsView: View {
                     }
                     .padding()
                     .cardStyle(isDarkMode: themeManager.isDarkMode)
-
-                    // Card para configuración de modo de enfoque
-                    FocusModeSettingsCard()
-                        .environmentObject(themeManager)
 
                     // Card para gestión de datos
                     VStack(spacing: 12) {
