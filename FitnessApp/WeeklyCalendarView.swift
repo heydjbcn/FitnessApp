@@ -4,14 +4,26 @@ struct WeeklyCalendarView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
-    @State private var selectedDay: WorkoutDay = .monday
-    @State private var showingCompactTimer = false
-    @State private var timerDuration = 60
+    @State private var selectedDay: WorkoutDay = getCurrentDay()
     var onNavigateToAddExercise: (() -> Void)?
     
     private var daysWithExercises: [WorkoutDay] {
         WorkoutDay.allCases.sorted { d1, d2 in
             WorkoutDay.allCases.firstIndex(of: d1)! < WorkoutDay.allCases.firstIndex(of: d2)!
+        }
+    }
+    
+    // Función para obtener el día actual
+    static func getCurrentDay() -> WorkoutDay {
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        // weekday: 1 = domingo, 2 = lunes, 3 = martes, 4 = miércoles, 5 = jueves, 6 = viernes, 7 = sábado
+        switch weekday {
+        case 2: return .monday
+        case 3: return .tuesday
+        case 4: return .wednesday
+        case 5: return .thursday
+        case 6: return .friday
+        default: return .monday // Por defecto lunes si es fin de semana
         }
     }
     
@@ -33,7 +45,7 @@ struct WeeklyCalendarView: View {
                             DayCard(
                                 day: day,
                                 isSelected: selectedDay == day,
-                                exerciseCount: viewModel.exercises[day]?.count ?? 0,
+                                exerciseCount: viewModel.dailyWorkoutRecords[day]?.count ?? 0,
                                 themeManager: themeManager
                             ) {
                                 selectedDay = day
@@ -48,21 +60,27 @@ struct WeeklyCalendarView: View {
                     ScrollView {
                         VStack(spacing: 20) {
                             // Lista de ejercicios
-                            if let exercises = viewModel.exercises[selectedDay], !exercises.isEmpty {
+                            if let workoutRecords = viewModel.dailyWorkoutRecords[selectedDay], !workoutRecords.isEmpty {
                                 LazyVStack(spacing: 16) {
-                                    ForEach(exercises, id: \.id) { exercise in
-                                        CalendarExerciseCard(
-                                            exercise: exercise,
-                                            themeManager: themeManager,
-                                            onTimerStart: { duration in
-                                                timerDuration = duration
-                                                showingCompactTimer = true
-                                                viewModel.startTimer(duration: duration)
-                                            }
-                                        )
+                                    ForEach(workoutRecords, id: \.id) { workoutRecord in
+                                        if let exercise = viewModel.getExercise(by: workoutRecord.exerciseId) {
+                                            CalendarExerciseCard(
+                                                exercise: exercise,
+                                                workoutRecord: workoutRecord,
+                                                themeManager: themeManager,
+                                                onTimerStart: { duration in
+                                                    viewModel.startTimer(duration: duration, isEnabled: themeManager.isTimerEnabled)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                                 .padding(.horizontal)
+                                .onboardingHighlight(
+                                    isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                                                 viewModel.onboardingManager.onboardingStep == 4 &&
+                                                 OnboardingManager.onboardingSteps[4].highlightArea == .calendar
+                                )
                             } else {
                                 // Vista vacía
                                 VStack(spacing: 16) {
@@ -81,6 +99,7 @@ struct WeeklyCalendarView: View {
                                     
                                     // Botón para navegar a añadir ejercicios
                                     Button(action: {
+                                        HapticManager.shared.buttonTapped()
                                         onNavigateToAddExercise?()
                                     }) {
                                         HStack {
@@ -93,9 +112,9 @@ struct WeeklyCalendarView: View {
                                         }
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 12)
-                                        .background(AppColors.primary)
+                                        .background(AppColors.primary(themeManager: themeManager))
                                         .cornerRadius(12)
-                                        .shadow(color: AppColors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
+                                        .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
                                     }
                                     .padding(.horizontal, 40)
                                     .padding(.top, 8)
@@ -108,26 +127,24 @@ struct WeeklyCalendarView: View {
                 }
                 
                 // Timer compacto overlay
-                if showingCompactTimer {
+                if viewModel.timerActive {
                     ZStack {
                         // Fondo semi-transparente
                         Color.black.opacity(0.5)
                             .ignoresSafeArea()
                             .onTapGesture {
-                                showingCompactTimer = false
                                 viewModel.stopTimer()
                             }
                         
                         VStack {
                             Spacer()
                             CompactTimerView(
-                                duration: timerDuration,
                                 onStop: {
-                                    showingCompactTimer = false
                                     viewModel.stopTimer()
                                 }
                             )
                             .environmentObject(themeManager)
+                            .environmentObject(viewModel)
                             .padding(.bottom, 100) // Encima de la barra de tabs
                             Spacer()
                         }
@@ -137,6 +154,10 @@ struct WeeklyCalendarView: View {
             }
             .navigationTitle("Calendario Semanal")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // Sincronizar el estado del timer con ThemeManager
+                viewModel.updateTimerEnabledState(themeManager.isTimerEnabled)
+            }
         }
     }
     
@@ -162,7 +183,7 @@ struct DayCard: View {
             VStack(spacing: 8) {
                 Image(systemName: dayIcon(for: day))
                     .font(.title2)
-                    .foregroundColor(isSelected ? .white : AppColors.primary)
+                    .foregroundColor(isSelected ? .white : AppColors.primary(themeManager: themeManager))
                 
                 Text(dayShortName(for: day))
                     .font(AppFonts.caption)
@@ -181,11 +202,11 @@ struct DayCard: View {
             }
             .frame(maxWidth: .infinity, minHeight: 80)
             .padding(.vertical, 8)
-            .background(isSelected ? AppColors.primary : AppColors.cardBackground(isDark: themeManager.isDarkMode))
+            .background(isSelected ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: themeManager.isDarkMode))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? AppColors.primary : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? AppColors.primary(themeManager: themeManager) : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -208,9 +229,11 @@ struct DayCard: View {
 
 struct CalendarExerciseCard: View {
     let exercise: Exercise
+    let workoutRecord: WorkoutExercise
     let themeManager: ThemeManager
     let onTimerStart: (Int) -> Void
     @EnvironmentObject var viewModel: WorkoutViewModel
+    @State private var showingTooltip = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -221,15 +244,25 @@ struct CalendarExerciseCard: View {
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .fontWeight(.semibold)
                 
+                // Botón de información para tooltip
+                Button(action: {
+                    showingTooltip = true
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                }
+                .buttonStyle(PlainButtonStyle())
+                
                 Spacer()
                 
                 if exercise.weight > 0 {
                     Text("\(Int(exercise.weight)) kg")
                         .font(AppFonts.caption)
-                        .foregroundColor(AppColors.primary)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(AppColors.primary.opacity(0.1))
+                        .background(AppColors.primary(themeManager: themeManager).opacity(0.1))
                         .cornerRadius(8)
                 }
             }
@@ -242,7 +275,7 @@ struct CalendarExerciseCard: View {
                 
                 Spacer()
                 
-                Text("\(exercise.totalSets) sets")
+                Text("\(exercise.totalSets) series")
                     .font(AppFonts.caption)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
@@ -255,13 +288,17 @@ struct CalendarExerciseCard: View {
                     }) {
                         ZStack {
                             Circle()
-                                .fill(setIndex < exercise.completedSets ? AppColors.primary : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
+                                .fill(setIndex < workoutRecord.completedSets ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
                                 .frame(width: 32, height: 32)
+                                .scaleEffect(setIndex < workoutRecord.completedSets ? 1.1 : 1.0)
+                                .animation(.spring(response: 0.4, dampingFraction: 0.6, blendDuration: 0), value: workoutRecord.completedSets)
                             
-                            if setIndex < exercise.completedSets {
+                            if setIndex < workoutRecord.completedSets {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(.white)
+                                    .scaleEffect(setIndex < workoutRecord.completedSets ? 1.0 : 0.1)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.1), value: workoutRecord.completedSets)
                             } else {
                                 Text("\(setIndex + 1)")
                                     .font(.system(size: 12, weight: .semibold))
@@ -271,53 +308,91 @@ struct CalendarExerciseCard: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
+                .onboardingHighlight(
+                    isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                                 viewModel.onboardingManager.onboardingStep == 5 &&
+                                 OnboardingManager.onboardingSteps[5].highlightArea == .setButtons
+                )
                 
                 Spacer()
                 
                 // Botón de timer
                 Button(action: {
-                    onTimerStart(exercise.restDuration)
+                    HapticManager.shared.buttonTapped()
+                    if themeManager.isTimerEnabled {
+                        onTimerStart(exercise.restDuration)
+                    }
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "timer")
                         Text("\(exercise.restDuration)s")
                     }
                     .font(AppFonts.caption)
-                    .foregroundColor(.white)
+                    .foregroundColor(themeManager.isTimerEnabled ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(AppColors.primary)
+                    .background(themeManager.isTimerEnabled ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
                     .cornerRadius(16)
                 }
+                .disabled(!themeManager.isTimerEnabled)
             }
         }
         .padding()
         .cardStyle(isDarkMode: themeManager.isDarkMode)
+        .alert(exercise.name, isPresented: $showingTooltip) {
+            Button("Cerrar", role: .cancel) { }
+        } message: {
+            VStack(alignment: .leading, spacing: 8) {
+                if !exercise.info.isEmpty {
+                    Text(exercise.info)
+                        .font(.system(size: 14))
+                }
+                
+                if exercise.imageData != nil {
+                    Text("📷 Imagen disponible")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                
+                if exercise.info.isEmpty && exercise.imageData == nil {
+                    Text("No hay información adicional disponible")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
     }
     
     private func toggleSetCompletion(setIndex: Int) {
-        viewModel.toggleSetCompletion(exercise: exercise, setIndex: setIndex)
-        
-        // Iniciar timer automáticamente al completar una serie
-        if setIndex == exercise.completedSets {
-            onTimerStart(exercise.restDuration)
+        // Necesitamos encontrar el día para este ejercicio
+        if let day = findDayForWorkoutRecord() {
+            if setIndex == workoutRecord.completedSets {
+                viewModel.completeSet(for: workoutRecord.id, in: day)
+                if themeManager.isTimerEnabled {
+                    onTimerStart(exercise.restDuration)
+                }
+            } else if setIndex == workoutRecord.completedSets - 1 {
+                viewModel.undoLastSet(for: workoutRecord.id, in: day)
+            }
         }
+    }
+    
+    private func findDayForWorkoutRecord() -> WorkoutDay? {
+        for day in WorkoutDay.allCases {
+            if let records = viewModel.dailyWorkoutRecords[day] {
+                if records.contains(where: { $0.id == workoutRecord.id }) {
+                    return day
+                }
+            }
+        }
+        return nil
     }
 }
 
 struct CompactTimerView: View {
-    let duration: Int
     let onStop: () -> Void
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var viewModel: WorkoutViewModel
-    @State private var timeRemaining: Int
-    @State private var timer: Timer?
-    
-    init(duration: Int, onStop: @escaping () -> Void) {
-        self.duration = duration
-        self.onStop = onStop
-        self._timeRemaining = State(initialValue: duration)
-    }
     
     var body: some View {
         VStack(spacing: 20) {
@@ -329,13 +404,13 @@ struct CompactTimerView: View {
                 
                 Circle()
                     .trim(from: 0, to: progress)
-                    .stroke(AppColors.primary, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .stroke(AppColors.primary(themeManager: themeManager), style: StrokeStyle(lineWidth: 8, lineCap: .round))
                     .frame(width: 120, height: 120)
                     .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: timeRemaining)
+                    .animation(.linear(duration: 1), value: viewModel.timeRemaining)
                 
                 VStack(spacing: 4) {
-                    Text("\(timeRemaining)")
+                    Text("\(viewModel.timeRemaining)")
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     
@@ -351,14 +426,14 @@ struct CompactTimerView: View {
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 
                 Button("Parar Timer") {
-                    stopTimer()
+                    viewModel.stopTimer()
                     onStop()
                 }
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.white)
                 .padding(.horizontal, 32)
                 .padding(.vertical, 12)
-                .background(AppColors.primary)
+                .background(AppColors.primary(themeManager: themeManager))
                 .cornerRadius(25)
             }
         }
@@ -367,33 +442,11 @@ struct CompactTimerView: View {
         .cornerRadius(24)
         .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 6)
         .padding(.horizontal, 32)
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
-        }
     }
     
     private var progress: CGFloat {
-        guard duration > 0 else { return 0 }
-        return CGFloat(duration - timeRemaining) / CGFloat(duration)
-    }
-    
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-            } else {
-                stopTimer()
-                onStop()
-            }
-        }
-    }
-    
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+        guard viewModel.currentTimerDuration > 0 else { return 0 }
+        return CGFloat(viewModel.currentTimerDuration - viewModel.timeRemaining) / CGFloat(viewModel.currentTimerDuration)
     }
 }
 
@@ -403,12 +456,14 @@ struct DailyProgressContainer: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
     
-    private var dayExercises: [Exercise] {
-        viewModel.exercises[day] ?? []
+    private var dayExercises: [WorkoutExercise] {
+        viewModel.dailyWorkoutRecords[day] ?? []
     }
     
     private var totalSets: Int {
-        dayExercises.map { $0.totalSets }.reduce(0, +)
+        dayExercises.compactMap { record in
+            viewModel.getExercise(by: record.exerciseId)?.totalSets
+        }.reduce(0, +)
     }
     
     private var completedSets: Int {
@@ -416,11 +471,21 @@ struct DailyProgressContainer: View {
     }
     
     private var totalWeight: Double {
-        dayExercises.map { $0.weight * Double($0.completedSets) }.reduce(0, +)
+        dayExercises.compactMap { record in
+            if let exercise = viewModel.getExercise(by: record.exerciseId) {
+                return exercise.weight * Double(record.completedSets)
+            }
+            return 0
+        }.reduce(0, +)
     }
     
     private var totalReps: Int {
-        dayExercises.map { $0.repetitions * $0.completedSets }.reduce(0, +)
+        dayExercises.compactMap { record in
+            if let exercise = viewModel.getExercise(by: record.exerciseId) {
+                return exercise.repetitions * record.completedSets
+            }
+            return 0
+        }.reduce(0, +)
     }
     
     private var estimatedMinutes: Int {

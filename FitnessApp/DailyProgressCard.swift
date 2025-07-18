@@ -90,12 +90,14 @@ extension WorkoutDay {
 }
 
 extension DailyProgressCard {
-    private var exercisesForDay: [Exercise] {
-        viewModel.exercises[day] ?? []
+    private var exercisesForDay: [WorkoutExercise] {
+        viewModel.dailyWorkoutRecords[day] ?? []
     }
     
     private var totalSets: Int {
-        exercisesForDay.map { $0.totalSets }.reduce(0, +)
+        exercisesForDay.compactMap { record in
+            viewModel.getExercise(by: record.exerciseId)?.totalSets
+        }.reduce(0, +)
     }
     
     private var completedSets: Int {
@@ -108,7 +110,9 @@ extension DailyProgressCard {
     }
     
     private var estimatedMinutes: Int {
-        exercisesForDay.map { $0.totalSets * 2 }.reduce(0, +) // Estimamos 2 minutos por serie
+        exercisesForDay.compactMap { record in
+            viewModel.getExercise(by: record.exerciseId)?.totalSets
+        }.reduce(0, +) * 2 // Estimamos 2 minutos por serie
     }
 }
 

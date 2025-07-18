@@ -71,7 +71,12 @@ struct NameInputView: View {
     private func saveNameIfValid() {
         let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedName.isEmpty {
+            // Haptic feedback para guardar nombre
+            HapticManager.shared.success()
             userManager.saveUserProfile(name: trimmedName, age: "", height: "", weight: "")
+        } else {
+            // Haptic feedback para error si el nombre está vacío
+            HapticManager.shared.error()
         }
     }
 }

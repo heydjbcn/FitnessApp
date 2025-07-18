@@ -13,7 +13,7 @@ struct WorkoutDayView: View {
     @EnvironmentObject var userManager: UserManager
     let day: WorkoutDay
 
-    private var exercisesForDay: [Exercise] { viewModel.exercises[day] ?? [] }
+    private var exercisesForDay: [WorkoutExercise] { viewModel.dailyWorkoutRecords[day] ?? [] }
     private var progress: Double { viewModel.progressForDay(day) }
 
     var body: some View {
@@ -41,10 +41,11 @@ struct WorkoutDayView: View {
                                     .padding(.top, 40)
                             } else {
                                 LazyVStack(spacing: 12) {
-                                    ForEach(exercisesForDay) { exercise in
-                                        ExerciseCardView(exercise: exercise, day: day)
-                                            .environmentObject(viewModel)
-                                            .padding(.horizontal)
+                                    ForEach(exercisesForDay) { workoutRecord in
+                                        if let exercise = viewModel.getExercise(by: workoutRecord.exerciseId) {
+                                            ExerciseCardView(workoutRecord: workoutRecord, exercise: exercise, day: day)
+                                                .environmentObject(viewModel)
+                                        }
                                     }
                                 }
                                 .padding(.vertical, 8)
@@ -79,7 +80,12 @@ struct WorkoutDayView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(day.rawValue).font(.title2.weight(.bold)).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 HStack(spacing: 16) {
-                    let doneCount = exercisesForDay.filter { $0.isCompleted }.count
+                    let doneCount = exercisesForDay.compactMap { record in
+                        if let baseExercise = viewModel.getExercise(by: record.exerciseId) {
+                            return record.completedSets >= baseExercise.totalSets ? 1 : 0
+                        }
+                        return 0
+                    }.reduce(0, +)
                     Text("\(doneCount) Hechos").font(.subheadline.weight(.medium)).foregroundColor(AppColors.success)
                     Text("\(exercisesForDay.count) Total").font(.subheadline.weight(.medium)).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }

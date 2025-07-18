@@ -29,7 +29,7 @@ struct StatsCardsView: View {
             
             StatCard(
                 icon: "trophy.fill",
-                iconColor: AppColors.primary,
+                iconColor: AppColors.primary(themeManager: themeManager),
                 title: "Mejor día",
                 value: bestDayName(),
                 subtitle: "\(Int(bestDayProgress() * 100))% completado",

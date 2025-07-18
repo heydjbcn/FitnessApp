@@ -32,7 +32,7 @@ struct CustomCalendarView: View {
             HStack {
                 Button(action: previousMonth) {
                     Image(systemName: "chevron.left")
-                        .foregroundColor(AppColors.primary)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18, weight: .semibold))
                 }
                 
@@ -46,7 +46,7 @@ struct CustomCalendarView: View {
                 
                 Button(action: nextMonth) {
                     Image(systemName: "chevron.right")
-                        .foregroundColor(AppColors.primary)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18, weight: .semibold))
                 }
             }
@@ -54,8 +54,8 @@ struct CustomCalendarView: View {
             
             // Días de la semana
             HStack {
-                ForEach(weekdays, id: \.self) { weekday in
-                    Text(weekday)
+                ForEach(Array(zip(calendar.shortWeekdaySymbols, weekdays)), id: \.0) { (fullName, initial) in
+                    Text(initial)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         .frame(maxWidth: .infinity)
@@ -65,7 +65,7 @@ struct CustomCalendarView: View {
             // Grid de días
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
                 ForEach(daysInMonth, id: \.self) { date in
-                    DayView(date: date, selectedDate: $selectedDate)
+                    DayView(date: date, selectedDate: $selectedDate, currentMonth: currentMonth)
                         .environmentObject(themeManager)
                 }
             }
@@ -74,6 +74,12 @@ struct CustomCalendarView: View {
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(20)
         .shadow(color: Color.black.opacity(0.09), radius: 12, x: 0, y: 6)
+        .onAppear {
+            // Asegurar que currentMonth se inicialice correctamente
+            if selectedDate == nil {
+                selectedDate = Date()
+            }
+        }
     }
     
     private var weekdays: [String] {
@@ -141,6 +147,7 @@ struct DayView: View {
     let date: Date
     @Binding var selectedDate: Date?
     @EnvironmentObject var themeManager: ThemeManager
+    let currentMonth: Date
     
     private let calendar = Calendar.current
     
@@ -168,14 +175,14 @@ struct DayView: View {
     }
     
     private var isCurrentMonth: Bool {
-        calendar.isDate(date, equalTo: Date(), toGranularity: .month)
+        calendar.isDate(date, equalTo: currentMonth, toGranularity: .month)
     }
     
     private var backgroundColor: Color {
         if isSelected {
-            return AppColors.primary
+            return AppColors.primary(themeManager: themeManager)
         } else if isToday {
-            return AppColors.primary.opacity(0.3)
+            return AppColors.primary(themeManager: themeManager).opacity(0.3)
         } else {
             return Color.clear
         }

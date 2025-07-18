@@ -63,14 +63,16 @@ struct HistoryView: View {
                !historyForDate.values.allSatisfy({ $0.isEmpty }) {
                 let selectedDayName = dayFormatter.string(from: selectedDate)
                 ForEach(historyForDate.keys.sorted { $0.rawValue < $1.rawValue }, id: \.self) { routineDay in
-                    if let exercises = historyForDate[routineDay], !exercises.isEmpty {
+                    if let workoutRecords = historyForDate[routineDay], !workoutRecords.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             if routineDay.rawValue.lowercased() != selectedDayName.lowercased() {
                                 Text("Realizaste la rutina del \(routineDay.rawValue)")
                                     .font(.headline).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)).padding(.horizontal)
                             }
-                            ForEach(exercises) { ex in
-                                historyRow(for: ex)
+                            ForEach(workoutRecords) { workoutRecord in
+                                if let exercise = viewModel.getExercise(by: workoutRecord.exerciseId) {
+                                    historyRow(for: exercise, workoutRecord: workoutRecord)
+                                }
                             }
                         }.padding(.vertical, 8)
                     }
@@ -81,7 +83,7 @@ struct HistoryView: View {
         }
     }
     
-    private func historyRow(for exercise: Exercise) -> some View {
+    private func historyRow(for exercise: Exercise, workoutRecord: WorkoutExercise) -> some View {
         HStack(spacing: 16) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
@@ -97,7 +99,7 @@ struct HistoryView: View {
                 Text(exercise.name.capitalized)
                     .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                Text("\(exercise.completedSets)/\(exercise.totalSets) sets • \(exercise.repetitions) reps • \(String(format: "%.1f", exercise.weight)) kg")
+                Text("\(workoutRecord.completedSets)/\(exercise.totalSets) series • \(exercise.repetitions) reps • \(String(format: "%.1f", exercise.weight)) kg")
                     .font(AppFonts.caption)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }

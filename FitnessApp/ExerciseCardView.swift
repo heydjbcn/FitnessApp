@@ -9,6 +9,7 @@ import SwiftUI
 import UIKit
 
 struct ExerciseCardView: View {
+    let workoutRecord: WorkoutExercise
     let exercise: Exercise
     let day: WorkoutDay
     @EnvironmentObject var viewModel: WorkoutViewModel
@@ -18,13 +19,13 @@ struct ExerciseCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "dumbbell.fill").foregroundColor(AppColors.primary)
+                Image(systemName: "dumbbell.fill").foregroundColor(AppColors.primary(themeManager: themeManager))
                 Text(exercise.name.uppercased()).font(.headline.weight(.bold)).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 Spacer()
                 Button { showInfo = true } label: { Image(systemName: "info.circle.fill").foregroundColor(AppColors.accentCyan) }
                 Button {
-                    if let i = viewModel.exercises[day]?.firstIndex(where: { $0.id == exercise.id }) {
-                        withAnimation { viewModel.removeExercise(from: day, at: i) }
+                    withAnimation { 
+                        viewModel.removeExercise(recordId: workoutRecord.id, from: day)
                     }
                 } label: { Image(systemName: "trash.circle.fill").foregroundColor(AppColors.danger) }
             }
@@ -32,32 +33,32 @@ struct ExerciseCardView: View {
             HStack(spacing: 24) {
                 infoItem(icon: "repeat", text: "\(exercise.repetitions) reps")
                 infoItem(icon: "scalemass.fill", text: String(format: "%.1f kg", exercise.weight))
-                infoItem(icon: "number", text: "\(exercise.completedSets)/\(exercise.totalSets) series", color: exercise.isCompleted ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                infoItem(icon: "number", text: "\(workoutRecord.completedSets)/\(exercise.totalSets) series", color: workoutRecord.completedSets >= exercise.totalSets ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
 
             HStack(spacing: 0) {
                 ForEach(0..<exercise.totalSets, id: \.self) { idx in
                     ZStack {
                         Circle()
-                            .fill(idx < exercise.completedSets ? AppColors.primary : AppColors.primary)
+                            .fill(idx < workoutRecord.completedSets ? AppColors.primary(themeManager: themeManager) : AppColors.primary(themeManager: themeManager).opacity(0.3))
                             .frame(width: 28, height: 28)
                         
-                        if idx < exercise.completedSets {
+                        if idx < workoutRecord.completedSets {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                         } else {
                             Text("\(idx + 1)")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                         }
                     }
                     .onTapGesture {
                         withAnimation(.spring()) {
-                            if idx < exercise.completedSets && idx == exercise.completedSets - 1 {
-                                viewModel.undoLastSet(for: day, exerciseId: exercise.id)
-                            } else if idx == exercise.completedSets {
-                                viewModel.completeSet(for: day, exerciseId: exercise.id)
+                            if idx < workoutRecord.completedSets && idx == workoutRecord.completedSets - 1 {
+                                viewModel.undoLastSet(for: workoutRecord.id, in: day)
+                            } else if idx == workoutRecord.completedSets {
+                                viewModel.completeSet(for: workoutRecord.id, in: day)
                             }
                         }
                     }
@@ -65,7 +66,7 @@ struct ExerciseCardView: View {
                 }
             }
         }
-        .padding().background(AppColors.cardBackground(isDark: themeManager.isDarkMode)).cornerRadius(12).opacity(exercise.isCompleted ? 0.7 : 1.0)
+        .padding().background(AppColors.cardBackground(isDark: themeManager.isDarkMode)).cornerRadius(12).opacity(workoutRecord.completedSets >= exercise.totalSets ? 0.7 : 1.0)
         .sheet(isPresented: $showInfo) {
             ExerciseInfoSheet(exercise: exercise)
         }

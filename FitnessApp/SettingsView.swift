@@ -5,6 +5,74 @@ enum SettingsTab: String, CaseIterable {
     case exercises = "Ejercicios"
 }
 
+struct FocusModeSettingsCard: View {
+    @EnvironmentObject var themeManager: ThemeManager
+    @StateObject private var focusManager = FocusModeManager()
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Modo de Enfoque")
+                .font(AppFonts.subtitle)
+                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+            
+            VStack(spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Mantener pantalla encendida")
+                            .font(AppFonts.body)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        Text("Evita que la pantalla se apague durante entrenamientos")
+                            .font(.caption)
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    }
+                    Spacer()
+                    Toggle("", isOn: $focusManager.keepScreenOn)
+                        .tint(AppColors.primary)
+                }
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Modo de enfoque automático")
+                            .font(AppFonts.body)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        Text("Activa automáticamente durante entrenamientos")
+                            .font(.caption)
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    }
+                    Spacer()
+                    Toggle("", isOn: $focusManager.isActive)
+                        .tint(AppColors.primary)
+                }
+                
+                if focusManager.isActive {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Ocultar barra de pestañas")
+                                .font(AppFonts.body)
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            Spacer()
+                            Toggle("", isOn: $focusManager.hideTabBar)
+                                .tint(AppColors.primary)
+                        }
+                        
+                        HStack {
+                            Text("Reducir brillo de la interfaz")
+                                .font(AppFonts.body)
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            Spacer()
+                            Toggle("", isOn: $focusManager.dimUI)
+                                .tint(AppColors.primary)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+        }
+        .padding()
+        .cardStyle(isDarkMode: themeManager.isDarkMode)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
@@ -58,16 +126,17 @@ struct SettingsView: View {
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(selectedTab == tab ? AppColors.primary : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, alignment: .center)
                         
                         Rectangle()
                             .fill(selectedTab == tab ? AppColors.primary : Color.clear)
                             .frame(height: 2)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal)
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
     }
@@ -106,28 +175,28 @@ struct SettingsView: View {
                                 
                                 HStack(spacing: 16) {
                                     Button("30s") {
-                                        viewModel.restDuration = 30
-                                        viewModel.timeRemaining = viewModel.restDuration
+                                        print("SettingsView: Botón 30s presionado")
+                                        viewModel.updateRestDuration(30)
                                     }
-                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 30, isDarkMode: themeManager.isDarkMode))
+                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 30, isDarkMode: themeManager.isDarkMode, themeManager: themeManager))
                                     
                                     Button("1:00") {
-                                        viewModel.restDuration = 60
-                                        viewModel.timeRemaining = viewModel.restDuration
+                                        print("SettingsView: Botón 1:00 presionado")
+                                        viewModel.updateRestDuration(60)
                                     }
-                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 60, isDarkMode: themeManager.isDarkMode))
+                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 60, isDarkMode: themeManager.isDarkMode, themeManager: themeManager))
                                     
                                     Button("1:30") {
-                                        viewModel.restDuration = 90
-                                        viewModel.timeRemaining = viewModel.restDuration
+                                        print("SettingsView: Botón 1:30 presionado")
+                                        viewModel.updateRestDuration(90)
                                     }
-                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 90, isDarkMode: themeManager.isDarkMode))
+                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 90, isDarkMode: themeManager.isDarkMode, themeManager: themeManager))
                                     
                                     Button("2:00") {
-                                        viewModel.restDuration = 120
-                                        viewModel.timeRemaining = viewModel.restDuration
+                                        print("SettingsView: Botón 2:00 presionado")
+                                        viewModel.updateRestDuration(120)
                                     }
-                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 120, isDarkMode: themeManager.isDarkMode))
+                                    .buttonStyle(RestDurationButtonStyle(isSelected: viewModel.restDuration == 120, isDarkMode: themeManager.isDarkMode, themeManager: themeManager))
                                 }
                                 
                                 // Input personalizado para tiempo
@@ -144,8 +213,9 @@ struct SettingsView: View {
                                         
                                         Button("Aplicar") {
                                             if let seconds = Int(customTimeInput), seconds > 0 {
-                                                viewModel.restDuration = seconds
-                                                viewModel.timeRemaining = viewModel.restDuration
+                                                print("SettingsView: Duración personalizada aplicada: \(seconds) segundos")
+                                                viewModel.updateRestDuration(seconds)
+                                                customTimeInput = ""
                                             }
                                         }
                                         .buttonStyle(.borderedProminent)
@@ -154,6 +224,49 @@ struct SettingsView: View {
                                     }
                                 }
                             }
+                        }
+                    }
+                    .padding()
+                    .cardStyle(isDarkMode: themeManager.isDarkMode)
+
+                    // Card para configuración de modo de enfoque
+                    FocusModeSettingsCard()
+                        .environmentObject(themeManager)
+
+                    // Card para gestión de datos
+                    VStack(spacing: 12) {
+                        Text("Gestión de Datos")
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        
+                        VStack(spacing: 8) {
+                            Button(action: {
+                                viewModel.emergencyCleanup()
+                                HapticManager.shared.selectionFeedback()
+                            }) {
+                                HStack {
+                                    Image(systemName: "trash.circle")
+                                    Text("Limpiar datos antiguos")
+                                        .font(AppFonts.body)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.orange)
+                            
+                            Button(action: {
+                                print(viewModel.getDataSizeInfo())
+                                HapticManager.shared.selectionFeedback()
+                            }) {
+                                HStack {
+                                    Image(systemName: "info.circle")
+                                    Text("Ver información de datos")
+                                        .font(AppFonts.body)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.blue)
                         }
                     }
                     .padding()
@@ -172,7 +285,7 @@ struct SettingsView: View {
                             }
                             .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(PrimaryButtonStyle())
+                        .buttonStyle(PrimaryButtonStyle(themeManager: themeManager))
                     }
                     .padding()
                     .cardStyle(isDarkMode: themeManager.isDarkMode)

@@ -8,7 +8,18 @@ enum AppTheme: String, CaseIterable {
 }
 
 struct AppColors {
-    static let primary = Color(red: 0/255, green: 255/255, blue: 102/255) // Verde brillante (siempre igual)
+    // Color primario dinámico que cambia según el tema seleccionado
+    static func primary(themeManager: ThemeManager) -> Color {
+        themeManager.selectedAccentColor.color
+    }
+    
+    // Función para obtener el color primario dinámico desde ThemeManager (mantener para compatibilidad)
+    static func primaryDynamic(themeManager: ThemeManager) -> Color {
+        themeManager.selectedAccentColor.color
+    }
+    
+    // Color primario estático (fallback) - Verde brillante
+    static let primary = Color(red: 0/255, green: 255/255, blue: 102/255)
     
     // Colores dinámicos que cambian según el tema
     static func background(isDark: Bool) -> Color {

@@ -36,7 +36,7 @@ struct HeaderView: View {
                 } label: { 
                     Image(systemName: "gearshape.fill")
                         .font(.title3)
-                        .foregroundColor(AppColors.primary) 
+                        .foregroundColor(AppColors.primary(themeManager: themeManager)) 
                 }
             }
         }
@@ -48,6 +48,7 @@ struct HeaderView: View {
                     ProgramSettingsView()
                         .environmentObject(themeManager)
                         .environmentObject(userManager)
+                        .environmentObject(viewModel)
                 }
             }
         }

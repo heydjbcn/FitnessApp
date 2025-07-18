@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ExerciseManagementView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
@@ -59,6 +60,11 @@ struct ExerciseManagementView: View {
                             .environmentObject(viewModel)
                             .environmentObject(themeManager)
                     }
+                    .onboardingHighlight(
+                        isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                                     viewModel.onboardingManager.onboardingStep == 3 &&
+                                     OnboardingManager.onboardingSteps[3].highlightArea == .exerciseList
+                    )
                 }
                 
                 // Botón de Reset al final
@@ -72,18 +78,7 @@ struct ExerciseManagementView: View {
     
     // MARK: - Función para obtener todos los ejercicios
     private func getAllExercises() -> [Exercise] {
-        var uniqueExercises: [Exercise] = []
-        var seenIds: Set<UUID> = []
-        
-        for exercises in viewModel.exercises.values {
-            for exercise in exercises {
-                if !seenIds.contains(exercise.id) {
-                    uniqueExercises.append(exercise)
-                    seenIds.insert(exercise.id)
-                }
-            }
-        }
-        return uniqueExercises
+        return viewModel.availableExercises
     }
     
     // MARK: - Vista del Formulario de Añadir Ejercicio
@@ -93,6 +88,12 @@ struct ExerciseManagementView: View {
                 AddExerciseForm()
                     .environmentObject(viewModel)
                     .environmentObject(themeManager)
+                    .onboardingHighlight(
+                        isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                                     (viewModel.onboardingManager.onboardingStep == 1 || 
+                                      viewModel.onboardingManager.onboardingStep == 2) &&
+                                     (OnboardingManager.onboardingSteps[viewModel.onboardingManager.onboardingStep].highlightArea == .addExerciseForm)
+                    )
             }
             .padding(.horizontal, 0)
             .padding(.top, 20)
@@ -127,10 +128,10 @@ struct ExerciseManagementView: View {
             VStack(spacing: 0) {
                 // Título y navegación
                 HStack {
+                    Spacer()
                     Text("Ejercicios")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
                     Spacer()
                 }
                 .padding(.horizontal, 20)
@@ -188,10 +189,10 @@ struct ExerciseManagementView: View {
             VStack(spacing: 0) {
                 // Título y navegación
                 HStack {
+                    Spacer()
                     Text("Añadir Ejercicio")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
                     Spacer()
                 }
                 .padding(.horizontal, 20)
@@ -345,12 +346,12 @@ struct EditableExerciseCard: View {
     // Función para obtener los días donde está configurado el ejercicio
     private func getDaysForExercise(_ exerciseId: UUID) -> [String] {
         var days: [String] = []
-        for (day, exercises) in viewModel.exercises {
-            if exercises.contains(where: { $0.id == exerciseId }) {
-                days.append(day.rawValue)
+        for (day, workoutExercises) in viewModel.dailyWorkoutRecords {
+            if workoutExercises.contains(where: { $0.exerciseId == exerciseId }) {
+                days.append(day.displayName)
             }
         }
-        return days.sorted()
+        return days
     }
     
     // Función para obtener nombre corto del día
@@ -377,10 +378,12 @@ struct ExerciseEditView: View {
     @State private var info: String = ""
     @State private var repetitions: Int = 0
     @State private var weight: Double = 0.0
-    @State private var totalSets: Int = 1
-    @State private var timerMinutes: Int = 0
-    @State private var timerSeconds: Int = 30
+    @State private var totalSets: Int = 4
+    @State private var timerMinutes: Int = 2
+    @State private var timerSeconds: Int = 0
     @State private var showingImagePicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedImageData: Data?
     
     var body: some View {
         NavigationView {
@@ -417,20 +420,38 @@ struct ExerciseEditView: View {
                             .lineLimit(3...6)
                         
                         // Botón para añadir foto
-                        Button(action: {
-                            showingImagePicker = true
-                        }) {
-                            HStack {
-                                Image(systemName: "camera.fill")
-                                    .foregroundColor(.green)
-                                Text("Cambiar Foto")
-                                    .font(.system(size: 14, weight: .medium))
+                        VStack(spacing: 12) {
+                            // Mostrar imagen actual si existe
+                            if let imageData = selectedImageData ?? exercise.imageData,
+                               let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 100, height: 100)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.green, lineWidth: 2)
+                                    )
                             }
-                            .foregroundColor(.green)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.green.opacity(0.1))
-                            .cornerRadius(8)
+                            
+                            PhotosPicker(
+                                selection: $selectedPhotoItem,
+                                matching: .images,
+                                photoLibrary: .shared()
+                            ) {
+                                HStack {
+                                    Image(systemName: "camera.fill")
+                                        .foregroundColor(.green)
+                                    Text(selectedImageData != nil || exercise.imageData != nil ? "Cambiar Foto" : "Añadir Foto")
+                                        .font(.system(size: 14, weight: .medium))
+                                }
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.green.opacity(0.1))
+                                .cornerRadius(8)
+                            }
                         }
                     }
                     
@@ -445,7 +466,7 @@ struct ExerciseEditView: View {
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
-                        TextField("Repeticiones", value: $repetitions, format: .number)
+                        TextField("", value: $repetitions, format: .number)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .keyboardType(.numberPad)
                     }
@@ -461,7 +482,7 @@ struct ExerciseEditView: View {
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
-                        TextField("Peso", value: $weight, format: .number)
+                        TextField("", value: $weight, format: .number)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .keyboardType(.decimalPad)
                     }
@@ -568,22 +589,18 @@ struct ExerciseEditView: View {
                 repetitions = exercise.repetitions
                 weight = exercise.weight
                 totalSets = exercise.totalSets
-                timerMinutes = 0
-                timerSeconds = 30
+                
+                // Cargar la duración de descanso del ejercicio existente
+                timerMinutes = exercise.restDuration / 60
+                timerSeconds = exercise.restDuration % 60
             }
-            .sheet(isPresented: $showingImagePicker) {
-                // Aquí iría el selector de imágenes
-                // Por ahora mostramos un placeholder
-                VStack {
-                    Text("Selector de Imágenes")
-                        .font(.title)
-                        .padding()
-                    Text("Funcionalidad próximamente")
-                        .foregroundColor(.secondary)
-                    Button("Cerrar") {
-                        showingImagePicker = false
+            .onChange(of: selectedPhotoItem) { newItem in
+                Task {
+                    if let newItem = newItem {
+                        if let data = try? await newItem.loadTransferable(type: Data.self) {
+                            selectedImageData = data
+                        }
                     }
-                    .padding()
                 }
             }
         }
@@ -597,6 +614,12 @@ struct ExerciseEditView: View {
         updatedExercise.repetitions = repetitions
         updatedExercise.weight = weight
         updatedExercise.totalSets = totalSets
+        updatedExercise.restDuration = timerMinutes * 60 + timerSeconds
+        
+        // Actualizar imagen si se seleccionó una nueva
+        if let imageData = selectedImageData {
+            updatedExercise.imageData = imageData
+        }
         
         // Encontrar el día del ejercicio
         if let day = findDayForExercise(exercise) {
@@ -606,15 +629,14 @@ struct ExerciseEditView: View {
     }
     
     private func deleteExercise() {
-        if let day = findDayForExercise(exercise) {
-            viewModel.removeExercise(exercise, from: day)
-        }
+        // Eliminar el ejercicio base completamente (de todos los días)
+        viewModel.removeExercise(baseExercise: exercise)
         dismiss()
     }
     
     private func findDayForExercise(_ exercise: Exercise) -> WorkoutDay? {
-        for (day, exercises) in viewModel.exercises {
-            if exercises.contains(where: { $0.id == exercise.id }) {
+        for (day, workoutExercises) in viewModel.dailyWorkoutRecords {
+            if workoutExercises.contains(where: { $0.exerciseId == exercise.id }) {
                 return day
             }
         }
@@ -626,23 +648,50 @@ struct ExerciseEditView: View {
 struct AddExerciseForm: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
+    @StateObject private var focusManager = FocusModeManager()
     
     @State private var name: String = ""
     @State private var info: String = ""
-    @State private var repetitions: Int = 0
-    @State private var weight: Double = 0.0
-    @State private var totalSets: Int = 1
+    @State private var repetitions: String = ""
+    @State private var weight: String = ""
+    @State private var totalSets: Int = 4
     @State private var selectedDays: Set<String> = []
-    @State private var timerMinutes: Int = 0
-    @State private var timerSeconds: Int = 30
+    @State private var timerMinutes: Int = 2
+    @State private var timerSeconds: Int = 0
     @State private var showingImagePicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var photoData: Data?
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var showingIconPicker = false
+    @State private var selectedIcon: String? = nil
+    @State private var iconColor: String = "blue"
     
     let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
     
     var body: some View {
         VStack(spacing: 24) {
+            // Botón de modo de enfoque
+            HStack {
+                Button(action: {
+                    focusManager.toggleFocusMode()
+                }) {
+                    HStack {
+                        Image(systemName: focusManager.isActive ? "brain.head.profile.fill" : "brain.head.profile")
+                            .foregroundColor(focusManager.isActive ? .white : .blue)
+                        Text(focusManager.isActive ? "Desactivar Enfoque" : "Modo de Enfoque")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(focusManager.isActive ? .white : .blue)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(focusManager.isActive ? Color.blue : Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                
+                Spacer()
+            }
+            
             // Día selector
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -712,30 +761,73 @@ struct AddExerciseForm: View {
                     .background(Color.clear)
                     .cornerRadius(8)
                 
-                // Botón para añadir foto
-                Button(action: {
-                    showingImagePicker = true
-                }) {
-                    HStack {
-                        Image(systemName: "camera.fill")
+                // Selector de icono o foto
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        // Botón para seleccionar icono SF Symbol
+                        Button(action: {
+                            showingIconPicker = true
+                        }) {
+                            HStack {
+                                Image(systemName: "square.grid.3x3.fill")
+                                    .foregroundColor(.orange)
+                                Text("Seleccionar Icono")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.orange)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        
+                        // Botón para añadir foto
+                        Button(action: {
+                            showingImagePicker = true
+                        }) {
+                            HStack {
+                                Image(systemName: "camera.fill")
+                                    .foregroundColor(.green)
+                                Text(photoData != nil ? "Cambiar Foto" : "Añadir Foto")
+                                    .font(.system(size: 14, weight: .medium))
+                            }
                             .foregroundColor(.green)
-                        Text("Añadir Foto")
-                            .font(.system(size: 14, weight: .medium))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
+                        }
                     }
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
-                }
-                .alert("Funcionalidad próximamente", isPresented: $showingImagePicker) {
-                    Button("OK", role: .cancel) {}
-                } message: {
-                    Text("La funcionalidad de añadir fotos estará disponible en una próxima actualización.")
+                    
+                    // Previsualización del icono seleccionado
+                    if let icon = selectedIcon {
+                        VStack(spacing: 8) {
+                            Image(systemName: icon)
+                                .font(.system(size: 40))
+                                .foregroundColor(colorFromString(iconColor))
+                            Text("Icono seleccionado")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(10)
+                    }
+                    
+                    // Previsualización de la imagen seleccionada
+                    if let photoData = photoData, let uiImage = UIImage(data: photoData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 200, maxHeight: 200)
+                            .cornerRadius(10)
+                            .shadow(radius: 5)
+                            .padding(.top, 8)
+                    }
                 }
             }
             
-            // Repeticiones
+            // Repeticiones con validación
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "repeat.circle.fill")
@@ -746,15 +838,15 @@ struct AddExerciseForm: View {
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
-                TextField("Repeticiones", value: $repetitions, format: .number)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.numberPad)
-                    .frame(height: 44)
-                    .background(Color.clear)
-                    .cornerRadius(8)
+                TextField("Repeticiones", text: $repetitions)
+                    .integerTextField(
+                        text: $repetitions,
+                        placeholder: "Repeticiones",
+                        validationMessage: "Ingrese solo números enteros"
+                    )
             }
             
-            // Peso
+            // Peso con validación
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "scalemass.fill")
@@ -765,12 +857,12 @@ struct AddExerciseForm: View {
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
-                TextField("Peso", value: $weight, format: .number)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.decimalPad)
-                    .frame(height: 44)
-                    .background(Color.clear)
-                    .cornerRadius(8)
+                TextField("Peso", text: $weight)
+                    .numericTextField(
+                        text: $weight,
+                        placeholder: "Peso",
+                        validationMessage: "Ingrese solo números (ej: 75.5)"
+                    )
             }
             
             // Total de Series
@@ -890,55 +982,72 @@ struct AddExerciseForm: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
         .background(AppColors.background(isDark: themeManager.isDarkMode))
+        .focusMode() // Aplicar modificador de modo de enfoque
         .onTapGesture {
             // Dismissar el teclado al tocar fuera de los campos
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
         .sheet(isPresented: $showingImagePicker) {
-            // Aquí iría el selector de imágenes
-            // Por ahora mostramos un placeholder
-            VStack {
-                Text("Selector de Imágenes")
-                    .font(.title)
-                    .padding()
-                Text("Funcionalidad próximamente")
-                    .foregroundColor(.secondary)
-                Button("Cerrar") {
-                    showingImagePicker = false
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Color.clear.edgesIgnoringSafeArea(.all)
+            }
+            .onDisappear {
+                showingImagePicker = false
+            }
+        }
+        .sheet(isPresented: $showingIconPicker) {
+            SFSymbolIconPicker(selectedIcon: $selectedIcon, iconColor: $iconColor)
+        }
+        .onChange(of: selectedPhotoItem) { oldItem, newItem in
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    self.photoData = data
+                    // Si se selecciona una foto, limpiar el icono
+                    self.selectedIcon = nil
                 }
-                .padding()
+                selectedPhotoItem = nil
             }
         }
     }
     
     private func addExercise() {
-        let newExercise = Exercise(
-            id: UUID(),
-            name: name,
-            repetitions: repetitions,
-            weight: weight,
-            totalSets: totalSets,
-            completedSets: 0,
-            lastSetCompletedAt: nil,
-            info: info
-        )
+        // Convertir strings a números con valores por defecto
+        let reps = Int(repetitions) ?? 0
+        let exerciseWeight = Double(weight) ?? 0.0
         
-        // Añadir el ejercicio a todos los días seleccionados
-        for selectedDay in selectedDays {
-            if let workoutDay = WorkoutDay.allCases.first(where: { $0.rawValue == selectedDay }) {
-                viewModel.addExercise(newExercise, to: workoutDay)
-            }
-        }
+        // Añadir el ejercicio a todos los días seleccionados con iconos SF Symbols
+        let workoutDays = Set(selectedDays.compactMap { day in
+            WorkoutDay.allCases.first(where: { $0.rawValue == day })
+        })
+        
+        viewModel.addExercise(
+            name: name,
+            reps: reps,
+            weight: exerciseWeight,
+            sets: totalSets,
+            info: info,
+            imageData: photoData,
+            restDuration: timerMinutes * 60 + timerSeconds,
+            toDays: workoutDays,
+            sfSymbolIcon: selectedIcon,
+            iconColor: iconColor
+        )
         
         // Limpiar formulario
         name = ""
         info = ""
-        repetitions = 0
-        weight = 0.0
-        totalSets = 1
+        repetitions = ""
+        weight = ""
+        totalSets = 4
         selectedDays = []
-        timerMinutes = 0
-        timerSeconds = 30
+        timerMinutes = 2
+        timerSeconds = 0
+        photoData = nil
+        selectedIcon = nil
+        iconColor = "blue"
+        
+        // Haptic feedback de éxito
+        HapticManager.shared.successOccurred()
     }
     
     private func dayShortName(_ day: String) -> String {
@@ -949,6 +1058,22 @@ struct AddExerciseForm: View {
         case "Jueves": return "JUE"
         case "Viernes": return "VIE"
         default: return day
+        }
+    }
+    
+    private func colorFromString(_ colorString: String) -> Color {
+        switch colorString {
+        case "red": return .red
+        case "green": return .green
+        case "blue": return .blue
+        case "orange": return .orange
+        case "purple": return .purple
+        case "pink": return .pink
+        case "yellow": return .yellow
+        case "cyan": return .cyan
+        case "indigo": return .indigo
+        case "teal": return .teal
+        default: return .blue
         }
     }
 }

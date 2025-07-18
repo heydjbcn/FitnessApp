@@ -11,6 +11,10 @@ struct FitnessAppApp: App {
             }
             .environmentObject(workoutViewModel)
             .preferredColorScheme(.dark)
+            .onAppear {
+                // Solicitar permisos de notificaciones al iniciar la app
+                NotificationManager.shared.requestNotificationPermission()
+            }
         }
     }
 }

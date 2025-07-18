@@ -25,7 +25,7 @@ struct WeeklyProgressView: View {
                         .frame(width: 100, height: 100)
                     Circle()
                         .trim(from: 0, to: viewModel.weeklyProgress())
-                        .stroke(AppColors.primary, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .stroke(AppColors.primary(themeManager: themeManager), style: StrokeStyle(lineWidth: 10, lineCap: .round))
                         .frame(width: 100, height: 100)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 1), value: viewModel.weeklyProgress())
@@ -33,7 +33,7 @@ struct WeeklyProgressView: View {
                     VStack(spacing: 2) {
                         Text("\(Int(viewModel.weeklyProgress() * 100))%")
                             .font(.headline.bold())
-                            .foregroundColor(AppColors.primary)
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                         Text("completado")
                             .font(.caption2)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
@@ -43,7 +43,7 @@ struct WeeklyProgressView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Image(systemName: "target")
-                            .foregroundColor(AppColors.primary)
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                         Text("\(viewModel.weeklyCompletedSets())/\(viewModel.weeklyTotalSets()) series")
                             .font(.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
@@ -102,7 +102,7 @@ struct WeeklyExercisesList: View {
             } else {
                 LazyVStack(spacing: 12) {
                     ForEach(weeklyExercises, id: \.day) { dayData in
-                        WeeklyDayRow(day: dayData.day, exercises: dayData.exercises)
+                        WeeklyDayRow(day: dayData.day, exercises: dayData.exercises.map { $0.baseExercise })
                     }
                 }
             }
@@ -126,7 +126,7 @@ struct WeeklyDayRow: View {
                 
                 Spacer()
                 
-                Text("\(exercises.reduce(0) { $0 + $1.completedSets })/\(exercises.reduce(0) { $0 + $1.totalSets })")
+                Text("\(exercises.reduce(into: 0) { $0 += $1.repetitions })/\(exercises.reduce(into: 0) { $0 += $1.totalSets }) series")
                     .font(.caption)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     .padding(.horizontal, 8)
@@ -163,11 +163,12 @@ struct WeeklyDayRow: View {
 struct WeeklyExerciseItem: View {
     let exercise: Exercise
     @EnvironmentObject var themeManager: ThemeManager
+    @State private var showingInfo = false
     
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: exercise.completedSets >= exercise.totalSets ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(exercise.completedSets >= exercise.totalSets ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            Image(systemName: exercise.totalSets > 0 ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(exercise.totalSets > 0 ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 .font(.system(size: 14))
             
             VStack(alignment: .leading, spacing: 2) {
@@ -176,16 +177,28 @@ struct WeeklyExerciseItem: View {
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .lineLimit(1)
                 
-                Text("\(exercise.completedSets)/\(exercise.totalSets) × \(exercise.repetitions)")
+                Text("0/\(exercise.totalSets) series × \(exercise.repetitions)")
                     .font(.caption2)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
             
             Spacer()
+            
+            Button(action: { showingInfo = true }) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 12))
+                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(6)
+        .alert("Información del ejercicio", isPresented: $showingInfo) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(exercise.info.isEmpty ? "Ejercicio: \(exercise.name)\nSeries: \(exercise.totalSets)\nRepeticiones: \(exercise.repetitions)\nPeso: \(String(format: "%.1f", exercise.weight)) kg" : exercise.info)
+        }
     }
 }

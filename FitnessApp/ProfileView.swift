@@ -24,11 +24,11 @@ struct ProfileView: View {
         let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
         
         var completedWorkouts = 0
-        for (_, exercises) in workoutViewModel.exercises {
-            for exercise in exercises {
-                if let lastCompleted = exercise.lastSetCompletedAt,
+        for (_, workoutExercises) in workoutViewModel.dailyWorkoutRecords {
+            for workoutExercise in workoutExercises {
+                if let lastCompleted = workoutExercise.lastSetCompletedAt,
                    lastCompleted >= startOfWeek {
-                    completedWorkouts += exercise.completedSets
+                    completedWorkouts += workoutExercise.completedSets
                 }
             }
         }
@@ -41,12 +41,12 @@ struct ProfileView: View {
         let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
         
         var totalMinutes = 0
-        for (_, exercises) in workoutViewModel.exercises {
-            for exercise in exercises {
-                if let lastCompleted = exercise.lastSetCompletedAt,
+        for (_, workoutExercises) in workoutViewModel.dailyWorkoutRecords {
+            for workoutExercise in workoutExercises {
+                if let lastCompleted = workoutExercise.lastSetCompletedAt,
                    lastCompleted >= startOfWeek {
                     // Estimamos 2 minutos por set completado
-                    totalMinutes += exercise.completedSets * 2
+                    totalMinutes += workoutExercise.completedSets * 2
                 }
             }
         }
@@ -74,11 +74,11 @@ struct ProfileView: View {
         let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
         
         var totalMinutes = 0
-        for (_, exercises) in workoutViewModel.exercises {
-            for exercise in exercises {
-                if let lastCompleted = exercise.lastSetCompletedAt,
+        for (_, workoutExercises) in workoutViewModel.dailyWorkoutRecords {
+            for workoutExercise in workoutExercises {
+                if let lastCompleted = workoutExercise.lastSetCompletedAt,
                    lastCompleted >= startOfWeek {
-                    totalMinutes += exercise.completedSets * 2
+                    totalMinutes += workoutExercise.completedSets * 2
                 }
             }
         }

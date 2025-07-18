@@ -16,7 +16,7 @@ struct TimerView: View {
             ZStack {
                 Circle().stroke(AppColors.secondaryGray, lineWidth: 4)
                 Circle()
-                    .trim(from: 0, to: CGFloat(viewModel.timeRemaining) / CGFloat(viewModel.restDuration))
+                    .trim(from: 0, to: CGFloat(viewModel.timeRemaining) / CGFloat(viewModel.currentTimerDuration))
                     .stroke(AppColors.primary, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: 60, height: 60)
                     .rotationEffect(.degrees(-90))
@@ -34,6 +34,7 @@ struct TimerView: View {
             Spacer()
             
             Button("Parar") {
+                HapticManager.shared.buttonTapped()
                 viewModel.stopTimer()
             }
             .foregroundColor(AppColors.primary)
