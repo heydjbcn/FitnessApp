@@ -4,8 +4,14 @@ struct CustomCalendarView: View {
     @Binding var selectedDate: Date?
     @State private var currentMonth = Date()
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var viewModel: WorkoutViewModel
     
-    private let calendar = Calendar.current
+    private let calendar: Calendar = {
+        var cal = Calendar.current
+        cal.locale = Locale(identifier: "es_ES")
+        cal.firstWeekday = 2 // Lunes = 1, así que 2 hace que lunes sea el primer día
+        return cal
+    }()
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
@@ -54,8 +60,8 @@ struct CustomCalendarView: View {
             
             // Días de la semana
             HStack {
-                ForEach(Array(zip(calendar.shortWeekdaySymbols, weekdays)), id: \.0) { (fullName, initial) in
-                    Text(initial)
+                ForEach(weekdays, id: \.self) { dayInitial in
+                    Text(dayInitial)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         .frame(maxWidth: .infinity)
@@ -67,6 +73,7 @@ struct CustomCalendarView: View {
                 ForEach(daysInMonth, id: \.self) { date in
                     DayView(date: date, selectedDate: $selectedDate, currentMonth: currentMonth)
                         .environmentObject(themeManager)
+                        .environmentObject(viewModel)
                 }
             }
         }
@@ -85,17 +92,22 @@ struct CustomCalendarView: View {
     private var weekdays: [String] {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "es_ES")
-        return formatter.shortWeekdaySymbols.map { String($0.prefix(1)).uppercased() }
+        // Obtener los símbolos de días de la semana empezando por lunes
+        var weekdaySymbols = formatter.shortWeekdaySymbols!
+        // Rotar el array para que lunes sea el primero
+        let sunday = weekdaySymbols.removeFirst()
+        weekdaySymbols.append(sunday)
+        return weekdaySymbols.map { String($0.prefix(1)).uppercased() }
     }
     
     private var daysInMonth: [Date] {
         guard let monthRange = calendar.range(of: .day, in: .month, for: currentMonth) else { return [] }
         
         let firstDayOfMonth = calendar.dateInterval(of: .month, for: currentMonth)?.start ?? currentMonth
-        var firstWeekday = calendar.component(.weekday, from: firstDayOfMonth) - 1
+        var firstWeekday = calendar.component(.weekday, from: firstDayOfMonth)
         
-        // Ajustar para que lunes sea 0
-        firstWeekday = (firstWeekday + 6) % 7
+        // Ajustar para que lunes sea 0 (weekday: Dom=1, Lun=2, etc.)
+        firstWeekday = (firstWeekday + 5) % 7
         
         var days: [Date] = []
         
@@ -147,6 +159,7 @@ struct DayView: View {
     let date: Date
     @Binding var selectedDate: Date?
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var viewModel: WorkoutViewModel
     let currentMonth: Date
     
     private let calendar = Calendar.current
@@ -155,12 +168,22 @@ struct DayView: View {
         Button(action: {
             selectedDate = date
         }) {
-            Text("\(calendar.component(.day, from: date))")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(textColor)
-                .frame(width: 36, height: 36)
-                .background(backgroundColor)
-                .clipShape(Circle())
+            ZStack {
+                Text("\(calendar.component(.day, from: date))")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(textColor)
+                    .frame(width: 36, height: 36)
+                    .background(backgroundColor)
+                    .clipShape(Circle())
+                
+                // Indicador verde para días con entrenamiento
+                if hasWorkout && isCurrentMonth {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 6, height: 6)
+                        .offset(x: 12, y: -12)
+                }
+            }
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -176,6 +199,10 @@ struct DayView: View {
     
     private var isCurrentMonth: Bool {
         calendar.isDate(date, equalTo: currentMonth, toGranularity: .month)
+    }
+    
+    private var hasWorkout: Bool {
+        viewModel.hasWorkoutForDate(date)
     }
     
     private var backgroundColor: Color {

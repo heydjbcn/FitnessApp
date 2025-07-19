@@ -35,6 +35,19 @@ struct ExerciseCardView: View {
                 infoItem(icon: "scalemass.fill", text: String(format: "%.1f kg", exercise.weight))
                 infoItem(icon: "number", text: "\(workoutRecord.completedSets)/\(exercise.totalSets) series", color: workoutRecord.completedSets >= exercise.totalSets ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
+            
+            // Segunda fila con información adicional si está disponible
+            if exercise.segundos > 0 || exercise.rir > 0 {
+                HStack(spacing: 24) {
+                    if exercise.segundos > 0 {
+                        infoItem(icon: "timer.square", text: "\(exercise.segundos)s")
+                    }
+                    if exercise.rir > 0 {
+                        infoItem(icon: "gauge.high", text: "RIR: \(exercise.rir)")
+                    }
+                    Spacer() // Para alinear a la izquierda
+                }
+            }
 
             HStack(spacing: 0) {
                 ForEach(0..<exercise.totalSets, id: \.self) { idx in
@@ -100,6 +113,76 @@ struct ExerciseInfoSheet: View {
                         Text(exercise.info.isEmpty ? "No hay descripción para este ejercicio." : exercise.info)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             .padding(.horizontal)
+                        
+                        // Detalles del ejercicio
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Detalles del Ejercicio")
+                                .font(.headline)
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                .padding(.horizontal)
+                            
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Image(systemName: "repeat")
+                                        .foregroundColor(AppColors.primary)
+                                    Text("Repeticiones:")
+                                    Spacer()
+                                    Text("\(exercise.repetitions)")
+                                        .fontWeight(.semibold)
+                                }
+                                
+                                HStack {
+                                    Image(systemName: "scalemass.fill")
+                                        .foregroundColor(AppColors.primary)
+                                    Text("Peso:")
+                                    Spacer()
+                                    Text(String(format: "%.1f kg", exercise.weight))
+                                        .fontWeight(.semibold)
+                                }
+                                
+                                HStack {
+                                    Image(systemName: "list.number")
+                                        .foregroundColor(AppColors.primary)
+                                    Text("Total de Sets:")
+                                    Spacer()
+                                    Text("\(exercise.totalSets)")
+                                        .fontWeight(.semibold)
+                                }
+                                
+                                if exercise.segundos > 0 {
+                                    HStack {
+                                        Image(systemName: "timer.square")
+                                            .foregroundColor(AppColors.primary)
+                                        Text("Segundos:")
+                                        Spacer()
+                                        Text("\(exercise.segundos)s")
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                
+                                if exercise.rir > 0 {
+                                    HStack {
+                                        Image(systemName: "gauge.high")
+                                            .foregroundColor(AppColors.primary)
+                                        Text("RIR (Reps en Reserva):")
+                                        Spacer()
+                                        Text("\(exercise.rir)")
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                
+                                HStack {
+                                    Image(systemName: "timer.circle")
+                                        .foregroundColor(AppColors.primary)
+                                    Text("Descanso:")
+                                    Spacer()
+                                    Text("\(exercise.restDuration / 60):\(String(format: "%02d", exercise.restDuration % 60))")
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .padding(.horizontal)
+                        }
                     }
                     .padding(.vertical)
                 }

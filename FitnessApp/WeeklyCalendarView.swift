@@ -510,13 +510,13 @@ struct DailyProgressContainer: View {
                     subtitle: "\(totalReps)"
                 )
                 
-                // Peso total (rojo)
+                // Peso total (rojo) - Ahora en toneladas
                 ProgressRing(
-                    value: totalWeight,
-                    maxValue: Double(totalSets * 100), // Estimado 100kg por serie
+                    value: totalWeight / 1000, // Convertir kg a toneladas
+                    maxValue: Double(totalSets * 100) / 1000, // Estimado 100kg por serie en toneladas
                     color: .red,
-                    title: "Peso",
-                    subtitle: "\(Int(totalWeight))kg"
+                    title: "Tonelaje",
+                    subtitle: String(format: "%.2ft", totalWeight / 1000) // Mostrar en toneladas con 2 decimales
                 )
                 
                 // Series (verde)

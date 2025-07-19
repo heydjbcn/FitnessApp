@@ -71,6 +71,12 @@ class WorkoutViewModel: ObservableObject {
         return workoutHistory[key]
     }
     
+    func hasWorkoutForDate(_ date: Date) -> Bool {
+        let key = Calendar.current.startOfDay(for: date)
+        guard let historyForDate = workoutHistory[key] else { return false }
+        return !historyForDate.values.allSatisfy { $0.isEmpty }
+    }
+    
     private func saveData() {
         DispatchQueue.global(qos: .background).async {
             // Limpiar datos antiguos antes de guardar

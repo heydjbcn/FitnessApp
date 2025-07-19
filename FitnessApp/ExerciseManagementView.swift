@@ -381,9 +381,14 @@ struct ExerciseEditView: View {
     @State private var totalSets: Int = 4
     @State private var timerMinutes: Int = 2
     @State private var timerSeconds: Int = 0
+    @State private var segundos: Int = 0
+    @State private var rir: Int = 0
+    @State private var selectedDays: Set<String> = []
     @State private var showingImagePicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedImageData: Data?
+    
+    private let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     
     var body: some View {
         NavigationView {
@@ -503,6 +508,38 @@ struct ExerciseEditView: View {
                             .keyboardType(.numberPad)
                     }
                     
+                    // Segundos
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "timer.square.fill")
+                                .foregroundColor(.green)
+                                .font(.system(size: 18))
+                            Text("Segundos")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        }
+                        
+                        TextField("", value: $segundos, format: .number)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                    }
+                    
+                    // RIR (Reps in Reserve)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "gauge.high.fill")
+                                .foregroundColor(.green)
+                                .font(.system(size: 18))
+                            Text("RIR (Reps en Reserva)")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        }
+                        
+                        TextField("", value: $rir, format: .number)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                    }
+                    
                     // Timer de descanso
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -553,6 +590,39 @@ struct ExerciseEditView: View {
                         .padding(.vertical, 8)
                     }
                     
+                    // Días de la semana
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "calendar.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.system(size: 18))
+                            Text("Días de la Semana")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        }
+                        
+                        // Botones horizontales para días
+                        HStack(spacing: 4) {
+                            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                                Button(action: {
+                                    if selectedDays.contains(day) {
+                                        selectedDays.remove(day)
+                                    } else {
+                                        selectedDays.insert(day)
+                                    }
+                                }) {
+                                    Text(dayShortName(day))
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(selectedDays.contains(day) ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                        .background(selectedDays.contains(day) ? Color.green : AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                                        .cornerRadius(8)
+                                }
+                            }
+                        }
+                    }
+                    
                     // Botón de eliminar ejercicio
                     Button(action: deleteExercise) {
                         Text("Eliminar Ejercicio")
@@ -587,10 +657,15 @@ struct ExerciseEditView: View {
                 repetitions = exercise.repetitions
                 weight = exercise.weight
                 totalSets = exercise.totalSets
+                segundos = exercise.segundos
+                rir = exercise.rir
                 
                 // Cargar la duración de descanso del ejercicio existente
                 timerMinutes = exercise.restDuration / 60
                 timerSeconds = exercise.restDuration % 60
+                
+                // Cargar los días donde está el ejercicio
+                loadExerciseDays()
             }
             .onChange(of: selectedPhotoItem) { newItem in
                 Task {
@@ -612,6 +687,8 @@ struct ExerciseEditView: View {
         updatedExercise.repetitions = repetitions
         updatedExercise.weight = weight
         updatedExercise.totalSets = totalSets
+        updatedExercise.segundos = segundos
+        updatedExercise.rir = rir
         updatedExercise.restDuration = timerMinutes * 60 + timerSeconds
         
         // Actualizar imagen si se seleccionó una nueva
@@ -619,11 +696,67 @@ struct ExerciseEditView: View {
             updatedExercise.imageData = imageData
         }
         
-        // Encontrar el día del ejercicio
+        // Encontrar el día del ejercicio y actualizar
         if let day = findDayForExercise(exercise) {
             viewModel.updateExercise(updatedExercise, in: day)
         }
+        
+        // Manejar cambios en los días de la semana
+        handleDayChanges(for: updatedExercise)
+        
         dismiss()
+    }
+    
+    private func handleDayChanges(for updatedExercise: Exercise) {
+        let newWorkoutDays = Set(selectedDays.compactMap { day in
+            WorkoutDay.allCases.first(where: { $0.rawValue == day })
+        })
+        
+        // Obtener días actuales donde está el ejercicio
+        let currentDays = Set(viewModel.dailyWorkoutRecords.keys.filter { day in
+            viewModel.dailyWorkoutRecords[day]?.contains(where: { $0.exerciseId == exercise.id }) == true
+        })
+        
+        // Eliminar de días que ya no están seleccionados
+        for day in currentDays {
+            if !newWorkoutDays.contains(day) {
+                if let records = viewModel.dailyWorkoutRecords[day] {
+                    if let recordToRemove = records.first(where: { $0.exerciseId == exercise.id }) {
+                        viewModel.removeExercise(recordId: recordToRemove.id, from: day)
+                    }
+                }
+            }
+        }
+        
+        // Añadir a días nuevos
+        for day in newWorkoutDays {
+            if !currentDays.contains(day) {
+                viewModel.addExercise(updatedExercise, to: day)
+            }
+        }
+    }
+    
+    private func loadExerciseDays() {
+        // Cargar los días donde está presente este ejercicio
+        selectedDays = Set()
+        for (day, records) in viewModel.dailyWorkoutRecords {
+            if records.contains(where: { $0.exerciseId == exercise.id }) {
+                selectedDays.insert(day.rawValue)
+            }
+        }
+    }
+    
+    private func dayShortName(_ day: String) -> String {
+        switch day {
+        case "Lunes": return "L"
+        case "Martes": return "M"
+        case "Miércoles": return "X"
+        case "Jueves": return "J"
+        case "Viernes": return "V"
+        case "Sábado": return "S"
+        case "Domingo": return "D"
+        default: return day.prefix(1).uppercased()
+        }
     }
     
     private func deleteExercise() {
@@ -646,7 +779,6 @@ struct ExerciseEditView: View {
 struct AddExerciseForm: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
-    @StateObject private var focusManager = FocusModeManager()
     
     @State private var name: String = ""
     @State private var info: String = ""
@@ -664,39 +796,28 @@ struct AddExerciseForm: View {
     @State private var showingIconPicker = false
     @State private var selectedIcon: String? = nil
     @State private var iconColor: String = "blue"
+    @State private var rir: String = ""
+    @State private var segundos: String = ""
+    
+    // Checkboxes para campos opcionales
+    @State private var includeRepetitions: Bool = false
+    @State private var includeSegundos: Bool = false
+    @State private var includeWeight: Bool = false
+    @State private var includeTotalSets: Bool = false
+    @State private var includeRIR: Bool = false
     
     let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
     
     var body: some View {
         VStack(spacing: 24) {
             // Botón de modo de enfoque
-            HStack {
-                Button(action: {
-                    focusManager.toggleFocusMode()
-                }) {
-                    HStack {
-                        Image(systemName: focusManager.isActive ? "brain.head.profile.fill" : "brain.head.profile")
-                            .foregroundColor(focusManager.isActive ? .white : .blue)
-                        Text(focusManager.isActive ? "Desactivar Enfoque" : "Modo de Enfoque")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(focusManager.isActive ? .white : .blue)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(focusManager.isActive ? Color.blue : Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-                }
-                
-                Spacer()
-            }
-            
-            // Día selector
+            // Día selector (Obligatorio)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "calendar.circle.fill")
                         .foregroundColor(.green)
                         .font(.system(size: 18))
-                    Text("Días de la Semana")
+                    Text("Días de la Semana *")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
@@ -723,13 +844,13 @@ struct AddExerciseForm: View {
                 }
             }
             
-            // Nombre del ejercicio
+            // Nombre del ejercicio (Obligatorio)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "dumbbell.fill")
                         .foregroundColor(.green)
                         .font(.system(size: 18))
-                    Text("Nombre del Ejercicio")
+                    Text("Nombre del Ejercicio *")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
@@ -741,7 +862,7 @@ struct AddExerciseForm: View {
                     .cornerRadius(8)
             }
             
-            // Información
+                        // Información (Opcional - siempre visible)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "info.circle.fill")
@@ -758,6 +879,18 @@ struct AddExerciseForm: View {
                     .frame(minHeight: 60)
                     .background(Color.clear)
                     .cornerRadius(8)
+            }
+            
+            // Icono y Foto (Opcional - siempre visible)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "photo.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 18))
+                    Text("Icono y Foto")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                }
                 
                 // Selector de icono o foto
                 VStack(spacing: 12) {
@@ -825,64 +958,7 @@ struct AddExerciseForm: View {
                 }
             }
             
-            // Repeticiones con validación
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "repeat.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.system(size: 18))
-                    Text("Repeticiones")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                }
-                
-                TextField("Repeticiones", text: $repetitions)
-                    .integerTextField(
-                        text: $repetitions,
-                        placeholder: "Repeticiones",
-                        validationMessage: "Ingrese solo números enteros"
-                    )
-            }
-            
-            // Peso con validación
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "scalemass.fill")
-                        .foregroundColor(.green)
-                        .font(.system(size: 18))
-                    Text("Peso (kg)")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                }
-                
-                TextField("Peso", text: $weight)
-                    .numericTextField(
-                        text: $weight,
-                        placeholder: "Peso",
-                        validationMessage: "Ingrese solo números (ej: 75.5)"
-                    )
-            }
-            
-            // Total de Series
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "list.number.rtl")
-                        .foregroundColor(.green)
-                        .font(.system(size: 18))
-                    Text("Total de Series")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                }
-                
-                TextField("Series", value: $totalSets, format: .number)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.numberPad)
-                    .frame(height: 44)
-                    .background(Color.clear)
-                    .cornerRadius(8)
-            }
-            
-            // Timer de descanso
+            // Timer de descanso (Opcional - siempre visible)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "timer.circle.fill")
@@ -929,6 +1005,246 @@ struct AddExerciseForm: View {
                 .padding(.vertical, 8)
             }
             
+            // Campos opcionales con checkboxes
+            
+            VStack(spacing: 4) {
+                HStack {
+                    Text("Campos Opcionales")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
+                }
+                .padding(.bottom, 8)
+            }
+            
+            // Repeticiones (con checkbox)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Button(action: {
+                        includeRepetitions.toggle()
+                        if !includeRepetitions {
+                            repetitions = ""
+                        }
+                    }) {
+                        Image(systemName: includeRepetitions ? "checkmark.square.fill" : "square")
+                            .foregroundColor(includeRepetitions ? .green : .gray)
+                            .font(.system(size: 18))
+                    }
+                    
+                    Image(systemName: "repeat.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 18))
+                    
+                    HStack(spacing: 4) {
+                        Text("Repeticiones")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .opacity(includeRepetitions ? 1.0 : 0.6)
+                        
+                        if includeRepetitions {
+                            Text("*")
+                                .foregroundColor(.red)
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                if includeRepetitions {
+                    TextField("Repeticiones", text: $repetitions)
+                        .integerTextField(
+                            text: $repetitions,
+                            placeholder: "Repeticiones",
+                            validationMessage: "Ingrese solo números enteros"
+                        )
+                        .padding(.leading, 42) // Alineado con el texto
+                }
+            }
+            
+            // Segundos (con checkbox)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Button(action: {
+                        includeSegundos.toggle()
+                        if !includeSegundos {
+                            segundos = ""
+                        }
+                    }) {
+                        Image(systemName: includeSegundos ? "checkmark.square.fill" : "square")
+                            .foregroundColor(includeSegundos ? .green : .gray)
+                            .font(.system(size: 18))
+                    }
+                    
+                    Image(systemName: "stopwatch.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 18))
+                    
+                    HStack(spacing: 4) {
+                        Text("Segundos")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .opacity(includeSegundos ? 1.0 : 0.6)
+                        
+                        if includeSegundos {
+                            Text("*")
+                                .foregroundColor(.red)
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                if includeSegundos {
+                    TextField("Segundos", text: $segundos)
+                        .integerTextField(
+                            text: $segundos,
+                            placeholder: "Segundos",
+                            validationMessage: "Ingrese solo números enteros"
+                        )
+                        .padding(.leading, 42) // Alineado con el texto
+                }
+            }
+            
+            // Peso (con checkbox)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Button(action: {
+                        includeWeight.toggle()
+                        if !includeWeight {
+                            weight = ""
+                        }
+                    }) {
+                        Image(systemName: includeWeight ? "checkmark.square.fill" : "square")
+                            .foregroundColor(includeWeight ? .green : .gray)
+                            .font(.system(size: 18))
+                    }
+                    
+                    Image(systemName: "scalemass.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 18))
+                    
+                    HStack(spacing: 4) {
+                        Text("Peso (kg)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .opacity(includeWeight ? 1.0 : 0.6)
+                        
+                        if includeWeight {
+                            Text("*")
+                                .foregroundColor(.red)
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                if includeWeight {
+                    TextField("Peso", text: $weight)
+                        .numericTextField(
+                            text: $weight,
+                            placeholder: "Peso",
+                            validationMessage: "Ingrese solo números (ej: 75.5)"
+                        )
+                        .padding(.leading, 42) // Alineado con el texto
+                }
+            }
+            
+            // Total de Series (con checkbox)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Button(action: {
+                        includeTotalSets.toggle()
+                        if !includeTotalSets {
+                            totalSets = 4
+                        }
+                    }) {
+                        Image(systemName: includeTotalSets ? "checkmark.square.fill" : "square")
+                            .foregroundColor(includeTotalSets ? .green : .gray)
+                            .font(.system(size: 18))
+                    }
+                    
+                    Image(systemName: "list.number.rtl")
+                        .foregroundColor(.green)
+                        .font(.system(size: 18))
+                    
+                    HStack(spacing: 4) {
+                        Text("Total de Series")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .opacity(includeTotalSets ? 1.0 : 0.6)
+                        
+                        if includeTotalSets {
+                            Text("*")
+                                .foregroundColor(.red)
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                if includeTotalSets {
+                    TextField("Series", value: $totalSets, format: .number)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .keyboardType(.numberPad)
+                        .frame(height: 44)
+                        .background(Color.clear)
+                        .cornerRadius(8)
+                        .padding(.leading, 42) // Alineado con el texto
+                }
+            }
+            
+            // RIR (con checkbox)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Button(action: {
+                        includeRIR.toggle()
+                        if !includeRIR {
+                            rir = ""
+                        }
+                    }) {
+                        Image(systemName: includeRIR ? "checkmark.square.fill" : "square")
+                            .foregroundColor(includeRIR ? .green : .gray)
+                            .font(.system(size: 18))
+                    }
+                    
+                    Image(systemName: "gauge.badge.plus")
+                        .foregroundColor(.green)
+                        .font(.system(size: 18))
+                    
+                    HStack(spacing: 4) {
+                        Text("RIR (Reps in Reserve)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .opacity(includeRIR ? 1.0 : 0.6)
+                        
+                        if includeRIR {
+                            Text("*")
+                                .foregroundColor(.red)
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                if includeRIR {
+                    TextField("RIR", text: $rir)
+                        .integerTextField(
+                            text: $rir,
+                            placeholder: "RIR",
+                            validationMessage: "Ingrese solo números enteros"
+                        )
+                        .padding(.leading, 42) // Alineado con el texto
+                }
+            }
+            
             // Botón para añadir ejercicio
             Button(action: {
                 // Validar que todos los campos requeridos estén completos
@@ -940,6 +1256,31 @@ struct AddExerciseForm: View {
                 
                 if selectedDays.isEmpty {
                     alertMessage = "Por favor, selecciona al menos un día."
+                    showingAlert = true
+                    return
+                }
+                
+                // Validar campos opcionales que están marcados
+                if includeRepetitions && repetitions.isEmpty {
+                    alertMessage = "Por favor, ingresa las repeticiones ya que está marcado como obligatorio."
+                    showingAlert = true
+                    return
+                }
+                
+                if includeSegundos && segundos.isEmpty {
+                    alertMessage = "Por favor, ingresa los segundos ya que está marcado como obligatorio."
+                    showingAlert = true
+                    return
+                }
+                
+                if includeWeight && weight.isEmpty {
+                    alertMessage = "Por favor, ingresa el peso ya que está marcado como obligatorio."
+                    showingAlert = true
+                    return
+                }
+                
+                if includeRIR && rir.isEmpty {
+                    alertMessage = "Por favor, ingresa el RIR ya que está marcado como obligatorio."
                     showingAlert = true
                     return
                 }
@@ -972,13 +1313,10 @@ struct AddExerciseForm: View {
             .alert(alertMessage, isPresented: $showingAlert) {
                 Button("OK", role: .cancel) { }
             }
-            
-            
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
         .background(AppColors.background(isDark: themeManager.isDarkMode))
-        .focusMode() // Aplicar modificador de modo de enfoque
         .onTapGesture {
             // Dismissar el teclado al tocar fuera de los campos
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -1007,9 +1345,12 @@ struct AddExerciseForm: View {
     }
     
     private func addExercise() {
-        // Convertir strings a números con valores por defecto
-        let reps = Int(repetitions) ?? 0
-        let exerciseWeight = Double(weight) ?? 0.0
+        // Convertir strings a números con valores por defecto solo si están marcados
+        let reps = includeRepetitions ? (Int(repetitions) ?? 0) : 0
+        let segValue = includeSegundos ? (Int(segundos) ?? 0) : 0
+        let exerciseWeight = includeWeight ? (Double(weight) ?? 0.0) : 0.0
+        let sets = includeTotalSets ? totalSets : 0
+        let rirValue = includeRIR ? (Int(rir) ?? 0) : 0
         
         // Añadir el ejercicio a todos los días seleccionados con iconos SF Symbols
         let workoutDays = Set(selectedDays.compactMap { day in
@@ -1020,7 +1361,7 @@ struct AddExerciseForm: View {
             name: name,
             reps: reps,
             weight: exerciseWeight,
-            sets: totalSets,
+            sets: sets,
             info: info,
             imageData: photoData,
             restDuration: timerMinutes * 60 + timerSeconds,
@@ -1033,6 +1374,7 @@ struct AddExerciseForm: View {
         name = ""
         info = ""
         repetitions = ""
+        segundos = ""
         weight = ""
         totalSets = 4
         selectedDays = []
@@ -1041,6 +1383,14 @@ struct AddExerciseForm: View {
         photoData = nil
         selectedIcon = nil
         iconColor = "blue"
+        rir = ""
+        
+        // Limpiar checkboxes
+        includeRepetitions = false
+        includeSegundos = false
+        includeWeight = false
+        includeTotalSets = false
+        includeRIR = false
         
         // Haptic feedback de éxito
         HapticManager.shared.successOccurred()

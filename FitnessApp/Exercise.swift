@@ -19,4 +19,6 @@ struct Exercise: Identifiable, Codable, Equatable {
     var restDuration: Int = 60 // Tiempo de descanso en segundos, por defecto 1 minuto
     var sfSymbolIcon: String? = nil // Icono de SF Symbols como alternativa a la imagen
     var iconColor: String = "blue" // Color del icono SF Symbol
+    var segundos: Int = 0 // Campo para segundos
+    var rir: Int = 0 // Campo para RIR (Reps in Reserve)
 }

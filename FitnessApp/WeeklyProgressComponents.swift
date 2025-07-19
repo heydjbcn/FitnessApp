@@ -198,7 +198,7 @@ struct WeeklyExerciseItem: View {
         .alert("Información del ejercicio", isPresented: $showingInfo) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(exercise.info.isEmpty ? "Ejercicio: \(exercise.name)\nSeries: \(exercise.totalSets)\nRepeticiones: \(exercise.repetitions)\nPeso: \(String(format: "%.1f", exercise.weight)) kg" : exercise.info)
+            Text(exercise.info.isEmpty ? "Ejercicio: \(exercise.name)\nSeries: \(exercise.totalSets)\nRepeticiones: \(exercise.repetitions)\nTonelaje: \(String(format: "%.3f", exercise.weight / 1000)) t" : exercise.info)
         }
     }
 }

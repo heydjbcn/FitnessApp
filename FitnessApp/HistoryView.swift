@@ -25,6 +25,8 @@ struct HistoryView: View {
             VStack(spacing: 20) {
                 // Card para el selector de fecha
                 CustomCalendarView(selectedDate: $selectedDate)
+                    .environmentObject(viewModel)
+                    .environmentObject(themeManager)
                     .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
                     .cornerRadius(20)
                     .shadow(color: Color.black.opacity(0.09), radius: 12, x: 0, y: 6)
