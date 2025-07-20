@@ -1201,4 +1201,38 @@ class WorkoutViewModel: ObservableObject {
         // Guardar datos después de la limpieza
         saveData()
     }
+    
+    // FUNCIÓN DE PRUEBA TEMPORAL - Para verificar que los segundos funcionan
+    func addTestExerciseWithSeconds() {
+        let testExercise = Exercise(
+            id: UUID(),
+            name: "PRUEBA SEGUNDOS",
+            repetitions: 0, // Sin repeticiones
+            weight: 0,
+            totalSets: 3,
+            info: "Ejercicio de prueba con segundos",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "timer",
+            iconColor: "red",
+            segundos: 45, // 45 segundos
+            rir: 0
+        )
+        
+        availableExercises.append(testExercise)
+        
+        // Agregar a todos los días
+        for day in WorkoutDay.allCases {
+            let workoutRecord = WorkoutExercise(
+                id: UUID(),
+                exerciseId: testExercise.id,
+                completedSets: 0,
+                lastSetCompletedAt: nil
+            )
+            dailyWorkoutRecords[day]?.append(workoutRecord)
+        }
+        
+        saveData()
+        print("🔥 TEST: Ejercicio de prueba con 45 segundos agregado a todos los días")
+    }
 }

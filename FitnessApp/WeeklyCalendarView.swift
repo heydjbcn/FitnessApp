@@ -267,11 +267,18 @@ struct CalendarExerciseCard: View {
                 }
             }
             
-            // Info de repeticiones y series
+            // Info de repeticiones/segundos y series
             HStack {
-                Label("\(exercise.repetitions) reps", systemImage: "repeat")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                // Mostrar segundos si están configurados (> 0), sino mostrar repeticiones
+                if exercise.segundos > 0 {
+                    Label("\(exercise.segundos)s", systemImage: "timer")
+                        .font(AppFonts.caption)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                } else if exercise.repetitions > 0 {
+                    Label("\(exercise.repetitions) reps", systemImage: "repeat")
+                        .font(AppFonts.caption)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                }
                 
                 Spacer()
                 

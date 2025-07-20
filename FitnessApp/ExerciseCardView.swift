@@ -17,6 +17,8 @@ struct ExerciseCardView: View {
     @State private var showInfo = false
 
     var body: some View {
+        let _ = print("🔥🔥🔥 EXERCISECARDVIEW SE ESTÁ EJECUTANDO PARA: \(exercise.name)")
+        
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "dumbbell.fill").foregroundColor(AppColors.primary(themeManager: themeManager))
@@ -31,13 +33,22 @@ struct ExerciseCardView: View {
             }
 
             HStack(spacing: 24) {
-                // Priorizar segundos: si hay segundos > 0, mostrar segundos
-                // Solo mostrar repeticiones si no hay segundos configurados
+                let _ = print("🔥 EJERCICIO: \(exercise.name) - SEGUNDOS: \(exercise.segundos) - REPS: \(exercise.repetitions)")
+                
+                // MOSTRAR SEGUNDOS si > 0
                 if exercise.segundos > 0 {
+                    let _ = print("🔥 MOSTRANDO SEGUNDOS: \(exercise.segundos)")
                     infoItem(icon: "timer", text: "\(exercise.segundos)s")
-                } else if exercise.repetitions > 0 {
+                }
+                
+                // MOSTRAR REPETICIONES solo si > 0
+                if exercise.repetitions > 0 {
+                    let _ = print("🔥 MOSTRANDO REPETICIONES: \(exercise.repetitions)")
                     infoItem(icon: "repeat", text: "\(exercise.repetitions) reps")
                 }
+                
+                // SIEMPRE mostrar un texto de debug
+                infoItem(icon: "questionmark", text: "DEBUG")
                 
                 // Mostrar peso solo si es mayor a 0
                 if exercise.weight > 0 {
@@ -48,12 +59,8 @@ struct ExerciseCardView: View {
             }
             
             // Segunda fila con información adicional si está disponible
-            if (exercise.segundos > 0 && exercise.repetitions > 0) || exercise.rir > 0 {
+            if exercise.rir > 0 {
                 HStack(spacing: 24) {
-                    // Solo mostrar segundos en segunda fila si ya se mostraron repeticiones en la primera
-                    if exercise.segundos > 0 && exercise.repetitions > 0 {
-                        infoItem(icon: "timer", text: "\(exercise.segundos)s")
-                    }
                     if exercise.rir > 0 {
                         infoItem(icon: "gauge", text: "RIR: \(exercise.rir)")
                     }

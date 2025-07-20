@@ -342,6 +342,21 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.bordered)
                             .tint(.blue)
+                            
+                            // BOTÓN TEMPORAL DE PRUEBA
+                            Button(action: {
+                                viewModel.addTestExerciseWithSeconds()
+                                HapticManager.shared.selectionFeedback()
+                            }) {
+                                HStack {
+                                    Image(systemName: "timer.circle")
+                                    Text("🔥 CREAR EJERCICIO DE PRUEBA (45s)")
+                                        .font(AppFonts.body)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.red)
                         }
                     }
                     .padding()
