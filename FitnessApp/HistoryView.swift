@@ -118,7 +118,7 @@ struct HistoryView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header con icono y título
             HStack {
-                Image(systemName: "scalemass.fill")
+                Image(systemName: "scalemass")
                     .foregroundColor(AppColors.primary)
                 Text("Peso corporal (kg):")
                     .font(.subheadline)

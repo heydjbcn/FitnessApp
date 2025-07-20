@@ -479,7 +479,7 @@ struct ExerciseEditView: View {
                     // Peso
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Image(systemName: "scalemass.fill")
+                            Image(systemName: "scalemass")
                                 .foregroundColor(.green)
                                 .font(.system(size: 18))
                             Text("Peso (kg)")
@@ -511,7 +511,7 @@ struct ExerciseEditView: View {
                     // Segundos
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Image(systemName: "timer.square.fill")
+                            Image(systemName: "timer")
                                 .foregroundColor(.green)
                                 .font(.system(size: 18))
                             Text("Segundos")
@@ -527,7 +527,7 @@ struct ExerciseEditView: View {
                     // RIR (Reps in Reserve)
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Image(systemName: "gauge.high.fill")
+                            Image(systemName: "gauge")
                                 .foregroundColor(.green)
                                 .font(.system(size: 18))
                             Text("RIR (Reps en Reserva)")
@@ -800,10 +800,10 @@ struct AddExerciseForm: View {
     @State private var segundos: String = ""
     
     // Checkboxes para campos opcionales
-    @State private var includeRepetitions: Bool = false
+    @State private var includeRepetitions: Bool = true
     @State private var includeSegundos: Bool = false
-    @State private var includeWeight: Bool = false
-    @State private var includeTotalSets: Bool = false
+    @State private var includeWeight: Bool = true
+    @State private var includeTotalSets: Bool = true
     @State private var includeRIR: Bool = false
     
     let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
@@ -1062,6 +1062,12 @@ struct AddExerciseForm: View {
                             validationMessage: "Ingrese solo números enteros"
                         )
                         .padding(.leading, 42) // Alineado con el texto
+                        .onChange(of: repetitions) { newValue in
+                            // Si las repeticiones están vacías o son 0, activar segundos automáticamente
+                            if newValue.isEmpty || newValue == "0" {
+                                includeSegundos = true
+                            }
+                        }
                 }
             }
             
@@ -1124,7 +1130,7 @@ struct AddExerciseForm: View {
                             .font(.system(size: 18))
                     }
                     
-                    Image(systemName: "scalemass.fill")
+                    Image(systemName: "scalemass")
                         .foregroundColor(.green)
                         .font(.system(size: 18))
                     
@@ -1349,7 +1355,7 @@ struct AddExerciseForm: View {
         let reps = includeRepetitions ? (Int(repetitions) ?? 0) : 0
         let segValue = includeSegundos ? (Int(segundos) ?? 0) : 0
         let exerciseWeight = includeWeight ? (Double(weight) ?? 0.0) : 0.0
-        let sets = includeTotalSets ? totalSets : 0
+        let sets = includeTotalSets ? totalSets : 4
         let rirValue = includeRIR ? (Int(rir) ?? 0) : 0
         
         // Añadir el ejercicio a todos los días seleccionados con iconos SF Symbols
@@ -1367,7 +1373,9 @@ struct AddExerciseForm: View {
             restDuration: timerMinutes * 60 + timerSeconds,
             toDays: workoutDays,
             sfSymbolIcon: selectedIcon,
-            iconColor: iconColor
+            iconColor: iconColor,
+            segundos: segValue,
+            rir: rirValue
         )
         
         // Limpiar formulario
@@ -1386,10 +1394,10 @@ struct AddExerciseForm: View {
         rir = ""
         
         // Limpiar checkboxes
-        includeRepetitions = false
+        includeRepetitions = true   // Campo obligatorio
         includeSegundos = false
-        includeWeight = false
-        includeTotalSets = false
+        includeWeight = true        // Campo obligatorio
+        includeTotalSets = true     // Campo obligatorio
         includeRIR = false
         
         // Haptic feedback de éxito

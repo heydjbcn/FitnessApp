@@ -187,7 +187,7 @@ class WorkoutViewModel: ObservableObject {
         }
     }
     
-    func addExercise(name: String, reps: Int, weight: Double, sets: Int, info: String, imageData: Data?, restDuration: Int, toDays selectedDays: Set<WorkoutDay>, sfSymbolIcon: String? = nil, iconColor: String = "blue") {
+    func addExercise(name: String, reps: Int, weight: Double, sets: Int, info: String, imageData: Data?, restDuration: Int, toDays selectedDays: Set<WorkoutDay>, sfSymbolIcon: String? = nil, iconColor: String = "blue", segundos: Int = 0, rir: Int = 0) {
         let newBaseExercise = Exercise(
             id: UUID(),
             name: name,
@@ -198,7 +198,9 @@ class WorkoutViewModel: ObservableObject {
             imageData: imageData,
             restDuration: restDuration,
             sfSymbolIcon: sfSymbolIcon,
-            iconColor: iconColor
+            iconColor: iconColor,
+            segundos: segundos,
+            rir: rir
         )
         availableExercises.append(newBaseExercise)
         
@@ -400,12 +402,19 @@ class WorkoutViewModel: ObservableObject {
     private func loadData() {
         let decoder = JSONDecoder()
         
+        // Verificar si es la primera vez que se abre la app
+        let isFirstLaunch = !userDefaults.bool(forKey: "HasLaunchedBefore")
+        
         // Cargar availableExercises
         if let data = userDefaults.data(forKey: "AvailableExercises") {
             print("WorkoutViewModel: Cargando availableExercises - \(data.count) bytes")
             if let decoded = try? decoder.decode([Exercise].self, from: data) {
                 availableExercises = decoded
             }
+        } else if isFirstLaunch {
+            // Primera vez - configurar datos por defecto
+            setupDefaultData()
+            userDefaults.set(true, forKey: "HasLaunchedBefore")
         }
         
         // Cargar dailyWorkoutRecords
@@ -468,6 +477,374 @@ class WorkoutViewModel: ObservableObject {
             }
         }
     }
+    
+    private func setupDefaultData() {
+        print("WorkoutViewModel: Configurando datos por defecto...")
+        
+        // Crear ejercicios por defecto basados en la rutina
+        let defaultExercises = createDefaultExercises()
+        availableExercises = defaultExercises
+        
+        // Configurar días activos (Lunes, Miércoles, Viernes)
+        activeDays = [.monday, .wednesday, .friday]
+        
+        // Configurar rutina diaria
+        setupDefaultWorkoutPlan(exercises: defaultExercises)
+        
+        // Crear historial de entrenamiento del último mes
+        createMonthlyWorkoutHistory()
+        
+        // Guardar datos
+        saveData()
+        
+        print("WorkoutViewModel: Datos por defecto configurados exitosamente")
+    }
+    
+    private func createDefaultExercises() -> [Exercise] {
+        var exercises: [Exercise] = []
+        
+        // DÍA 1 - LUNES (Glúteos e Isquiosurales)
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "HIP THRUST MÁQUINA",
+            repetitions: 10,
+            weight: 65.0,
+            totalSets: 4,
+            info: "Enfoque en la contracción máxima del glúteo",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "pink"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "MÁQUINA DE ABDUCCIÓN",
+            repetitions: 20,
+            weight: 15.0,
+            totalSets: 4,
+            info: "Mantener tensión constante",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            iconColor: "pink"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "PESO MUERTO CON PESA RUSA",
+            repetitions: 10,
+            weight: 16.0,
+            totalSets: 4,
+            info: "Descenso controlado, activación de isquiosurales",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.strengthtraining.functional",
+            iconColor: "orange"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "FLEXIÓN DE RODILLA MÁQUINA TUMBADO",
+            repetitions: 12,
+            weight: 0,
+            totalSets: 4,
+            info: "Control en la fase excéntrica",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "red"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "FLEXIÓN DE RODILLA MÁQUINA SENTADO",
+            repetitions: 12,
+            weight: 0,
+            totalSets: 4,
+            info: "Máximo recorrido articular",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            iconColor: "red"
+        ))
+        
+        // DÍA 2 - MIÉRCOLES (Espalda y Deltoides)
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "JALÓN AL PECHO TOMA NEUTRA ANCHO HOMBROS",
+            repetitions: 12,
+            weight: 0,
+            totalSets: 4,
+            info: "Activación completa del dorsal ancho",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "blue"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "REMO EN POLEA BAJA AGARRE SUPINO",
+            repetitions: 10,
+            weight: 0,
+            totalSets: 4,
+            info: "Retracción escapular máxima",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.rowing",
+            iconColor: "blue"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "REMO UNILATERAL CON APOYO EN PECHO",
+            repetitions: 8,
+            weight: 0,
+            totalSets: 4,
+            info: "Trabajo unilateral para equilibrio muscular",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "cyan"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "VUELO POSTERIOR DE HOMBROS EN MÁQUINA",
+            repetitions: 10,
+            weight: 0,
+            totalSets: 4,
+            info: "Deltoides posterior y romboides",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "purple"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "ELEVACIÓN LATERAL SENTADO MANCUERNAS",
+            repetitions: 12,
+            weight: 0,
+            totalSets: 4,
+            info: "Deltoides medio, control del movimiento",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            iconColor: "purple"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "ELEVACIÓN FRONTAL MANCUERNAS DE PIE",
+            repetitions: 12,
+            weight: 0,
+            totalSets: 4,
+            info: "Deltoides anterior, evitar impulso",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "yellow"
+        ))
+        
+        // DÍA 3 - VIERNES (Cuádriceps)
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "HIP THRUST EN MÁQUINA",
+            repetitions: 8,
+            weight: 0,
+            totalSets: 4,
+            info: "Variante para activación previa",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "pink"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "SENTADILLA HACK",
+            repetitions: 8,
+            weight: 0,
+            totalSets: 4,
+            info: "Máxima profundidad, control de la carga",
+            imageData: nil,
+            restDuration: 120,
+            sfSymbolIcon: "figure.squat",
+            iconColor: "green"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "ZANCADA PIES EN SUELO",
+            repetitions: 10,
+            weight: 0,
+            totalSets: 4,
+            info: "Trabajo unilateral, estabilidad del core",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.strengthtraining.functional",
+            iconColor: "green"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "PRENSA DE PIERNA UNILATERAL",
+            repetitions: 10,
+            weight: 0,
+            totalSets: 4,
+            info: "Enfoque en cuádriceps, cada pierna por separado",
+            imageData: nil,
+            restDuration: 90,
+            sfSymbolIcon: "figure.strengthtraining.traditional",
+            iconColor: "green"
+        ))
+        
+        exercises.append(Exercise(
+            id: UUID(),
+            name: "EXTENSIÓN RODILLA EN SILLA LEG EXTENSION",
+            repetitions: 12,
+            weight: 0,
+            totalSets: 4,
+            info: "Aislamiento del cuádriceps, contracción máxima",
+            imageData: nil,
+            restDuration: 60,
+            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            iconColor: "green"
+        ))
+        
+        return exercises
+    }
+    
+    private func setupDefaultWorkoutPlan(exercises: [Exercise]) {
+        // Limpiar rutinas existentes
+        dailyWorkoutRecords = [:]
+        WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
+        
+        // DÍA 1 - LUNES (Glúteos e Isquiosurales)
+        let mondayExercises = exercises.filter { exercise in
+            ["HIP THRUST MÁQUINA", "MÁQUINA DE ABDUCCIÓN", "PESO MUERTO CON PESA RUSA", 
+             "FLEXIÓN DE RODILLA MÁQUINA TUMBADO", "FLEXIÓN DE RODILLA MÁQUINA SENTADO"].contains(exercise.name)
+        }
+        
+        dailyWorkoutRecords[.monday] = mondayExercises.map { exercise in
+            WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
+        }
+        
+        // DÍA 2 - MIÉRCOLES (Espalda y Deltoides)
+        let wednesdayExercises = exercises.filter { exercise in
+            ["JALÓN AL PECHO TOMA NEUTRA ANCHO HOMBROS", "REMO EN POLEA BAJA AGARRE SUPINO", 
+             "REMO UNILATERAL CON APOYO EN PECHO", "VUELO POSTERIOR DE HOMBROS EN MÁQUINA",
+             "ELEVACIÓN LATERAL SENTADO MANCUERNAS", "ELEVACIÓN FRONTAL MANCUERNAS DE PIE"].contains(exercise.name)
+        }
+        
+        dailyWorkoutRecords[.wednesday] = wednesdayExercises.map { exercise in
+            WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
+        }
+        
+        // DÍA 3 - VIERNES (Cuádriceps)
+        let fridayExercises = exercises.filter { exercise in
+            ["HIP THRUST EN MÁQUINA", "SENTADILLA HACK", "ZANCADA PIES EN SUELO", 
+             "PRENSA DE PIERNA UNILATERAL", "EXTENSIÓN RODILLA EN SILLA LEG EXTENSION"].contains(exercise.name)
+        }
+        
+        dailyWorkoutRecords[.friday] = fridayExercises.map { exercise in
+            WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
+        }
+    }
+    
+    private func createMonthlyWorkoutHistory() {
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // Crear historial para las últimas 4 semanas
+        // Asumiendo que el último miércoles del mes fue el último entrenamiento
+        
+        var dates: [Date] = []
+        
+        // Generar fechas para los últimos entrenamientos (Lunes, Miércoles, Viernes)
+        for weekOffset in (1...4).reversed() {
+            if let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today) {
+                // Encontrar lunes, miércoles y viernes de esa semana
+                let weekdayOfWeekStart = calendar.component(.weekday, from: weekStart)
+                let daysToMonday = (weekdayOfWeekStart == 1) ? 1 : 8 - weekdayOfWeekStart + 1
+                
+                if let monday = calendar.date(byAdding: .day, value: daysToMonday, to: weekStart),
+                   let wednesday = calendar.date(byAdding: .day, value: 2, to: monday),
+                   let friday = calendar.date(byAdding: .day, value: 4, to: monday) {
+                    dates.append(contentsOf: [monday, wednesday, friday])
+                }
+            }
+        }
+        
+        // Crear registros completados para cada fecha
+        for date in dates {
+            let dateKey = calendar.startOfDay(for: date)
+            let dayOfWeek = calendar.component(.weekday, from: date)
+            
+            var historyForDate: [WorkoutDay: [WorkoutExercise]] = [:]
+            
+            switch dayOfWeek {
+            case 2: // Lunes
+                if let mondayWorkouts = dailyWorkoutRecords[.monday] {
+                    let completedWorkouts = mondayWorkouts.map { workout in
+                        var completed = workout
+                        if let exercise = getExercise(by: workout.exerciseId) {
+                            completed.completedSets = exercise.totalSets // Completar todas las series
+                            completed.lastSetCompletedAt = date
+                        }
+                        return completed
+                    }
+                    historyForDate[.monday] = completedWorkouts
+                }
+                
+            case 4: // Miércoles
+                if let wednesdayWorkouts = dailyWorkoutRecords[.wednesday] {
+                    let completedWorkouts = wednesdayWorkouts.map { workout in
+                        var completed = workout
+                        if let exercise = getExercise(by: workout.exerciseId) {
+                            completed.completedSets = exercise.totalSets // Completar todas las series
+                            completed.lastSetCompletedAt = date
+                        }
+                        return completed
+                    }
+                    historyForDate[.wednesday] = completedWorkouts
+                }
+                
+            case 6: // Viernes
+                if let fridayWorkouts = dailyWorkoutRecords[.friday] {
+                    let completedWorkouts = fridayWorkouts.map { workout in
+                        var completed = workout
+                        if let exercise = getExercise(by: workout.exerciseId) {
+                            completed.completedSets = exercise.totalSets // Completar todas las series
+                            completed.lastSetCompletedAt = date
+                        }
+                        return completed
+                    }
+                    historyForDate[.friday] = completedWorkouts
+                }
+                
+            default:
+                break
+            }
+            
+            if !historyForDate.isEmpty {
+                workoutHistory[dateKey] = historyForDate
+            }
+        }
+        
+        // Simular algunos registros de peso corporal
+        for weekOffset in (1...4).reversed() {
+            if let date = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today) {
+                let weight = 70.0 + Double.random(in: -1.5...1.5) // Peso base con variaciones
+                bodyWeightHistory[calendar.startOfDay(for: date)] = weight
+            }
+        }
+        
+        print("WorkoutViewModel: Historial de entrenamiento creado para \(dates.count) días")
+    }
+    
     func resetAllData() {
         self.availableExercises = []
         self.dailyWorkoutRecords = [:]
@@ -481,6 +858,7 @@ class WorkoutViewModel: ObservableObject {
         userDefaults.removeObject(forKey: "BodyWeightHistory")
         userDefaults.removeObject(forKey: "ActiveDays")
         userDefaults.removeObject(forKey: "RestDuration")
+        userDefaults.removeObject(forKey: "HasLaunchedBefore")
     }
     
     // MARK: - Weekly Statistics

@@ -31,19 +31,31 @@ struct ExerciseCardView: View {
             }
 
             HStack(spacing: 24) {
-                infoItem(icon: "repeat", text: "\(exercise.repetitions) reps")
-                infoItem(icon: "scalemass.fill", text: String(format: "%.1f kg", exercise.weight))
+                // Priorizar segundos: si hay segundos > 0, mostrar segundos
+                // Solo mostrar repeticiones si no hay segundos configurados
+                if exercise.segundos > 0 {
+                    infoItem(icon: "timer", text: "\(exercise.segundos)s")
+                } else if exercise.repetitions > 0 {
+                    infoItem(icon: "repeat", text: "\(exercise.repetitions) reps")
+                }
+                
+                // Mostrar peso solo si es mayor a 0
+                if exercise.weight > 0 {
+                    infoItem(icon: "scalemass", text: String(format: "%.1f kg", exercise.weight))
+                }
+                
                 infoItem(icon: "number", text: "\(workoutRecord.completedSets)/\(exercise.totalSets) series", color: workoutRecord.completedSets >= exercise.totalSets ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
             
             // Segunda fila con información adicional si está disponible
-            if exercise.segundos > 0 || exercise.rir > 0 {
+            if (exercise.segundos > 0 && exercise.repetitions > 0) || exercise.rir > 0 {
                 HStack(spacing: 24) {
-                    if exercise.segundos > 0 {
-                        infoItem(icon: "timer.square", text: "\(exercise.segundos)s")
+                    // Solo mostrar segundos en segunda fila si ya se mostraron repeticiones en la primera
+                    if exercise.segundos > 0 && exercise.repetitions > 0 {
+                        infoItem(icon: "timer", text: "\(exercise.segundos)s")
                     }
                     if exercise.rir > 0 {
-                        infoItem(icon: "gauge.high", text: "RIR: \(exercise.rir)")
+                        infoItem(icon: "gauge", text: "RIR: \(exercise.rir)")
                     }
                     Spacer() // Para alinear a la izquierda
                 }
@@ -132,7 +144,7 @@ struct ExerciseInfoSheet: View {
                                 }
                                 
                                 HStack {
-                                    Image(systemName: "scalemass.fill")
+                                    Image(systemName: "scalemass")
                                         .foregroundColor(AppColors.primary)
                                     Text("Peso:")
                                     Spacer()
@@ -151,7 +163,7 @@ struct ExerciseInfoSheet: View {
                                 
                                 if exercise.segundos > 0 {
                                     HStack {
-                                        Image(systemName: "timer.square")
+                                        Image(systemName: "timer")
                                             .foregroundColor(AppColors.primary)
                                         Text("Segundos:")
                                         Spacer()

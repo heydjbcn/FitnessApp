@@ -48,11 +48,25 @@ class HapticManager {
     
     /// Haptic feedback para cuando el temporizador termina
     func timerCompleted() {
-        heavyImpactGenerator.impactOccurred()
+        // Vibración intensa para llamar la atención
+        rigidImpactGenerator.impactOccurred()
         
-        // Doble vibración para mayor énfasis
+        // Secuencia de vibraciones progresivamente más intensas
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.heavyImpactGenerator.impactOccurred()
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.rigidImpactGenerator.impactOccurred()
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            self.heavyImpactGenerator.impactOccurred()
+        }
+        
+        // Vibración final más larga usando AudioToolbox para más intensidad
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         }
     }
     
