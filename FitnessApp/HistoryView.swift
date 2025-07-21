@@ -89,7 +89,7 @@ struct HistoryView: View {
         HStack(spacing: 16) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(AppColors.primary)
+                    .fill(AppColors.primary(themeManager: themeManager))
                     .frame(width: 44, height: 44)
                 Image(systemName: "dumbbell.fill")
                     .resizable()
@@ -119,7 +119,7 @@ struct HistoryView: View {
             // Header con icono y título
             HStack {
                 Image(systemName: "scalemass")
-                    .foregroundColor(AppColors.primary)
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                 Text("Peso corporal (kg):")
                     .font(.subheadline)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
@@ -144,7 +144,7 @@ struct HistoryView: View {
                         isEditingWeight = false 
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(AppColors.primary)
+                    .tint(AppColors.primary(themeManager: themeManager))
                 }
             } else {
                 // Peso y botón editar en la misma línea
@@ -159,7 +159,7 @@ struct HistoryView: View {
                         isEditingWeight = true
                         isWeightFocused = true 
                     }
-                    .foregroundColor(AppColors.primary)
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                 }
             }
         }

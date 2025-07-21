@@ -143,7 +143,7 @@ struct ExerciseInfoSheet: View {
                             VStack(spacing: 8) {
                                 HStack {
                                     Image(systemName: "repeat")
-                                        .foregroundColor(AppColors.primary)
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     Text("Repeticiones:")
                                     Spacer()
                                     Text("\(exercise.repetitions)")
@@ -152,7 +152,7 @@ struct ExerciseInfoSheet: View {
                                 
                                 HStack {
                                     Image(systemName: "scalemass")
-                                        .foregroundColor(AppColors.primary)
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     Text("Peso:")
                                     Spacer()
                                     Text(String(format: "%.1f kg", exercise.weight))
@@ -161,7 +161,7 @@ struct ExerciseInfoSheet: View {
                                 
                                 HStack {
                                     Image(systemName: "list.number")
-                                        .foregroundColor(AppColors.primary)
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     Text("Total de Sets:")
                                     Spacer()
                                     Text("\(exercise.totalSets)")
@@ -171,7 +171,7 @@ struct ExerciseInfoSheet: View {
                                 if exercise.segundos > 0 {
                                     HStack {
                                         Image(systemName: "timer")
-                                            .foregroundColor(AppColors.primary)
+                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                                         Text("Segundos:")
                                         Spacer()
                                         Text("\(exercise.segundos)s")
@@ -182,7 +182,7 @@ struct ExerciseInfoSheet: View {
                                 if exercise.rir > 0 {
                                     HStack {
                                         Image(systemName: "gauge.high")
-                                            .foregroundColor(AppColors.primary)
+                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                                         Text("RIR (Reps en Reserva):")
                                         Spacer()
                                         Text("\(exercise.rir)")
@@ -192,7 +192,7 @@ struct ExerciseInfoSheet: View {
                                 
                                 HStack {
                                     Image(systemName: "timer.circle")
-                                        .foregroundColor(AppColors.primary)
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     Text("Descanso:")
                                     Spacer()
                                     Text("\(exercise.restDuration / 60):\(String(format: "%02d", exercise.restDuration % 60))")
@@ -211,7 +211,7 @@ struct ExerciseInfoSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark").font(.title3.weight(.bold)) }
-                        .foregroundColor(AppColors.primary)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                 }
             }
         }

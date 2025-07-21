@@ -90,15 +90,15 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    Spacer()
+            GeometryReader { geometry in
+                ZStack {
+                    AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                     
                     VStack(spacing: 24) {
                         // Header del perfil horizontal
                         HStack(spacing: 16) {
+                            Spacer() // Empuja el contenido al centro
+                            
                             // Foto de perfil a la izquierda
                             if let imageData = userManager.profileImageData,
                                let uiImage = UIImage(data: imageData) {
@@ -107,11 +107,11 @@ struct ProfileView: View {
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 80, height: 80)
                                     .clipShape(Circle())
-                                    .overlay(Circle().stroke(AppColors.primary, lineWidth: 3))
+                                    .overlay(Circle().stroke(AppColors.primary(themeManager: themeManager), lineWidth: 3))
                             } else {
                                 Image(systemName: "person.circle.fill")
                                     .font(.system(size: 80))
-                                    .foregroundColor(AppColors.primary)
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                             }
                             
                             // Nombre y botón a la derecha
@@ -119,7 +119,6 @@ struct ProfileView: View {
                                 Text(userManager.currentUserName.isEmpty ? "Usuario" : userManager.currentUserName)
                                     .font(AppFonts.title)
                                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 
                                 // Botón editar perfil
                                 Button(action: {
@@ -130,7 +129,7 @@ struct ProfileView: View {
                                         Text("Editar perfil")
                                     }
                                     .font(AppFonts.caption)
-                                    .foregroundColor(AppColors.primary)
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
                                     .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
@@ -138,9 +137,11 @@ struct ProfileView: View {
                                 }
                             }
                             
-                            Spacer()
+                            Spacer() // Empuja el contenido al centro
                         }
                         .padding(.horizontal)
+                        .padding(.top, 20)
+                        .padding(.bottom, 30)
                         
                         // Estadísticas del perfil
                         VStack(spacing: 12) {
@@ -214,9 +215,9 @@ struct ProfileView: View {
                             }
                         }
                         .padding(.horizontal)
-                        
-                        Spacer()
                     }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 }
             }
             .navigationTitle("Mi Perfil")
@@ -240,7 +241,7 @@ struct ProfileInfoCard: View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 28, weight: .medium))
-                .foregroundColor(AppColors.primary)
+                .foregroundColor(AppColors.primary(themeManager: themeManager))
                 .frame(height: 32)
             
             Text(title)
@@ -288,11 +289,11 @@ struct ProfileProgressCard: View {
                 
                 Text(value)
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(AppColors.primary)
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
             }
             
             ProgressView(value: progress)
-                .progressViewStyle(LinearProgressViewStyle(tint: AppColors.primary))
+                .progressViewStyle(LinearProgressViewStyle(tint: AppColors.primary(themeManager: themeManager)))
                 .scaleEffect(x: 1, y: 1.5, anchor: .center)
         }
         .padding(.horizontal, 16)
