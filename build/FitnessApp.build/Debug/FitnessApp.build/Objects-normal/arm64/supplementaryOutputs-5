@@ -1,0 +1,37 @@
+{
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/ExerciseManagementView.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementView.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementView.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementView.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementView.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementView.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/ExerciseManagementViewFixed.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewFixed.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewFixed.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewFixed.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewFixed.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewFixed.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/ExerciseManagementViewNew.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewNew.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewNew.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewNew.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewNew.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ExerciseManagementViewNew.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/FitnessAppApp.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FitnessAppApp.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FitnessAppApp.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FitnessAppApp.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FitnessAppApp.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FitnessAppApp.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/FocusModeManager.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FocusModeManager.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FocusModeManager.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FocusModeManager.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FocusModeManager.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/FocusModeManager.swiftdeps"
+  }
+}

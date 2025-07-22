@@ -1,0 +1,30 @@
+{
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/TutorialView.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TutorialView.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TutorialView.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TutorialView.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TutorialView.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TutorialView.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/UserManager.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/UserManager.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/UserManager.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/UserManager.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/UserManager.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/UserManager.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/WatchConnectivityManager.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WatchConnectivityManager.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WatchConnectivityManager.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WatchConnectivityManager.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WatchConnectivityManager.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WatchConnectivityManager.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/WeeklyCalendarView.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WeeklyCalendarView.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WeeklyCalendarView.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WeeklyCalendarView.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WeeklyCalendarView.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/WeeklyCalendarView.swiftdeps"
+  }
+}

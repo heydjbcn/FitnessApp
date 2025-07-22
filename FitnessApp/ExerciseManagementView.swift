@@ -603,7 +603,7 @@ struct ExerciseEditView: View {
                         
                         // Botones horizontales para días
                         HStack(spacing: 4) {
-                            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                            ForEach(Array(days.enumerated()), id: \.element) { index, day in
                                 Button(action: {
                                     if selectedDays.contains(day) {
                                         selectedDays.remove(day)
@@ -667,7 +667,7 @@ struct ExerciseEditView: View {
                 // Cargar los días donde está el ejercicio
                 loadExerciseDays()
             }
-            .onChange(of: selectedPhotoItem) { newItem in
+            .onChange(of: selectedPhotoItem) { oldItem, newItem in
                 Task {
                     if let newItem = newItem {
                         if let data = try? await newItem.loadTransferable(type: Data.self) {
@@ -824,7 +824,7 @@ struct AddExerciseForm: View {
                 
                 // Botones horizontales para días
                 HStack(spacing: 4) {
-                    ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                    ForEach(Array(days.enumerated()), id: \.element) { index, day in
                         Button(action: {
                             if selectedDays.contains(day) {
                                 selectedDays.remove(day)
@@ -1062,7 +1062,7 @@ struct AddExerciseForm: View {
                             validationMessage: "Ingrese solo números enteros"
                         )
                         .padding(.leading, 42) // Alineado con el texto
-                        .onChange(of: repetitions) { newValue in
+                        .onChange(of: repetitions) { oldValue, newValue in
                             // Si las repeticiones están vacías o son 0, activar segundos automáticamente
                             if newValue.isEmpty || newValue == "0" {
                                 includeSegundos = true

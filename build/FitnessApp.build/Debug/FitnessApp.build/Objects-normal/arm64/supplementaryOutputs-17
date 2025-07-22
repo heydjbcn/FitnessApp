@@ -1,0 +1,30 @@
+{
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/StatsCardsView.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/StatsCardsView.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/StatsCardsView.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/StatsCardsView.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/StatsCardsView.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/StatsCardsView.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/ThemeManager.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ThemeManager.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ThemeManager.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ThemeManager.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ThemeManager.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/ThemeManager.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/TimerLiveActivity.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerLiveActivity.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerLiveActivity.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerLiveActivity.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerLiveActivity.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerLiveActivity.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/TimerView.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerView.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerView.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerView.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerView.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/arm64/TimerView.swiftdeps"
+  }
+}

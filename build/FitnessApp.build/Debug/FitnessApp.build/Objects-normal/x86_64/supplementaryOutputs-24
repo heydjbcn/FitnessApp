@@ -1,0 +1,30 @@
+{
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/WorkoutDayView.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutDayView.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutDayView.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutDayView.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutDayView.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutDayView.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/WorkoutExercise.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutExercise.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutExercise.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutExercise.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutExercise.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutExercise.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/FitnessApp/WorkoutViewModel.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutViewModel.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutViewModel.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutViewModel.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutViewModel.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/WorkoutViewModel.swiftdeps"
+  },
+  "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "object" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp/build/FitnessApp.build/Debug/FitnessApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps"
+  }
+}

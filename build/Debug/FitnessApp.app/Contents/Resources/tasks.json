@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run FitnessApp",
+			"type": "shell",
+			"command": "cd /Users/Mauri/Desktop/Apps/FitnessApp/FitnessApp && xcodebuild -scheme FitnessApp -destination 'platform=iOS Simulator,name=iPhone 16' -jobs 4",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"args": []
+		}
+	]
+}

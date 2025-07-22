@@ -67,6 +67,9 @@ class UserManager: ObservableObject {
             UserDefaults.standard.set(imageData, forKey: profileImageKey)
         }
         
+        // Forzar actualización de la UI
+        objectWillChange.send()
+        
         showingNameInput = false
     }
     

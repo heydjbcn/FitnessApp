@@ -1,13 +1,33 @@
 import SwiftUI
 
 struct ProgramSettingsView: View {
+    let mainSelectedTab: Binding<Int>?
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
     @EnvironmentObject var viewModel: WorkoutViewModel
-    @State private var showingProfileEdit = false
+    @State private var showingNotifications = false
+    @Environment(\.dismiss) private var dismiss
+    
+    init(mainSelectedTab: Binding<Int>? = nil) {
+        self.mainSelectedTab = mainSelectedTab
+    }
     
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            // Header con campana y X usando la vista reutilizable
+            VStack(spacing: 0) {
+                SettingsHeaderView(showingNotifications: $showingNotifications)
+                    .environmentObject(themeManager)
+                
+                // Título
+                Text("Configuración")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    .padding(.bottom, 10)
+            }
+            .background(AppColors.background(isDark: themeManager.isDarkMode))
+            
+            // Contenido principal
             ZStack {
                 AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                 
@@ -45,51 +65,47 @@ struct ProgramSettingsView: View {
                         
                         // Selector de Color de Acento
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Color de Acento")
-                                .font(AppFonts.subtitle)
-                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             
-                            HStack {
-                                Image(systemName: "paintbrush.fill")
+                            // Título con icono
+                            HStack(spacing: 8) {
+                                Image(systemName: "paintpalette.fill")
                                     .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     .font(.title2)
                                 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Color Personalizado")
-                                        .font(AppFonts.body)
-                                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                    
-                                    Text("Selecciona el color principal de la app")
-                                        .font(AppFonts.caption)
-                                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                }
-                                
-                                Spacer()
-                                
-                                // Paleta de colores
-                                HStack(spacing: 8) {
-                                    ForEach(AccentColor.allCases) { color in
-                                        Button(action: {
-                                            HapticManager.shared.buttonTapped()
-                                            themeManager.setAccentColor(color)
-                                        }) {
-                                            Circle()
-                                                .fill(color.color)
-                                                .frame(width: 24, height: 24)
-                                                .overlay(
-                                                    Circle()
-                                                        .stroke(Color.white, lineWidth: themeManager.selectedAccentColor == color ? 3 : 0)
-                                                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                                                )
-                                                .scaleEffect(themeManager.selectedAccentColor == color ? 1.2 : 1.0)
-                                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
-                                        }
+                                Text("Color Personalizado")
+                                    .font(AppFonts.subtitle)
+                                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            }
+                            
+                            // Descripción
+                            Text("Selecciona el color principal de la app")
+                                .font(AppFonts.caption)
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                .padding(.bottom, 8)
+                            
+                            // Paleta de colores (las bolitas) - Una sola fila horizontal
+                            HStack(spacing: 0) {
+                                ForEach(AccentColor.allCases) { color in
+                                    Button(action: {
+                                        HapticManager.shared.buttonTapped()
+                                        themeManager.setAccentColor(color)
+                                    }) {
+                                        Circle()
+                                            .fill(color.color)
+                                            .frame(width: 32, height: 32)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 2)
+                                            )
+                                            .scaleEffect(themeManager.selectedAccentColor == color ? 1.1 : 1.0)
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
                                     }
+                                    .frame(maxWidth: .infinity)
                                 }
                             }
-                            .padding()
-                            .cardStyle(isDarkMode: themeManager.isDarkMode)
                         }
+                        .padding()
+                        .cardStyle(isDarkMode: themeManager.isDarkMode)
                         
                         // Timer de descanso
                         VStack(alignment: .leading, spacing: 12) {
@@ -121,90 +137,52 @@ struct ProgramSettingsView: View {
                             .cardStyle(isDarkMode: themeManager.isDarkMode)
                         }
                         
-                        // Botón Editar Perfil
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Perfil")
-                                .font(AppFonts.subtitle)
-                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                            
-                            Button(action: {
-                                showingProfileEdit = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "person.circle.fill")
-                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                                        .font(.title2)
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Editar mi perfil")
-                                            .font(AppFonts.body)
-                                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                        
-                                        Text("Modifica tu información personal")
-                                            .font(AppFonts.caption)
-                                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                        .font(.caption)
-                                }
-                                .padding()
-                                .cardStyle(isDarkMode: themeManager.isDarkMode)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                        
-                        // Onboarding
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Ayuda")
-                                .font(AppFonts.subtitle)
-                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        // CTA Tutorial Prominente
+                        VStack(spacing: 16) {
+                            Text("¿Nuevo en FitnessApp?")
+                                .font(AppFonts.title)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                             
                             Button(action: {
                                 viewModel.onboardingManager.resetOnboarding()
-                                viewModel.onboardingManager.startOnboarding()
-                            }) {
-                                HStack {
-                                    Image(systemName: "questionmark.circle.fill")
-                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                                        .font(.title2)
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Ver tutorial")
-                                            .font(AppFonts.body)
-                                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                        
-                                        Text("Volver a mostrar el tutorial de ejercicios")
-                                            .font(AppFonts.caption)
-                                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                        .font(.caption)
+                                viewModel.onboardingManager.startOnboarding(force: true)
+                                
+                                // Navegar a la pantalla principal si tenemos el binding
+                                if let mainTab = mainSelectedTab {
+                                    mainTab.wrappedValue = 0 // Ir a la pantalla principal
                                 }
-                                .padding()
-                                .cardStyle(isDarkMode: themeManager.isDarkMode)
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    dismiss() // Cierra la configuración tras activar el onboarding
+                                }
+                            }) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "play.circle.fill")
+                                        .font(.system(size: 28, weight: .bold))
+                                        .foregroundColor(.white)
+                                    Text("Ver tutorial y empezar")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 56)
+                                .background(AppColors.primary(themeManager: themeManager))
+                                .cornerRadius(16)
+                                .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 10, x: 0, y: 4)
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .padding(.top, 8)
                         }
+                        .padding()
+                        .cardStyle(isDarkMode: themeManager.isDarkMode)
                     }
                     .padding(.horizontal)
                     .padding(.top, 20)
                 }
             }
-            .navigationTitle("Configuración")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingProfileEdit) {
-                ProfileEditView()
-                    .environmentObject(userManager)
-                    .environmentObject(themeManager)
-            }
+        }
+        .background(AppColors.background(isDark: themeManager.isDarkMode))
+        .sheet(isPresented: $showingNotifications) {
+            NotificationsView()
+                .environmentObject(themeManager)
         }
     }
 }

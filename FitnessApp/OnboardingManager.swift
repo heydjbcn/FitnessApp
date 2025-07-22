@@ -29,8 +29,8 @@ class OnboardingManager: ObservableObject {
         isFirstExercise = !hasAddedExercise
     }
     
-    func startOnboarding() {
-        guard isFirstExercise else { return }
+    func startOnboarding(force: Bool = false) {
+        guard isFirstExercise || force else { return }
         showingOnboarding = true
         onboardingStep = 0
         HapticManager.shared.buttonTapped()

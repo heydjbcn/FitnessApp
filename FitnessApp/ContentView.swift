@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @StateObject private var viewModel = WorkoutViewModel()
+    @EnvironmentObject var viewModel: WorkoutViewModel // Usar la instancia del App
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var userManager = UserManager()
     @State private var selectedTab = 0
@@ -17,7 +17,7 @@ struct ContentView: View {
                         AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                         VStack(spacing: 0) {
                             // Header personalizado FIJO (solo saludo e iconos)
-                            HeaderView()
+                            HeaderView(mainSelectedTab: $selectedTab)
                                 .environmentObject(themeManager)
                                 .environmentObject(userManager)
                                 .environmentObject(viewModel)
@@ -148,14 +148,13 @@ struct ContentView: View {
                     }
                     .tag(3)
 
-                // PERFIL
-                ProfileView()
-                    .environmentObject(userManager)
+                // APPLE FITNESS
+                AppleFitnessIntegrationView()
                     .environmentObject(themeManager)
-                    .environmentObject(viewModel)
+                    .environmentObject(HealthKitManagerSimple.shared)
                     .tabItem {
-                        Image(systemName: "person.circle.fill")
-                        Text("Perfil")
+                        Image(systemName: "heart.fill")
+                        Text("Fitness")
                     }
                     .tag(4)
             }

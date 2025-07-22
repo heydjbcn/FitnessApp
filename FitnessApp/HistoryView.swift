@@ -61,7 +61,7 @@ struct HistoryView: View {
     private var historyListView: some View {
         ScrollView(showsIndicators: false) {
             if let selectedDate = selectedDate,
-               let historyForDate = viewModel.exercisesForDate(selectedDate), 
+               let historyForDate = viewModel.completedExercisesForDate(selectedDate), 
                !historyForDate.values.allSatisfy({ $0.isEmpty }) {
                 let selectedDayName = dayFormatter.string(from: selectedDate)
                 ForEach(historyForDate.keys.sorted { $0.rawValue < $1.rawValue }, id: \.self) { routineDay in
@@ -167,7 +167,22 @@ struct HistoryView: View {
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(12) 
     }
-    private var noDataView: some View { VStack { Spacer(); Text("Sin datos para esta fecha.").foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)); Spacer() }.frame(height: 200) }
+    private var noDataView: some View { 
+        VStack(spacing: 12) { 
+            Spacer()
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 48))
+                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            Text("No hay ejercicios completados")
+                .font(.headline)
+                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+            Text("en esta fecha")
+                .font(.subheadline)
+                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            Spacer() 
+        }
+        .frame(height: 200) 
+    }
     private func loadWeight() { 
         guard let selectedDate = selectedDate else { return }
         if let w = viewModel.bodyWeightForDate(selectedDate) { 

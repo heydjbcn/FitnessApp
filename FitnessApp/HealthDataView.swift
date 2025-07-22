@@ -1,8 +1,9 @@
 import SwiftUI
 import HealthKit
+import WatchConnectivity
 
 struct HealthDataView: View {
-    @EnvironmentObject var healthKitManager: HealthKitManager
+    @EnvironmentObject var healthKitManager: HealthKitManagerSimple
     @EnvironmentObject var themeManager: ThemeManager
     @State private var activityData: ActivityData?
     @State private var workouts: [WorkoutData] = []
@@ -102,9 +103,9 @@ struct HealthDataView: View {
         ActivityData(
             steps: 8547,
             activeCalories: 342,
-            walkingDistance: 6.2,
-            cyclingDistance: 0.0,
-            exerciseTime: 45,
+            calories: 342,
+            distance: 6.2,
+            heartRate: 75.0,
             date: Date()
         )
     }
@@ -123,7 +124,7 @@ struct HealthDataView: View {
                 Spacer()
             }
             
-            ForEach(simulatedWorkouts, id: \.startDate) { workout in
+            ForEach(simulatedWorkouts, id: \.id) { workout in
                 WorkoutCard(workout: workout)
                     .environmentObject(themeManager)
             }
@@ -135,28 +136,37 @@ struct HealthDataView: View {
     private var simulatedWorkouts: [WorkoutData] {
         [
             WorkoutData(
-                activityType: .running,
-                startDate: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date(),
-                endDate: Calendar.current.date(byAdding: .hour, value: -1, to: Date()) ?? Date(),
+                activityType: "running",
+                name: "Carrera",
                 duration: 3600, // 1 hora
                 totalEnergyBurned: 520,
-                totalDistance: 8500 // 8.5 km
+                totalDistance: 8.5, // 8.5 km
+                calories: 520,
+                date: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date(),
+                type: "Running",
+                startDate: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date()
             ),
             WorkoutData(
-                activityType: .traditionalStrengthTraining,
-                startDate: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date(),
-                endDate: Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.date(byAdding: .minute, value: 45, to: Date()) ?? Date()) ?? Date(),
+                activityType: "traditionalStrengthTraining",
+                name: "Entrenamiento de Fuerza",
                 duration: 2700, // 45 minutos
                 totalEnergyBurned: 280,
-                totalDistance: nil
+                totalDistance: nil,
+                calories: 280,
+                date: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date(),
+                type: "Strength",
+                startDate: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
             ),
             WorkoutData(
-                activityType: .cycling,
-                startDate: Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date(),
-                endDate: Calendar.current.date(byAdding: .day, value: -2, to: Calendar.current.date(byAdding: .minute, value: 60, to: Date()) ?? Date()) ?? Date(),
+                activityType: "cycling",
+                name: "Ciclismo",
                 duration: 3600, // 1 hora
                 totalEnergyBurned: 420,
-                totalDistance: 15000 // 15 km
+                totalDistance: 15.0, // 15 km
+                calories: 420,
+                date: Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date(),
+                type: "Cycling",
+                startDate: Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date()
             )
         ]
     }
@@ -277,14 +287,14 @@ struct HealthDataView: View {
                 ActivityMetricCard(
                     icon: "location",
                     title: "Distancia",
-                    value: String(format: "%.1f", data.walkingDistance),
+                    value: String(format: "%.1f", data.distance),
                     subtitle: "km caminando"
                 )
                 
                 ActivityMetricCard(
                     icon: "timer",
                     title: "Ejercicio",
-                    value: "\(data.exerciseTime)",
+                    value: "45", // Tiempo de ejercicio simulado
                     subtitle: "minutos"
                 )
             }
@@ -307,7 +317,7 @@ struct HealthDataView: View {
                 Spacer()
             }
             
-            ForEach(Array(workouts.prefix(5).enumerated()), id: \.element.startDate) { index, workout in
+            ForEach(Array(workouts.prefix(5).enumerated()), id: \.offset) { index, workout in
                 WorkoutCard(workout: workout)
                     .environmentObject(themeManager)
             }
@@ -368,7 +378,7 @@ struct HealthDataView: View {
         guard healthKitManager.isAuthorized else { return }
         
         async let activityTask = healthKitManager.fetchRecentActivityData()
-        async let workoutsTask = healthKitManager.fetchRecentWorkouts()
+        async let workoutsTask = healthKitManager.fetchRecentWorkoutsData()
         
         activityData = await activityTask
         workouts = await workoutsTask
@@ -454,7 +464,7 @@ struct WorkoutCard: View {
                 .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(workout.activityName)
+                Text(workout.name)
                     .font(.headline)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 
@@ -463,21 +473,19 @@ struct WorkoutCard: View {
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 
                 HStack(spacing: 16) {
-                    Label(workout.formattedDuration, systemImage: "clock")
+                    Label(formatDuration(workout.duration), systemImage: "clock")
                         .font(.caption)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     
-                    if let distance = workout.formattedDistance {
-                        Label(distance, systemImage: "location")
+                    if let distance = workout.totalDistance {
+                        Label(formatDistance(distance), systemImage: "location")
                             .font(.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
                     
-                    if let calories = workout.formattedCalories {
-                        Label(calories, systemImage: "flame")
-                            .font(.caption)
-                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                    }
+                    Label(formatCalories(workout.calories), systemImage: "flame")
+                        .font(.caption)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }
             }
             
@@ -488,29 +496,29 @@ struct WorkoutCard: View {
         .cornerRadius(12)
     }
     
-    private func iconForActivity(_ type: HKWorkoutActivityType) -> String {
+    private func iconForActivity(_ type: String) -> String {
         switch type {
-        case .running:
+        case "running":
             return "figure.run"
-        case .walking:
+        case "walking":
             return "figure.walk"
-        case .cycling:
+        case "cycling":
             return "bicycle"
-        case .swimming:
+        case "swimming":
             return "figure.pool.swim"
-        case .yoga:
+        case "yoga":
             return "figure.yoga"
-        case .traditionalStrengthTraining, .functionalStrengthTraining:
+        case "traditionalStrengthTraining", "functionalStrengthTraining":
             return "dumbbell"
-        case .hiking:
+        case "hiking":
             return "figure.hiking"
-        case .dance:
+        case "dance":
             return "figure.dance"
-        case .soccer:
+        case "soccer":
             return "soccerball"
-        case .basketball:
+        case "basketball":
             return "basketball"
-        case .tennis:
+        case "tennis":
             return "tennisball"
         default:
             return "figure.strengthtraining.traditional"
@@ -523,6 +531,29 @@ struct WorkoutCard: View {
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "es_ES")
         return formatter.string(from: date)
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+    
+    private func formatDistance(_ distance: Double) -> String {
+        if distance >= 1000 {
+            return String(format: "%.1f km", distance / 1000)
+        } else {
+            return String(format: "%.0f m", distance)
+        }
+    }
+    
+    private func formatCalories(_ calories: Double) -> String {
+        return String(format: "%.0f cal", calories)
     }
 }
 

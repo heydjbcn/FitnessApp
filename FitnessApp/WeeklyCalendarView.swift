@@ -234,6 +234,7 @@ struct CalendarExerciseCard: View {
     let onTimerStart: (Int) -> Void
     @EnvironmentObject var viewModel: WorkoutViewModel
     @State private var showingTooltip = false
+    @State private var showingExerciseDetail = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -246,7 +247,7 @@ struct CalendarExerciseCard: View {
                 
                 // Botón de información para tooltip
                 Button(action: {
-                    showingTooltip = true
+                    showingExerciseDetail = true
                 }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 16))
@@ -346,27 +347,9 @@ struct CalendarExerciseCard: View {
         }
         .padding()
         .cardStyle(isDarkMode: themeManager.isDarkMode)
-        .alert(exercise.name, isPresented: $showingTooltip) {
-            Button("Cerrar", role: .cancel) { }
-        } message: {
-            VStack(alignment: .leading, spacing: 8) {
-                if !exercise.info.isEmpty {
-                    Text(exercise.info)
-                        .font(.system(size: 14))
-                }
-                
-                if exercise.imageData != nil {
-                    Text("📷 Imagen disponible")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                
-                if exercise.info.isEmpty && exercise.imageData == nil {
-                    Text("No hay información adicional disponible")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-            }
+        .sheet(isPresented: $showingExerciseDetail) {
+            ExerciseDetailSheet(exercise: exercise)
+                .environmentObject(themeManager)
         }
     }
     
@@ -598,6 +581,65 @@ struct ProgressRing: View {
             Text(title)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
+        }
+    }
+}
+
+struct ExerciseDetailSheet: View {
+    let exercise: Exercise
+    
+    var body: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let imageData = exercise.imageData, let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 200)
+                        .cornerRadius(12)
+                }
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(exercise.name)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    if !exercise.info.isEmpty {
+                        Text(exercise.info)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Label("Series", systemImage: "repeat")
+                        Spacer()
+                        Text("\(exercise.totalSets)")
+                            .fontWeight(.medium)
+                    }
+                    
+                    HStack {
+                        Label("Repeticiones", systemImage: "number")
+                        Spacer()
+                        Text("\(exercise.repetitions)")
+                            .fontWeight(.medium)
+                    }
+                    
+                    HStack {
+                        Label("Peso", systemImage: "scalemass")
+                        Spacer()
+                        Text("\(exercise.weight, specifier: "%.1f") kg")
+                            .fontWeight(.medium)
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Detalle del Ejercicio")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

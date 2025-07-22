@@ -7,10 +7,15 @@ enum PresentedSheet: String, CaseIterable, Identifiable {
 }
 
 struct HeaderView: View {
+    let mainSelectedTab: Binding<Int>?
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
     @EnvironmentObject var viewModel: WorkoutViewModel
     @State private var presentedSheet: PresentedSheet?
+    
+    init(mainSelectedTab: Binding<Int>? = nil) {
+        self.mainSelectedTab = mainSelectedTab
+    }
     
     var body: some View {
         // Solo el header con saludo e iconos (fijo)
@@ -45,7 +50,7 @@ struct HeaderView: View {
             NavigationStack {
                 switch sheet {
                 case .programSettings:
-                    ProgramSettingsView()
+                    ProgramSettingsView(mainSelectedTab: mainSelectedTab)
                         .environmentObject(themeManager)
                         .environmentObject(userManager)
                         .environmentObject(viewModel)

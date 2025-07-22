@@ -75,6 +75,7 @@ struct FocusModeSettingsCard: View {
 }
 
 struct SettingsView: View {
+    let mainSelectedTab: Binding<Int>?
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
@@ -82,18 +83,17 @@ struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .configuration
     @State private var showingResetAlert = false
     @State private var customTimeInput = ""
+    @State private var showingNotifications = false
+    
+    init(mainSelectedTab: Binding<Int>? = nil) {
+        self.mainSelectedTab = mainSelectedTab
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header con botón X de cerrar
-            HStack {
-                Spacer()
-                CloseButton {
-                    dismiss()
-                }
-                .padding(.trailing)
-            }
-            .padding(.top, 8)
+            // Header con campana y X usando la vista reutilizable
+            SettingsHeaderView(showingNotifications: $showingNotifications)
+                .environmentObject(themeManager)
             
             VStack(spacing: 8) {
                 // Selector de pestañas
@@ -116,6 +116,10 @@ struct SettingsView: View {
             }
         }
         .background(AppColors.background(isDark: themeManager.isDarkMode))
+        .sheet(isPresented: $showingNotifications) {
+            NotificationsView()
+                .environmentObject(themeManager)
+        }
     }
     
     private var tabSelector: some View {
@@ -156,25 +160,38 @@ struct SettingsView: View {
                         .environmentObject(themeManager)
                     
                     // Card para tutorial
-                    VStack(spacing: 12) {
-                        Text("Tutorial")
-                            .font(AppFonts.subtitle)
-                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    VStack(spacing: 16) {
+                        Text("¿Nuevo en FitnessApp?")
+                            .font(AppFonts.title)
+                            .foregroundColor(AppColors.primary)
                         
                         Button(action: {
                             viewModel.onboardingManager.resetOnboarding()
-                            viewModel.onboardingManager.startOnboarding()
-                            dismiss()
-                        }) {
-                            HStack {
-                                Image(systemName: "questionmark.circle")
-                                Text("Ver Tutorial")
-                                    .font(AppFonts.body)
+                            viewModel.onboardingManager.startOnboarding(force: true)
+                            
+                            // Navegar a la pantalla principal si tenemos el binding
+                            if let mainTab = mainSelectedTab {
+                                mainTab.wrappedValue = 0 // Ir a la pantalla principal
                             }
-                            .frame(maxWidth: .infinity)
+                            
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                dismiss() // Cierra la configuración tras activar el onboarding
+                            }
+                        }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundColor(.white)
+                                Text("Ver tutorial y empezar")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 56)
+                            .background(AppColors.primary)
+                            .cornerRadius(16)
+                            .shadow(color: AppColors.primary.opacity(0.3), radius: 10, x: 0, y: 4)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(AppColors.primary)
+                        .padding(.top, 8)
                     }
                     .padding()
                     .cardStyle(isDarkMode: themeManager.isDarkMode)
@@ -192,37 +209,40 @@ struct SettingsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 8) { // Reducido de 16 a 8
                     // Card para personalización de colores
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Color de Acento")
-                            .font(AppFonts.subtitle)
-                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    VStack(spacing: 24) {
+                        VStack(spacing: 12) {
+                            Text("Color Personalizado")
+                                .font(AppFonts.title)
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            
+                            Text("Selecciona el color principal de la app")
+                                .font(AppFonts.body)
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                .multilineTextAlignment(.center)
+                        }
                         
-                        Text("Selecciona el color principal de la app")
-                            .font(AppFonts.caption)
-                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                            .padding(.bottom, 8)
-                        
-                        // Paleta de colores (las bolitas)
-                        HStack(spacing: 8) {
+                        // Selector de colores en grid
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 16) {
                             ForEach(AccentColor.allCases, id: \.id) { color in
                                 Button(action: {
                                     themeManager.setAccentColor(color)
                                 }) {
                                     Circle()
                                         .fill(color.color)
-                                        .frame(width: 30, height: 30)
+                                        .frame(width: 44, height: 44)
                                         .overlay(
                                             Circle()
-                                                .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 2)
+                                                .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 3)
                                         )
-                                        .scaleEffect(themeManager.selectedAccentColor == color ? 1.1 : 1.0)
-                                        .animation(.spring(), value: themeManager.selectedAccentColor)
+                                        .scaleEffect(themeManager.selectedAccentColor == color ? 1.2 : 1.0)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
                                 }
                             }
-                            Spacer() // Empuja las bolitas a la izquierda
                         }
+                        .padding(.horizontal, 8)
                     }
-                    .padding()
+                    .padding(.vertical, 24)
+                    .padding(.horizontal, 20)
                     .cardStyle(isDarkMode: themeManager.isDarkMode)
                     
                     // Card combinado para añadir ejercicios y timer
@@ -357,6 +377,47 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.bordered)
                             .tint(.red)
+                        }
+                    }
+                    .padding()
+                    .cardStyle(isDarkMode: themeManager.isDarkMode)
+
+                    // Card para autorización de HealthKit
+                    VStack(spacing: 12) {
+                        Text("Integración con Salud")
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        
+                        if !HealthKitManagerSimple.shared.isAuthorized {
+                            Button(action: {
+                                Task {
+                                    await HealthKitManagerSimple.shared.requestPermissions()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "lock.open")
+                                    Text("Autorizar HealthKit")
+                                        .font(AppFonts.body.weight(.bold))
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(PrimaryButtonStyle(themeManager: themeManager))
+                        } else {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("HealthKit Autorizado")
+                                    .font(AppFonts.body)
+                                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(.green, lineWidth: 1)
+                            )
                         }
                     }
                     .padding()

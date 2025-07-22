@@ -71,10 +71,43 @@ class WorkoutViewModel: ObservableObject {
         return workoutHistory[key]
     }
     
-    func hasWorkoutForDate(_ date: Date) -> Bool {
+    // Nuevo método que solo muestra ejercicios COMPLETADOS en el día seleccionado
+    func completedExercisesForDate(_ date: Date) -> [WorkoutDay: [WorkoutExercise]]? {
         let key = Calendar.current.startOfDay(for: date)
-        guard let historyForDate = workoutHistory[key] else { return false }
-        return !historyForDate.values.allSatisfy { $0.isEmpty }
+        guard let historyForDate = workoutHistory[key] else { return nil }
+        
+        var filteredHistory: [WorkoutDay: [WorkoutExercise]] = [:]
+        
+        for (workoutDay, exercises) in historyForDate {
+            // Filtrar solo ejercicios que fueron realmente completados ese día
+            let completedExercises = exercises.filter { workoutExercise in
+                // Un ejercicio se considera "completado en este día" si:
+                // 1. Tiene sets completados Y
+                // 2. La fecha de última completación es del día seleccionado
+                guard workoutExercise.completedSets > 0,
+                      let lastCompleted = workoutExercise.lastSetCompletedAt else {
+                    return false
+                }
+                
+                let completionDate = Calendar.current.startOfDay(for: lastCompleted)
+                let selectedDate = Calendar.current.startOfDay(for: date)
+                
+                return completionDate == selectedDate
+            }
+            
+            // Solo incluir días que tengan ejercicios completados
+            if !completedExercises.isEmpty {
+                filteredHistory[workoutDay] = completedExercises
+            }
+        }
+        
+        return filteredHistory.isEmpty ? nil : filteredHistory
+    }
+    
+    func hasWorkoutForDate(_ date: Date) -> Bool {
+        // Verificar si hay ejercicios completados para esta fecha
+        guard let completedExercises = completedExercisesForDate(date) else { return false }
+        return !completedExercises.values.allSatisfy { $0.isEmpty }
     }
     
     private func saveData() {
@@ -83,8 +116,8 @@ class WorkoutViewModel: ObservableObject {
             self.cleanupOldData()
             
             let encoder = JSONEncoder()
-            do {
-                // Guardar availableExercises
+            
+            // Guardar availableExercises
                 if let enc = try? encoder.encode(self.availableExercises) {
                     let dataSize = enc.count
                     print("WorkoutViewModel: Guardando availableExercises - \(dataSize) bytes")
@@ -139,12 +172,8 @@ class WorkoutViewModel: ObservableObject {
                     }
                 }
                 
-                UserDefaults.standard.set(self.restDuration, forKey: "RestDuration")
-                print("WorkoutViewModel: Datos guardados exitosamente")
-                
-            } catch {
-                print("WorkoutViewModel: Error al guardar datos: \(error)")
-            }
+            UserDefaults.standard.set(self.restDuration, forKey: "RestDuration")
+            print("WorkoutViewModel: Datos guardados exitosamente")
         }
     }
     
@@ -846,6 +875,9 @@ class WorkoutViewModel: ObservableObject {
     }
     
     func resetAllData() {
+        print("🚨 WORKOUT_VIEW_MODEL: ¡Se ha llamado a resetAllData! Borrando TODOS los datos.")
+        print("📍 STACK TRACE: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
+        
         self.availableExercises = []
         self.dailyWorkoutRecords = [:]
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
@@ -965,6 +997,22 @@ class WorkoutViewModel: ObservableObject {
     
     func totalUniqueExercises() -> Int {
         return availableExercises.count
+    }
+    
+    func getTotalWorkoutDuration() -> Int {
+        // Calcular duración aproximada basada en entrenamientos completados
+        var totalSets = 0
+        
+        for day in WorkoutDay.allCases {
+            let exercises = dailyWorkoutRecords[day] ?? []
+            for exercise in exercises {
+                totalSets += exercise.completedSets
+            }
+        }
+        
+        // Estimación: 1 minuto por serie + tiempo de descanso
+        let estimatedMinutes = totalSets * 1 + (totalSets > 0 ? (totalSets - 1) * (restDuration / 60) : 0)
+        return estimatedMinutes * 60 // Convertir a segundos
     }
     
     func estimatedWeeklyWorkoutTime() -> Int {
@@ -1125,6 +1173,9 @@ class WorkoutViewModel: ObservableObject {
     
     // MARK: - Métodos de limpieza de datos
     func clearAllData() {
+        print("🚨 WORKOUT_VIEW_MODEL: ¡Se ha llamado a clearAllData! Borrando datos de entrenamiento.")
+        print("📍 STACK TRACE: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
+        
         // Limpiar todas las estructuras de datos
         availableExercises.removeAll()
         dailyWorkoutRecords.removeAll()
@@ -1171,6 +1222,9 @@ class WorkoutViewModel: ObservableObject {
     
     // Método para emergencias - limpiar solo si los datos son demasiado grandes
     func emergencyCleanup() {
+        print("🔧 WORKOUT_VIEW_MODEL: ¡Se ha llamado a emergencyCleanup! Limpiando datos por tamaño.")
+        print("📍 STACK TRACE: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
+        
         let encoder = JSONEncoder()
         
         // Verificar cada estructura de datos
