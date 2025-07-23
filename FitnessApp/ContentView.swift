@@ -5,6 +5,7 @@ struct ContentView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel // Usar la instancia del App
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var userManager = UserManager()
+    @StateObject private var focusModeManager = FocusModeManager()
     @State private var selectedTab = 0
     @State private var shouldShowAddExerciseTab = false
 
@@ -82,6 +83,9 @@ struct ContentView: View {
                                     .environmentObject(viewModel)
                                     .environmentObject(themeManager)
                                     
+                                    // Personal Records Card
+                                    PersonalRecordsCardView(workoutViewModel: viewModel)
+                                    
                                     // Lista de ejercicios semanales
                                     WeeklyExercisesList()
                                         .environmentObject(viewModel)
@@ -148,13 +152,15 @@ struct ContentView: View {
                     }
                     .tag(3)
 
-                // APPLE FITNESS
-                AppleFitnessIntegrationView()
+                // CONFIGURACIÓN
+                SettingsView()
                     .environmentObject(themeManager)
-                    .environmentObject(HealthKitManagerSimple.shared)
+                    .environmentObject(userManager)
+                    .environmentObject(viewModel)
+                    .environmentObject(focusModeManager)
                     .tabItem {
-                        Image(systemName: "heart.fill")
-                        Text("Fitness")
+                        Image(systemName: "gearshape.fill")
+                        Text("Configuración")
                     }
                     .tag(4)
             }

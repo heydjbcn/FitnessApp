@@ -14,15 +14,29 @@ struct ProgramSettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header con campana y X usando la vista reutilizable
-            VStack(spacing: 0) {
-                SettingsHeaderView(showingNotifications: $showingNotifications)
-                    .environmentObject(themeManager)
-                
-                // Título
-                Text("Configuración")
-                    .font(.title2.weight(.bold))
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+            // Header with navigation only
+            VStack(spacing: 20) {
+                HStack {
+                    Spacer()
+                    
+                    Button {
+                        showingNotifications = true
+                    } label: {
+                        Image(systemName: "bell")
+                            .font(.title3)
+                            .foregroundColor(AppColors.primary)
+                    }
+                    
+                    Spacer().frame(width: 16)
+                    
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.title3)
+                            .foregroundColor(AppColors.primary)
+                    }
+                }
                     .padding(.bottom, 10)
             }
             .background(AppColors.background(isDark: themeManager.isDarkMode))
@@ -52,6 +66,7 @@ struct ProgramSettingsView: View {
                                     Text("Ajusta la apariencia de la aplicación")
                                         .font(AppFonts.caption)
                                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                        .multilineTextAlignment(.leading)
                                 }
                                 
                                 Spacer()
@@ -83,8 +98,8 @@ struct ProgramSettingsView: View {
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 .padding(.bottom, 8)
                             
-                            // Paleta de colores (las bolitas) - Una sola fila horizontal
-                            HStack(spacing: 0) {
+                            // Paleta de colores (8 bolitas en una sola fila)
+                            HStack(spacing: 16) {
                                 ForEach(AccentColor.allCases) { color in
                                     Button(action: {
                                         HapticManager.shared.buttonTapped()
@@ -100,7 +115,6 @@ struct ProgramSettingsView: View {
                                             .scaleEffect(themeManager.selectedAccentColor == color ? 1.1 : 1.0)
                                             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
                                     }
-                                    .frame(maxWidth: .infinity)
                                 }
                             }
                         }
@@ -126,6 +140,7 @@ struct ProgramSettingsView: View {
                                     Text("Mostrar timer de descanso entre series")
                                         .font(AppFonts.caption)
                                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                        .multilineTextAlignment(.leading)
                                 }
                                 
                                 Spacer()

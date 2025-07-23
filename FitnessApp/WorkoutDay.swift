@@ -16,6 +16,10 @@ enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
 
     var id: String { self.rawValue }
     
+    var displayName: String {
+        return self.rawValue
+    }
+    
     var shortName: String {
         switch self {
         case .monday: return "LUN"

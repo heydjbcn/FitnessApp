@@ -21,4 +21,5 @@ struct Exercise: Identifiable, Codable, Equatable {
     var iconColor: String = "blue" // Color del icono SF Symbol
     var segundos: Int = 0 // Campo para segundos
     var rir: Int = 0 // Campo para RIR (Reps in Reserve)
+    var personalRecordWeight: Double? = nil // Récord personal de peso para este ejercicio
 }

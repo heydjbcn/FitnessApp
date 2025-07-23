@@ -550,8 +550,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitnessApp;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Esta aplicación necesita acceder a tus datos de pasos, calorías y entrenamientos para mostrar tus estadísticas diarias y tu progreso.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Permítenos guardar tus nuevos entrenamientos directamente en la app Salud de Apple para que tengas todos tus datos en un solo lugar.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Esta aplicación necesita acceso a tus datos de salud para mostrar información sobre pasos, calorías, distancia, ritmo cardíaco y entrenamientos.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Esta aplicación puede actualizar datos de salud relacionados con entrenamientos y actividades físicas.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Necesitamos acceso a tus datos de movimiento para contar tus pasos y detectar el tipo de ejercicio que realizas.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -607,8 +607,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FitnessApp;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Esta aplicación necesita acceder a tus datos de pasos, calorías y entrenamientos para mostrar tus estadísticas diarias y tu progreso.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Permítenos guardar tus nuevos entrenamientos directamente en la app Salud de Apple para que tengas todos tus datos en un solo lugar.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Esta aplicación necesita acceso a tus datos de salud para mostrar información sobre pasos, calorías, distancia, ritmo cardíaco y entrenamientos.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Esta aplicación puede actualizar datos de salud relacionados con entrenamientos y actividades físicas.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Necesitamos acceso a tus datos de movimiento para contar tus pasos y detectar el tipo de ejercicio que realizas.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

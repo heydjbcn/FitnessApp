@@ -6,12 +6,10 @@
 //
 
 import SwiftUI
-import HealthKit
 
 struct TimerView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var healthManager: HealthKitManagerSimple
     @ObservedObject private var watchConnectivity = WatchConnectivityManager.instance
 
     var body: some View {
@@ -60,8 +58,8 @@ struct TimerView: View {
                     }
                     #endif
                     
-                    // Guardar entrenamiento en HealthKit
-                    saveWorkoutToHealthKit()
+                    // Entrenamiento completado
+                    print("✅ Entrenamiento completado")
                 }
                 .foregroundColor(AppColors.primary)
             }
@@ -84,30 +82,7 @@ struct TimerView: View {
     }
     
     private func startWorkoutOnWatch() {
-        // Determinar el tipo de ejercicio basado en el workout actual
-        let activityType: HKWorkoutActivityType = .traditionalStrengthTraining
-        watchConnectivity.startWorkoutOnWatch(activityType: activityType)
-    }
-    
-    private func saveWorkoutToHealthKit() {
-        let endDate = Date()
-        let totalDuration = TimeInterval(viewModel.getTotalWorkoutDuration())
-        let startDate = endDate.addingTimeInterval(-totalDuration)
-        
-        // Calcular calorías aproximadas (básico, se puede mejorar)
-        let estimatedCalories = Double(totalDuration / 60) * 5.0 // ~5 cal/min aproximado
-        
-        Task {
-            let success = await healthManager.createWorkout(
-                type: .traditionalStrengthTraining,
-                startDate: startDate,
-                duration: totalDuration,
-                calories: estimatedCalories,
-                distance: nil
-            )
-            if success {
-                print("✅ Entrenamiento guardado en HealthKit")
-            }
-        }
+        // Iniciar entrenamiento en Apple Watch (sin HealthKit)
+        watchConnectivity.startWorkoutOnWatch()
     }
 }

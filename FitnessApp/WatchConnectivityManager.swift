@@ -1,5 +1,4 @@
 import WatchConnectivity
-import HealthKit
 import Foundation
 import SwiftUI
 import Combine
@@ -71,7 +70,7 @@ class WatchConnectivityManager: NSObject, ObservableObject {
         }
     }
     
-    func startWorkoutOnWatch(activityType: HKWorkoutActivityType) {
+    func startWorkoutOnWatch() {
         guard WCSession.default.isReachable else {
             print("⌚️ Apple Watch no es alcanzable")
             return
@@ -79,7 +78,6 @@ class WatchConnectivityManager: NSObject, ObservableObject {
         
         let workoutStart: [String: Any] = [
             "type": "startWorkout",
-            "activityType": activityType.rawValue,
             "timestamp": Date().timeIntervalSince1970
         ]
         

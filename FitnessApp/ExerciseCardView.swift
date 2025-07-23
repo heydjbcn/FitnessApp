@@ -59,11 +59,22 @@ struct ExerciseCardView: View {
             }
             
             // Segunda fila con información adicional si está disponible
-            if exercise.rir > 0 {
+            let currentPR = viewModel.getPersonalRecord(for: exercise.id)
+            
+            if exercise.rir > 0 || currentPR != nil {
                 HStack(spacing: 24) {
                     if exercise.rir > 0 {
                         infoItem(icon: "gauge", text: "RIR: \(exercise.rir)")
                     }
+                    
+                    if let personalRecord = currentPR, personalRecord > 0 {
+                        infoItem(
+                            icon: "trophy", 
+                            text: "PR: \(String(format: "%.1f", personalRecord)) kg",
+                            color: exercise.weight > personalRecord ? AppColors.success : AppColors.accentCyan
+                        )
+                    }
+                    
                     Spacer() // Para alinear a la izquierda
                 }
             }
@@ -118,6 +129,7 @@ struct ExerciseInfoSheet: View {
     let exercise: Exercise
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var viewModel: WorkoutViewModel
 
     var body: some View {
         NavigationStack {
@@ -197,6 +209,19 @@ struct ExerciseInfoSheet: View {
                                     Spacer()
                                     Text("\(exercise.restDuration / 60):\(String(format: "%02d", exercise.restDuration % 60))")
                                         .fontWeight(.semibold)
+                                }
+                                
+                                // Personal Record
+                                if let personalRecord = viewModel.getPersonalRecord(for: exercise.id), personalRecord > 0 {
+                                    HStack {
+                                        Image(systemName: "trophy.fill")
+                                            .foregroundColor(.yellow)
+                                        Text("Personal Record:")
+                                        Spacer()
+                                        Text("\(String(format: "%.1f", personalRecord)) kg")
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(exercise.weight > personalRecord ? AppColors.success : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                    }
                                 }
                             }
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))

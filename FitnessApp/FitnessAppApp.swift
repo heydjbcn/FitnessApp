@@ -3,7 +3,6 @@ import SwiftUI
 @main
 struct FitnessAppApp: App {
     @StateObject var workoutViewModel = WorkoutViewModel()
-    @StateObject var healthKitManager = HealthKitManagerSimple.shared
 
     var body: some Scene {
         WindowGroup {
@@ -11,7 +10,6 @@ struct FitnessAppApp: App {
                 ContentView()
             }
             .environmentObject(workoutViewModel)
-            .environmentObject(healthKitManager)
             .preferredColorScheme(.dark)
             .onAppear {
                 // Solicitar permisos de notificaciones al iniciar la app

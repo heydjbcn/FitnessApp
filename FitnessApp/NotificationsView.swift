@@ -8,41 +8,50 @@ struct NotificationsView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 10) {
-                    // Título y botón cerrar
+                // Header rediseñado
+                VStack(spacing: 0) {
+                    // Botón cerrar en la parte superior
                     HStack {
-                        Text("Notificaciones")
-                            .font(AppFonts.title)
-                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                        
                         Spacer()
-                        
-                        // Botón cerrar
                         Button(action: { dismiss() }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                .frame(width: 32, height: 32)
+                                .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                                .clipShape(Circle())
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
                     
-                    // Contador y acciones
-                    HStack {
-                        // Contador de notificaciones
-                        if notificationStore.unreadCount > 0 {
-                            Text("\(notificationStore.unreadCount) sin leer")
-                                .font(AppFonts.caption)
-                                .foregroundColor(AppColors.primary)
-                        } else {
-                            Text("Todas leídas")
-                                .font(AppFonts.caption)
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    // Contador y acciones con mejor espaciado
+                    VStack(spacing: 16) {
+                        // Contador de notificaciones con mejor diseño
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                if notificationStore.unreadCount > 0 {
+                                    Text("\(notificationStore.unreadCount) sin leer")
+                                        .font(AppFonts.subtitle)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                } else {
+                                    Text("Todas leídas")
+                                        .font(AppFonts.subtitle)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                }
+                                
+                                Text("Gestiona tus notificaciones")
+                                    .font(AppFonts.caption)
+                                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            }
+                            
+                            Spacer()
                         }
                         
-                        Spacer()
-                        
-                        // Botones de acción
-                        HStack(spacing: 16) {
+                        // Botones de acción con mejor diseño
+                        HStack(spacing: 12) {
                             // Botón para marcar todas como leídas
                             if notificationStore.unreadCount > 0 {
                                 Button("Marcar todas") {
@@ -50,8 +59,13 @@ struct NotificationsView: View {
                                         notificationStore.markAllAsRead()
                                     }
                                 }
-                                .font(AppFonts.caption.bold())
-                                .foregroundColor(AppColors.primary)
+                                .font(AppFonts.body)
+                                .fontWeight(.medium)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(AppColors.primary(themeManager: themeManager).opacity(0.1))
+                                .cornerRadius(20)
                             }
                             
                             // Botón para eliminar todas las notificaciones
@@ -61,15 +75,22 @@ struct NotificationsView: View {
                                         notificationStore.clearAll()
                                     }
                                 }
-                                .font(AppFonts.caption.bold())
+                                .font(AppFonts.body)
+                                .fontWeight(.medium)
                                 .foregroundColor(.red)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(20)
                             }
+                            
+                            Spacer()
                         }
                     }
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                .padding(.vertical, 20)
+                .background(AppColors.background(isDark: themeManager.isDarkMode))
                 
                 // Lista de notificaciones
                 if notificationStore.notifications.isEmpty {

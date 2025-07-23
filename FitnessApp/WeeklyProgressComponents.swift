@@ -168,7 +168,7 @@ struct WeeklyExerciseItem: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: exercise.totalSets > 0 ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(exercise.totalSets > 0 ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                .foregroundColor(exercise.totalSets > 0 ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 .font(.system(size: 14))
             
             VStack(alignment: .leading, spacing: 2) {

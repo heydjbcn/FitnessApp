@@ -97,7 +97,7 @@ struct CustomCalendarView: View {
         // Rotar el array para que lunes sea el primero
         let sunday = weekdaySymbols.removeFirst()
         weekdaySymbols.append(sunday)
-        return weekdaySymbols.map { String($0.prefix(1)).uppercased() }
+        return weekdaySymbols.map { String($0.prefix(2)).uppercased() }
     }
     
     private var daysInMonth: [Date] {
@@ -176,10 +176,10 @@ struct DayView: View {
                     .background(backgroundColor)
                     .clipShape(Circle())
                 
-                // Indicador verde para días con entrenamiento
+                // Indicador de color dinámico para días con entrenamiento
                 if hasWorkout && isCurrentMonth {
                     Circle()
-                        .fill(Color.green)
+                        .fill(AppColors.primary(themeManager: themeManager))
                         .frame(width: 6, height: 6)
                         .offset(x: 12, y: -12)
                 }

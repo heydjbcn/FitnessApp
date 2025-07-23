@@ -85,7 +85,11 @@ class NotificationManager: ObservableObject {
     // MARK: - Badge Management
     func updateApplicationBadge(count: Int) {
         DispatchQueue.main.async {
-            UIApplication.shared.applicationIconBadgeNumber = count
+            if #available(iOS 16.0, *) {
+                UNUserNotificationCenter.current().setBadgeCount(count)
+            } else {
+                UIApplication.shared.applicationIconBadgeNumber = count
+            }
         }
     }
     

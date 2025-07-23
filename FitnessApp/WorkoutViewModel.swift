@@ -9,6 +9,7 @@ import SwiftUI
 import Combine
 import Foundation
 import AudioToolbox
+import UIKit
 
 class WorkoutViewModel: ObservableObject {
     @Published var activeDays: [WorkoutDay] = WorkoutDay.allCases
@@ -21,6 +22,10 @@ class WorkoutViewModel: ObservableObject {
     
     @Published var workoutHistory: [Date: [WorkoutDay: [WorkoutExercise]]] = [:]
     @Published var bodyWeightHistory: [Date: Double] = [:]
+    
+    // NUEVO: Notas de sesión por fecha
+    @Published var sessionNotes: [Date: String] = [:]
+    
     @Published var timerActive = false
     @Published var timeRemaining = 120
     @Published var currentTimerDuration: Int = 120 // Duración del timer actual
@@ -79,25 +84,31 @@ class WorkoutViewModel: ObservableObject {
         var filteredHistory: [WorkoutDay: [WorkoutExercise]] = [:]
         
         for (workoutDay, exercises) in historyForDate {
-            // Filtrar solo ejercicios que fueron realmente completados ese día
-            let completedExercises = exercises.filter { workoutExercise in
-                // Un ejercicio se considera "completado en este día" si:
-                // 1. Tiene sets completados Y
-                // 2. La fecha de última completación es del día seleccionado
-                guard workoutExercise.completedSets > 0,
-                      let lastCompleted = workoutExercise.lastSetCompletedAt else {
-                    return false
+            // Primero verificar si este día tiene ejercicios programados
+            let hasScheduledExercises = dailyWorkoutRecords[workoutDay]?.isEmpty == false
+            
+            // Solo procesar si el día tiene ejercicios programados
+            if hasScheduledExercises {
+                // Filtrar solo ejercicios que fueron realmente completados ese día
+                let completedExercises = exercises.filter { workoutExercise in
+                    // Un ejercicio se considera "completado en este día" si:
+                    // 1. Tiene sets completados Y
+                    // 2. La fecha de última completación es del día seleccionado
+                    guard workoutExercise.completedSets > 0,
+                          let lastCompleted = workoutExercise.lastSetCompletedAt else {
+                        return false
+                    }
+                    
+                    let completionDate = Calendar.current.startOfDay(for: lastCompleted)
+                    let selectedDate = Calendar.current.startOfDay(for: date)
+                    
+                    return completionDate == selectedDate
                 }
                 
-                let completionDate = Calendar.current.startOfDay(for: lastCompleted)
-                let selectedDate = Calendar.current.startOfDay(for: date)
-                
-                return completionDate == selectedDate
-            }
-            
-            // Solo incluir días que tengan ejercicios completados
-            if !completedExercises.isEmpty {
-                filteredHistory[workoutDay] = completedExercises
+                // Solo incluir días que tengan ejercicios completados
+                if !completedExercises.isEmpty {
+                    filteredHistory[workoutDay] = completedExercises
+                }
             }
         }
         
@@ -108,6 +119,51 @@ class WorkoutViewModel: ObservableObject {
         // Verificar si hay ejercicios completados para esta fecha
         guard let completedExercises = completedExercisesForDate(date) else { return false }
         return !completedExercises.values.allSatisfy { $0.isEmpty }
+    }
+    
+    // MARK: - Session Notes Management
+    func getSessionNote(for date: Date) -> String? {
+        let key = Calendar.current.startOfDay(for: date)
+        
+        // Si no hay nota y es hoy, añadir una nota de ejemplo
+        if sessionNotes[key] == nil && Calendar.current.isDateInToday(date) {
+            let exampleNote = "Entrenamiento completado con buena energía. Se sintió más fácil el peso de hoy, quizás puedo subir en la próxima sesión. 💪"
+            sessionNotes[key] = exampleNote
+            saveData()
+            return exampleNote
+        }
+        
+        return sessionNotes[key]
+    }
+    
+    func saveSessionNote(_ note: String, for date: Date) {
+        let key = Calendar.current.startOfDay(for: date)
+        if note.isEmpty {
+            sessionNotes.removeValue(forKey: key)
+        } else {
+            sessionNotes[key] = note
+        }
+        saveData()
+    }
+    
+    // MARK: - Funciones para borrar historial de un día específico
+    
+    func deleteCompletedExercisesForDate(_ date: Date) {
+        let key = Calendar.current.startOfDay(for: date)
+        workoutHistory.removeValue(forKey: key)
+        saveData()
+    }
+    
+    func deleteBodyWeightForDate(_ date: Date) {
+        let key = Calendar.current.startOfDay(for: date)
+        bodyWeightHistory.removeValue(forKey: key)
+        saveData()
+    }
+    
+    func deleteSessionNote(for date: Date) {
+        let key = Calendar.current.startOfDay(for: date)
+        sessionNotes.removeValue(forKey: key)
+        saveData()
     }
     
     private func saveData() {
@@ -172,6 +228,17 @@ class WorkoutViewModel: ObservableObject {
                     }
                 }
                 
+                // Guardar sessionNotes
+                if let encN = try? encoder.encode(self.sessionNotes) {
+                    let dataSize = encN.count
+                    print("WorkoutViewModel: Guardando sessionNotes - \(dataSize) bytes")
+                    if dataSize < 500_000 {
+                        UserDefaults.standard.set(encN, forKey: "SessionNotes")
+                    } else {
+                        print("WorkoutViewModel: ERROR - sessionNotes excede el límite de tamaño")
+                    }
+                }
+                
             UserDefaults.standard.set(self.restDuration, forKey: "RestDuration")
             print("WorkoutViewModel: Datos guardados exitosamente")
         }
@@ -193,7 +260,13 @@ class WorkoutViewModel: ObservableObject {
             bodyWeightHistory.removeValue(forKey: key)
         }
         
-        print("WorkoutViewModel: Limpieza completada - removidos \(oldHistoryKeys.count) registros de historial y \(oldWeightKeys.count) registros de peso")
+        // Limpiar sessionNotes - mantener solo los últimos 6 meses
+        let oldNotesKeys = sessionNotes.keys.filter { $0 < sixMonthsAgo }
+        for key in oldNotesKeys {
+            sessionNotes.removeValue(forKey: key)
+        }
+        
+        print("WorkoutViewModel: Limpieza completada - removidos \(oldHistoryKeys.count) registros de historial, \(oldWeightKeys.count) registros de peso y \(oldNotesKeys.count) notas de sesión")
     }
     
     func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
@@ -206,6 +279,9 @@ class WorkoutViewModel: ObservableObject {
             record.lastSetCompletedAt = Date()
             dailyWorkoutRecords[day]![recordIndex] = record
             recordHistory(for: day)
+            
+            // Verificar y celebrar nuevo Personal Record
+            checkAndCelebratePersonalRecord(for: baseExercise)
             
             // Haptic feedback para completar serie
             HapticManager.shared.setCompleted()
@@ -415,6 +491,11 @@ class WorkoutViewModel: ObservableObject {
         timerActive = false
         timeRemaining = currentTimerDuration // Restaurar al valor original
         
+        // Permite que la pantalla vuelva a bloquearse normalmente
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+        
         // Haptic feedback para detener timer
         HapticManager.shared.timerStopped()
         
@@ -484,6 +565,14 @@ class WorkoutViewModel: ObservableObject {
             print("WorkoutViewModel: Cargando activeDays - \(data.count) bytes")
             if let decoded = try? decoder.decode([WorkoutDay].self, from: data) {
                 activeDays = decoded
+            }
+        }
+        
+        // Cargar sessionNotes
+        if let data = userDefaults.data(forKey: "SessionNotes") {
+            print("WorkoutViewModel: Cargando sessionNotes - \(data.count) bytes")
+            if let decoded = try? decoder.decode([Date: String].self, from: data) {
+                sessionNotes = decoded
             }
         }
         
@@ -1110,6 +1199,12 @@ class WorkoutViewModel: ObservableObject {
         }
         
         stopTimer() // Detener cualquier timer existente
+        
+        // Mantiene la pantalla encendida mientras el timer esté activo
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+        
         timeRemaining = duration
         currentTimerDuration = duration // Guardar la duración actual del timer
         timerActive = true
@@ -1254,6 +1349,61 @@ class WorkoutViewModel: ObservableObject {
         
         // Guardar datos después de la limpieza
         saveData()
+    }
+    
+    // MARK: - Personal Records Functions
+    
+    /// Verifica si el peso actual es un nuevo Personal Record y lo celebra
+    private func checkAndCelebratePersonalRecord(for exercise: Exercise) {
+        let currentWeight = exercise.weight
+        let currentPR = exercise.personalRecordWeight ?? 0
+        
+        // Si el peso actual es mayor que el PR anterior, es un nuevo récord
+        if currentWeight > currentPR {
+            // Actualizar el Personal Record en el ejercicio
+            updatePersonalRecord(for: exercise.id, newWeight: currentWeight)
+            
+            // Celebrar el nuevo récord
+            celebratePersonalRecord(exerciseName: exercise.name, newWeight: currentWeight)
+        }
+    }
+    
+    /// Actualiza el Personal Record de un ejercicio específico
+    private func updatePersonalRecord(for exerciseId: UUID, newWeight: Double) {
+        if let index = availableExercises.firstIndex(where: { $0.id == exerciseId }) {
+            availableExercises[index].personalRecordWeight = newWeight
+            saveData() // Guardar los datos actualizados
+        }
+    }
+    
+    /// Celebra un nuevo Personal Record con efectos visuales y sonoros
+    private func celebratePersonalRecord(exerciseName: String, newWeight: Double) {
+        // Haptic feedback especial para PR
+        HapticManager.shared.workoutCompleted() // Usamos el más fuerte disponible
+        
+        // Notificación de logro
+        let message = "¡Nuevo PR en \(exerciseName)! \(String(format: "%.1f", newWeight)) kg"
+        NotificationStore.shared.addAchievement(message: message)
+        
+        // Log para debugging
+        print("🏆 PERSONAL RECORD: \(exerciseName) - \(newWeight) kg")
+    }
+    
+    /// Obtiene los top Personal Records del usuario
+    func getTopPersonalRecords(limit: Int = 5) -> [(exerciseName: String, weight: Double)] {
+        return availableExercises
+            .compactMap { exercise in
+                guard let pr = exercise.personalRecordWeight, pr > 0 else { return nil }
+                return (exerciseName: exercise.name, weight: pr)
+            }
+            .sorted { $0.weight > $1.weight }
+            .prefix(limit)
+            .map { $0 }
+    }
+    
+    /// Obtiene el Personal Record de un ejercicio específico
+    func getPersonalRecord(for exerciseId: UUID) -> Double? {
+        return availableExercises.first(where: { $0.id == exerciseId })?.personalRecordWeight
     }
     
     // FUNCIÓN DE PRUEBA TEMPORAL - Para verificar que los segundos funcionan

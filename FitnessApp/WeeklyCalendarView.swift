@@ -509,11 +509,11 @@ struct DailyProgressContainer: View {
                     subtitle: String(format: "%.2ft", totalWeight / 1000) // Mostrar en toneladas con 2 decimales
                 )
                 
-                // Series (verde)
+                // Series (color dinámico)
                 ProgressRing(
                     value: Double(completedSets),
                     maxValue: Double(totalSets > 0 ? totalSets : 1),
-                    color: .green,
+                    color: AppColors.primary(themeManager: themeManager),
                     title: "Series",
                     subtitle: "\(completedSets)"
                 )

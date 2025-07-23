@@ -63,6 +63,11 @@ class ThemeManager: ObservableObject {
             UserDefaults.standard.set(selectedAccentColor.rawValue, forKey: "selectedAccentColor")
             // Haptic feedback para cambio de color de acento
             HapticManager.shared.selectionFeedback()
+            
+            // Forzar actualización de la UI
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
         }
     }
     
