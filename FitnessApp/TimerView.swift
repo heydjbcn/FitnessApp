@@ -64,6 +64,10 @@ struct TimerView: View {
                 .foregroundColor(AppColors.primary)
             }
             .padding()
+            
+            // Spotify Player Integration
+            SpotifyPlayerView()
+                .padding(.horizontal)
         }
         .onAppear {
             // Solo iniciar entrenamiento en Apple Watch en dispositivos reales
