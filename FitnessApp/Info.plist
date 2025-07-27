@@ -4,6 +4,17 @@
 <dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Spotify Auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fitnessapp-spotify</string>
+			</array>
+		</dict>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

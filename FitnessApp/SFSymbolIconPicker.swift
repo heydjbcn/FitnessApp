@@ -18,7 +18,7 @@ struct SFSymbolIconPicker: View {
         "figure.wrestling", "figure.martial.arts", "figure.flexibility",
         "figure.cooldown", "figure.dance", "figure.run", "figure.walk",
         "figure.outdoor.cycle", "figure.indoor.cycle", "figure.elliptical",
-        "figure.swimming", "figure.rowing", "figure.stairs", "figure.step.training",
+        "figure.swimming", "figure.rower", "figure.stairs", "figure.step.training",
         "figure.pilates", "figure.yoga", "figure.core.training",
         "figure.mixed.cardio", "figure.strengthtraining.traditional.and.functional",
         "stopwatch", "timer", "heart.circle", "heart.circle.fill",

@@ -22,7 +22,7 @@ struct ProfileEditView: View {
                         PhotosPicker(selection: $selectedPhoto, matching: .images) {
                             ZStack {
                                 Circle()
-                                    .fill(AppColors.primary(themeManager: themeManager))
+                                    .fill(themeManager.selectedAccentColor.color)
                                     .frame(width: 120, height: 120)
                                 
                                 if let profileImage = profileImage {
@@ -223,6 +223,7 @@ struct ProfileEditView: View {
 struct CustomTextFieldStyle: TextFieldStyle {
     let themeManager: ThemeManager
     
+    @MainActor
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .padding(.horizontal, 16)

@@ -13,6 +13,11 @@ struct StatsCardsView: View {
     let onNavigateToBestDay: (WorkoutDay) -> Void
     let onNavigateToExercises: () -> Void
     
+    init(onNavigateToBestDay: @escaping (WorkoutDay) -> Void, onNavigateToExercises: @escaping () -> Void) {
+        self.onNavigateToBestDay = onNavigateToBestDay
+        self.onNavigateToExercises = onNavigateToExercises
+    }
+    
     var body: some View {
         LazyVGrid(columns: [
             GridItem(.flexible()),

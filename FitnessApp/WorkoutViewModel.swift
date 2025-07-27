@@ -644,7 +644,7 @@ class WorkoutViewModel: ObservableObject {
             info: "Mantener tensión constante",
             imageData: nil,
             restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "pink"
         ))
         
@@ -683,7 +683,7 @@ class WorkoutViewModel: ObservableObject {
             info: "Máximo recorrido articular",
             imageData: nil,
             restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "red"
         ))
         
@@ -710,7 +710,7 @@ class WorkoutViewModel: ObservableObject {
             info: "Retracción escapular máxima",
             imageData: nil,
             restDuration: 90,
-            sfSymbolIcon: "figure.rowing",
+            sfSymbolIcon: "figure.rower",
             iconColor: "blue"
         ))
         
@@ -749,7 +749,7 @@ class WorkoutViewModel: ObservableObject {
             info: "Deltoides medio, control del movimiento",
             imageData: nil,
             restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "purple"
         ))
         
@@ -789,7 +789,7 @@ class WorkoutViewModel: ObservableObject {
             info: "Máxima profundidad, control de la carga",
             imageData: nil,
             restDuration: 120,
-            sfSymbolIcon: "figure.squat",
+            sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "green"
         ))
         
@@ -828,7 +828,7 @@ class WorkoutViewModel: ObservableObject {
             info: "Aislamiento del cuádriceps, contracción máxima",
             imageData: nil,
             restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
+            sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "green"
         ))
         

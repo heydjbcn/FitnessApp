@@ -2,12 +2,15 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @EnvironmentObject var viewModel: WorkoutViewModel // Usar la instancia del App
-    @StateObject private var themeManager = ThemeManager()
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager // Usar el del App, no crear uno nuevo
     @StateObject private var userManager = UserManager()
     @StateObject private var focusModeManager = FocusModeManager()
-    @State private var selectedTab = 0
+    @State private var selectedTab = UserDefaults.standard.integer(forKey: "selectedTab") // Cargar pestaña guardada
     @State private var shouldShowAddExerciseTab = false
+    
+    // NUEVO: Observer para Spotify
+    @ObservedObject private var spotifyManager = SpotifyManager.shared
 
     var body: some View {
         ZStack {
@@ -17,7 +20,7 @@ struct ContentView: View {
                     ZStack {
                         AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                         VStack(spacing: 0) {
-                            // Header personalizado FIJO (solo saludo e iconos)
+                            // Header personalizado FIJO
                             HeaderView(mainSelectedTab: $selectedTab)
                                 .environmentObject(themeManager)
                                 .environmentObject(userManager)
@@ -28,12 +31,12 @@ struct ContentView: View {
                             // Contenido principal
                             ScrollView(showsIndicators: false) {
                                 VStack(spacing: 24) {
-                                    // Progreso semanal (scrolleable)
+                                    // Progreso semanal
                                     WeeklyProgressView()
                                         .environmentObject(viewModel)
                                         .environmentObject(themeManager)
                                     
-                                    // Frase motivacional - MOVIDO AQUÍ
+                                    // Frase motivacional
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("Motivación Diaria")
                                             .font(AppFonts.subtitle)
@@ -71,12 +74,9 @@ struct ContentView: View {
                                     // Estadísticas en tarjetas
                                     StatsCardsView(
                                         onNavigateToBestDay: { bestDay in
-                                            // Cambiar a la pestaña de calendario
                                             selectedTab = 1
-                                            // Aquí podrías añadir lógica para navegar al día específico
                                         },
                                         onNavigateToExercises: {
-                                            // Cambiar a la pestaña de ejercicios
                                             selectedTab = 2
                                         }
                                     )
@@ -91,7 +91,7 @@ struct ContentView: View {
                                         .environmentObject(viewModel)
                                         .environmentObject(themeManager)
                                 }
-                                .padding(.bottom, 60) // Aumentado para mayor separación de la barra de pestañas
+                                .padding(.bottom, spotifyManager.isConnected ? 160 : 100) // Espacio dinámico
                             }
                             .padding(.horizontal)
                         }
@@ -112,7 +112,6 @@ struct ContentView: View {
                 // CALENDARIO SEMANAL
                 WeeklyCalendarView(
                     onNavigateToAddExercise: {
-                        // Cambiar a la pestaña de ejercicios y mostrar la pestaña de añadir
                         shouldShowAddExerciseTab = true
                         selectedTab = 2
                     }
@@ -136,7 +135,6 @@ struct ContentView: View {
                     }
                     .tag(2)
                     .onAppear {
-                        // Resetear el estado cuando se cambia de pestaña
                         if selectedTab != 2 {
                             shouldShowAddExerciseTab = false
                         }
@@ -166,40 +164,53 @@ struct ContentView: View {
             }
             .accentColor(AppColors.primary(themeManager: themeManager))
             .onAppear {
-                updateTabBarAppearance()
+                // Configurar TabBar appearance una sola vez
+                DispatchQueue.main.async {
+                    updateTabBarAppearance()
+                }
             }
             .onChange(of: themeManager.isDarkMode) { _, _ in
                 updateTabBarAppearance()
             }
             .onChange(of: selectedTab) { _, newValue in
-                // Haptic feedback para cambio de tab
                 HapticManager.shared.tabChanged()
                 
-                // Resetear el estado cuando se cambia de pestaña
                 if newValue != 2 {
                     shouldShowAddExerciseTab = false
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                // Resetear la app al estado inicial cuando vuelve de estar completamente cerrada
-                selectedTab = 0
+                // Comentar esta línea para no resetear a dashboard
+                // selectedTab = 0
+            }
+            .onChange(of: selectedTab) { _, newValue in
+                UserDefaults.standard.set(newValue, forKey: "selectedTab") // Guardar pestaña seleccionada
+            }
+            
+            // REPRODUCTOR DE SPOTIFY - POSICIONAMIENTO MEJORADO
+            if spotifyManager.isConnected {
+                SpotifyPlayerView()
+                    .environmentObject(themeManager)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(1000) // Asegurar que esté encima
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: spotifyManager.isConnected)
             }
             
             // Onboarding Overlay
             OnboardingOverlayView(onboardingManager: viewModel.onboardingManager)
                 .environmentObject(themeManager)
-                .onAppear {
-                    // Configurar callbacks del onboarding
-                    viewModel.onboardingManager.onNavigateToExercises = {
-                        shouldShowAddExerciseTab = true
-                        selectedTab = 2
-                    }
-                    viewModel.onboardingManager.onNavigateToCalendar = {
-                        selectedTab = 1
-                    }
-                }
         }
-        .focusMode() // Aplicar modificador de modo de enfoque
+        .focusMode()
+        .onAppear {
+            // Configurar callbacks del onboarding
+            viewModel.onboardingManager.onNavigateToExercises = {
+                shouldShowAddExerciseTab = true
+                selectedTab = 2
+            }
+            viewModel.onboardingManager.onNavigateToCalendar = {
+                selectedTab = 1
+            }
+        }
     }
     
     private func updateTabBarAppearance() {
@@ -207,13 +218,11 @@ struct ContentView: View {
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         
-        // Color de texto para pestañas no seleccionadas
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
         ]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
         
-        // Color de texto para pestaña seleccionada
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
             .foregroundColor: UIColor(AppColors.primary(themeManager: themeManager))
         ]
@@ -221,5 +230,12 @@ struct ContentView: View {
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+}
+
+// MARK: - Extension para persistir la pestaña seleccionada
+extension ContentView {
+    func saveSelectedTab() {
+        UserDefaults.standard.set(selectedTab, forKey: "selectedTab")
     }
 }

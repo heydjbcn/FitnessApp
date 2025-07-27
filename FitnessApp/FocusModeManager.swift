@@ -10,8 +10,20 @@ import UIKit
 import Combine
 
 class FocusModeManager: ObservableObject {
-    @Published var isActive: Bool = false
-    @Published var keepScreenOn: Bool = true
+    @Published var isActive: Bool = false {
+        didSet {
+            if isActive {
+                activateFocusMode()
+            } else {
+                deactivateFocusMode()
+            }
+        }
+    }
+    @Published var keepScreenOn: Bool = true {
+        didSet {
+            updateScreenSettings()
+        }
+    }
     @Published var hideTabBar: Bool = true
     @Published var dimUI: Bool = false
     @Published var simplifyInterface: Bool = true
@@ -51,6 +63,18 @@ class FocusModeManager: ObservableObject {
             UIScreen.main.brightness = brightnessSetting
         }
         
+        saveSettings()
+    }
+    
+    // MARK: - Individual Screen Settings
+    private func updateScreenSettings() {
+        if keepScreenOn {
+            UIApplication.shared.isIdleTimerDisabled = true
+            print("✅ Pantalla mantenida encendida - No se bloqueará automáticamente")
+        } else {
+            UIApplication.shared.isIdleTimerDisabled = false
+            print("❌ Pantalla normal - Se bloqueará según configuración del sistema")
+        }
         saveSettings()
     }
     

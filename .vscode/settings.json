@@ -1,0 +1,15 @@
+{
+    "swift.sourcekit-lsp.serverArguments": [
+        "-Xswiftc", "-sdk",
+        "-Xswiftc", "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.0.sdk",
+        "-Xswiftc", "-target",
+        "-Xswiftc", "arm64-apple-ios18.0-simulator"
+    ],
+    "swift.sourcekit-lsp.serverPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/sourcekit-lsp",
+    "swift.buildSystem": "xcodebuild",
+    "swift.buildArguments": [
+        "-project", "FitnessApp.xcodeproj",
+        "-scheme", "FitnessApp",
+        "-destination", "platform=iOS Simulator,name=iPhone 16"
+    ]
+}

@@ -1136,12 +1136,47 @@ struct AddExerciseForm: View {
     private func deleteExercise() {
         guard let exercise = exerciseToEdit else { return }
         
-        // Eliminar el ejercicio de todos los días donde aparece
+        print("🗑️ Iniciando borrado del ejercicio: \(exercise.name)")
+        
+        // 1. Eliminar el ejercicio de la lista principal de ejercicios disponibles
+        viewModel.availableExercises.removeAll { $0.id == exercise.id }
+        print("✅ Ejercicio eliminado de availableExercises")
+        
+        // 2. Eliminar el ejercicio de todos los días donde aparece
         for (day, records) in viewModel.dailyWorkoutRecords {
             if let recordToRemove = records.first(where: { $0.exerciseId == exercise.id }) {
                 viewModel.removeExercise(recordId: recordToRemove.id, from: day)
+                print("✅ Ejercicio eliminado del día: \(day.rawValue)")
             }
         }
+        
+        // 3. Eliminar historial del ejercicio
+        for (date, dayHistory) in viewModel.workoutHistory {
+            var updatedDayHistory = dayHistory
+            var hasChanges = false
+            
+            for (day, exercises) in dayHistory {
+                let filteredExercises = exercises.filter { $0.exerciseId != exercise.id }
+                if filteredExercises.count != exercises.count {
+                    updatedDayHistory[day] = filteredExercises
+                    hasChanges = true
+                }
+            }
+            
+            if hasChanges {
+                if updatedDayHistory.values.allSatisfy({ $0.isEmpty }) {
+                    // Si no quedan ejercicios para esa fecha, eliminar la entrada completa
+                    viewModel.workoutHistory.removeValue(forKey: date)
+                } else {
+                    // Actualizar con los ejercicios filtrados
+                    viewModel.workoutHistory[date] = updatedDayHistory
+                }
+            }
+        }
+        print("✅ Historial del ejercicio eliminado")
+        
+        // Los datos se guardan automáticamente a través de los métodos del viewModel
+        print("✅ Datos guardados - Ejercicio '\(exercise.name)' eliminado completamente")
         
         HapticManager.shared.success()
         dismiss()

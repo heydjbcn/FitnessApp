@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct FitnessAppApp: App {
     @StateObject var workoutViewModel = WorkoutViewModel()
+    @StateObject var themeManager = ThemeManager()
 
     var body: some Scene {
         WindowGroup {
@@ -10,16 +11,21 @@ struct FitnessAppApp: App {
                 ContentView()
             }
             .environmentObject(workoutViewModel)
+            .environmentObject(themeManager)
             .preferredColorScheme(.dark)
             .onAppear {
-                // Solicitar permisos de notificaciones al iniciar la app
                 NotificationManager.shared.requestNotificationPermission()
-                // Sincronizar el badge del icono con el número de notificaciones no leídas
                 NotificationManager.shared.syncBadgeWithNotificationStore()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                // Sincronizar badge cuando la app vuelve del background
                 NotificationManager.shared.syncBadgeWithNotificationStore()
+            }
+            .onOpenURL { url in
+                print("📱 URL recibida en FitnessAppApp: \(url)")
+                // Carga perezosa del SpotifyManager solo cuando se necesite
+                Task { @MainActor in
+                    SpotifyManager.shared.handleURL(url)
+                }
             }
         }
     }

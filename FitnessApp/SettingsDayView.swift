@@ -74,7 +74,7 @@ struct SettingsDayView: View {
             
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                 Label(photoData == nil ? "Añadir Foto (Opcional)" : "Cambiar Foto", systemImage: "photo.fill")
-                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                    .foregroundColor(themeManager.selectedAccentColor.color)
             }
             .disabled(isPhotoPickerPresented)
             .onChange(of: selectedPhotoItem) { _, newItem in 

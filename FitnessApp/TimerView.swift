@@ -67,6 +67,7 @@ struct TimerView: View {
             
             // Spotify Player Integration
             SpotifyPlayerView()
+                .environmentObject(themeManager)
                 .padding(.horizontal)
         }
         .onAppear {

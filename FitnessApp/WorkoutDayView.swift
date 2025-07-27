@@ -12,6 +12,9 @@ struct WorkoutDayView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
     let day: WorkoutDay
+    
+    // NUEVO: Observer para Spotify
+    @ObservedObject private var spotifyManager = SpotifyManager.shared
 
     private var exercisesForDay: [WorkoutExercise] { viewModel.dailyWorkoutRecords[day] ?? [] }
     private var progress: Double { viewModel.progressForDay(day) }
@@ -19,9 +22,12 @@ struct WorkoutDayView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                // Fondo de la app
                 AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
+                
+                // Contenido principal
                 VStack(spacing: 0) {
-                    // Header reutilizable con progreso semanal
+                    // Header reutilizable
                     HeaderView()
                         .environmentObject(themeManager)
                         .environmentObject(userManager)
@@ -51,19 +57,29 @@ struct WorkoutDayView: View {
                                 .padding(.vertical, 8)
                             }
                         }
-                        .padding(.bottom, viewModel.timerActive ? 60 : 24)
+                        // Padding dinámico basado en el estado de Spotify
+                        .padding(.bottom, spotifyManager.isConnected ? 160 : 100)
                     }
-                    
-                    // Timer de descanso (overlay fijo)
-                    if viewModel.timerActive {
-                        TimerView()
-                            .environmentObject(viewModel)
-                            .environmentObject(themeManager)
-                            .padding(.horizontal)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                            .padding(.bottom, 100)
-                            .allowsHitTesting(false)
-                    }
+                }
+
+                // Timer de descanso (overlay fijo)
+                if viewModel.timerActive {
+                    TimerView()
+                        .environmentObject(viewModel)
+                        .environmentObject(themeManager)
+                        .padding(.horizontal)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, spotifyManager.isConnected ? 160 : 100)
+                        .allowsHitTesting(false)
+                }
+                
+                // REPRODUCTOR DE SPOTIFY - POSICIONAMIENTO MEJORADO
+                if spotifyManager.isConnected {
+                    SpotifyPlayerView()
+                        .environmentObject(themeManager)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .zIndex(1000)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: spotifyManager.isConnected)
                 }
             }
         }
