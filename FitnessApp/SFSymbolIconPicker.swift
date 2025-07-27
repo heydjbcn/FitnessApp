@@ -12,6 +12,7 @@ struct SFSymbolIconPicker: View {
     @Binding var iconColor: String
     @Environment(\.dismiss) private var dismiss
     
+    // CORREGIDO: Lista de iconos que existen en el sistema
     let fitnessIcons = [
         "dumbbell", "dumbbell.fill", "figure.strengthtraining.traditional",
         "figure.strengthtraining.functional", "figure.gymnastics", "figure.boxing",
@@ -23,7 +24,18 @@ struct SFSymbolIconPicker: View {
         "figure.mixed.cardio", "figure.strengthtraining.traditional.and.functional",
         "stopwatch", "timer", "heart.circle", "heart.circle.fill",
         "target", "flame", "flame.fill", "bolt", "bolt.fill",
-        "arrow.up.circle", "arrow.down.circle", "plus.circle", "minus.circle"
+        "arrow.up.circle", "arrow.down.circle", "plus.circle", "minus.circle",
+        // Iconos adicionales seguros
+        "repeat", "repeat.circle", "repeat.circle.fill",
+        "scalemass", "scalemass.fill", "timer.circle", "timer.circle.fill",
+        "gauge", "gauge.high", "gauge.medium", "gauge.low",
+        "number", "number.circle", "number.circle.fill",
+        "calendar", "calendar.circle", "calendar.circle.fill",
+        "star", "star.fill", "star.circle", "star.circle.fill",
+        "checkmark", "checkmark.circle", "checkmark.circle.fill",
+        "xmark", "xmark.circle", "xmark.circle.fill",
+        "heart", "heart.fill", "trophy", "trophy.fill",
+        "crown", "crown.fill", "medal", "medal.fill"
     ]
     
     let colors = [
@@ -87,7 +99,7 @@ struct ColorSelectorView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Color del Icono")
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -101,7 +113,7 @@ struct ColorSelectorView: View {
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white, lineWidth: iconColor == color ? 3 : 0)
+                                        .stroke(Color.primary, lineWidth: iconColor == color ? 3 : 0)
                                 )
                         }
                     }
@@ -141,7 +153,7 @@ struct IconGridView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Iconos de Fitness")
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(icons, id: \.self) { icon in
@@ -155,7 +167,7 @@ struct IconGridView: View {
                                 .foregroundColor(selectedIcon == icon ? .white : colorFromString(iconColor))
                                 .frame(width: 50, height: 50)
                                 .background(
-                                    selectedIcon == icon ? 
+                                    selectedIcon == icon ?
                                     colorFromString(iconColor) : Color.clear
                                 )
                                 .cornerRadius(8)
@@ -166,7 +178,7 @@ struct IconGridView: View {
                             
                             Text(icon)
                                 .font(.caption2)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                         }

@@ -12,7 +12,7 @@ struct FitnessAppApp: App {
             }
             .environmentObject(workoutViewModel)
             .environmentObject(themeManager)
-            .preferredColorScheme(.dark)
+            .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
             .onAppear {
                 NotificationManager.shared.requestNotificationPermission()
                 NotificationManager.shared.syncBadgeWithNotificationStore()

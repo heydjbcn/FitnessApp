@@ -32,26 +32,84 @@ enum AccentColor: String, CaseIterable, Identifiable {
 
 @MainActor
 class ThemeManager: ObservableObject {
-    @Published var isDarkMode: Bool = true
-    @Published var selectedAccentColor: AccentColor = .blue
-    @Published var isTimerEnabled: Bool = true
+    @Published var isDarkMode: Bool = true {
+        didSet {
+            saveThemeSettings()
+        }
+    }
+    
+    @Published var selectedAccentColor: AccentColor = .blue {
+        didSet {
+            saveThemeSettings()
+        }
+    }
+    
+    @Published var isTimerEnabled: Bool = true {
+        didSet {
+            saveThemeSettings()
+        }
+    }
+    
+    private var isLoading = false // Prevenir bucles durante carga
     
     init() {
-        // Por defecto usa modo oscuro (como ya tienes configurado)
-        self.isDarkMode = true
-        self.selectedAccentColor = .green // Cambiado de .blue a .green
-        self.isTimerEnabled = true
+        loadThemeSettings()
+    }
+    
+    private func loadThemeSettings() {
+        isLoading = true
+        
+        // Cargar configuraciones de UserDefaults
+        self.isDarkMode = UserDefaults.standard.object(forKey: "isDarkMode") as? Bool ?? true
+        
+        if let accentColorRaw = UserDefaults.standard.string(forKey: "selectedAccentColor"),
+           let accentColor = AccentColor(rawValue: accentColorRaw) {
+            self.selectedAccentColor = accentColor
+        } else {
+            self.selectedAccentColor = .green
+        }
+        
+        self.isTimerEnabled = UserDefaults.standard.object(forKey: "isTimerEnabled") as? Bool ?? true
+        
+        isLoading = false
+        print("ThemeManager: Configuración cargada - DarkMode: \(isDarkMode), AccentColor: \(selectedAccentColor.rawValue), Timer: \(isTimerEnabled)")
+    }
+    
+    private func saveThemeSettings() {
+        guard !isLoading else { return } // No guardar durante la carga inicial
+        
+        // Capturar valores en el hilo principal antes de pasar al background
+        let currentDarkMode = isDarkMode
+        let currentAccentColor = selectedAccentColor.rawValue
+        let currentTimerEnabled = isTimerEnabled
+        
+        DispatchQueue.global(qos: .background).async {
+            UserDefaults.standard.set(currentDarkMode, forKey: "isDarkMode")
+            UserDefaults.standard.set(currentAccentColor, forKey: "selectedAccentColor")
+            UserDefaults.standard.set(currentTimerEnabled, forKey: "isTimerEnabled")
+            
+            DispatchQueue.main.async {
+                print("ThemeManager: Configuración guardada - DarkMode: \(currentDarkMode)")
+            }
+        }
     }
     
     func toggleTheme() {
-        isDarkMode.toggle()
+        print("ThemeManager: Cambiando tema de \(isDarkMode ? "oscuro" : "claro") a \(isDarkMode ? "claro" : "oscuro")")
+        
+        // Usar animación suave para el cambio
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isDarkMode.toggle()
+        }
     }
     
     func setAccentColor(_ color: AccentColor) {
+        print("ThemeManager: Cambiando color de acento a \(color.rawValue)")
         selectedAccentColor = color
     }
     
     func toggleTimer() {
+        print("ThemeManager: Cambiando estado del timer a \(isTimerEnabled ? "desactivado" : "activado")")
         isTimerEnabled.toggle()
     }
 }

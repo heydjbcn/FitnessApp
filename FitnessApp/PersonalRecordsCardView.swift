@@ -30,9 +30,7 @@ struct PersonalRecordsCardView: View {
             }
             
             // Personal Records List
-            let topRecords = workoutViewModel.getTopPersonalRecords(limit: 5)
-            
-            if topRecords.isEmpty {
+            if workoutViewModel.getTopPersonalRecords(limit: 5).isEmpty {
                 // Estado vacío
                 VStack(spacing: 8) {
                     Image(systemName: "trophy")
@@ -53,7 +51,7 @@ struct PersonalRecordsCardView: View {
             } else {
                 // Lista de récords
                 VStack(spacing: 8) {
-                    ForEach(Array(topRecords.enumerated()), id: \.offset) { index, record in
+                    ForEach(Array(workoutViewModel.getTopPersonalRecords(limit: 5).enumerated()), id: \.offset) { index, record in
                         PersonalRecordRow(
                             rank: index + 1,
                             exerciseName: record.exerciseName,

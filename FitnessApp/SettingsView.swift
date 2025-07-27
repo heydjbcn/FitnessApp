@@ -103,8 +103,16 @@ struct SettingsView: View {
                         title: "Modo oscuro",
                         subtitle: "Cambia entre modo claro y oscuro"
                     ) {
-                        Toggle("", isOn: $themeManager.isDarkMode)
-                            .tint(AppColors.primary(themeManager: themeManager))
+                        Button(action: {
+                            print("🎨 SettingsView: Iniciando cambio de tema...")
+                            HapticManager.shared.selectionFeedback()
+                            themeManager.toggleTheme()
+                        }) {
+                            Image(systemName: themeManager.isDarkMode ? "checkmark.circle.fill" : "circle")
+                                .font(.title2)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                     
                     // --- TARJETA DE MANTENER PANTALLA ENCENDIDA ---

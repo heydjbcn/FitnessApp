@@ -3,6 +3,7 @@
 //  FitnessApp
 //
 //  Created by Jordi Mauri on 16/7/25.
+//  Updated with Memory & Performance Optimizations
 //
 
 import SwiftUI
@@ -30,17 +31,23 @@ class WorkoutViewModel: ObservableObject {
     @Published var timeRemaining = 120
     @Published var currentTimerDuration: Int = 120 // Duración del timer actual
     @Published var isTimerEnabled = true // Estado del timer desde ThemeManager
-    @Published var restDuration: Int = 120 { // Tiempo de descanso personalizable (por defecto 2 minutos)
-        didSet {
-            UserDefaults.standard.set(restDuration, forKey: "RestDuration")
-            print("WorkoutViewModel: restDuration actualizado y guardado: \(restDuration) segundos")
-        }
-    }
+    @Published var restDuration: Int = 120 // Tiempo de descanso personalizable (por defecto 2 minutos)
+    
+    // Variable privada para controlar las actualizaciones
+    private var isUpdatingRestDuration = false
+    private var isSaving = false // Controla las operaciones de guardado concurrentes
     
     // Onboarding Manager
     @Published var onboardingManager = OnboardingManager()
 
+    // NUEVO: Control de timer mejorado
     private var timer: Timer?
+    private var timerWorkItem: DispatchWorkItem?
+    
+    // NUEVO: Límites de datos
+    private let MAX_HISTORY_DAYS = 90 // Solo 3 meses de historial
+    private let MAX_USERDEFAULTS_SIZE = 500_000 // 500KB máximo por clave
+    
     private let userDefaults = UserDefaults.standard
     
     // LiveActivityManager opcional para evitar errores en versiones anteriores
@@ -54,8 +61,91 @@ class WorkoutViewModel: ObservableObject {
 
     init() {
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
+        
+        // Escuchar advertencias de memoria del sistema
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
+        
         loadData()
         print("WorkoutViewModel: Inicialización completada con restDuration: \(restDuration) segundos")
+    }
+    
+    // NUEVO: Manejo de advertencias de memoria
+    @objc private func handleMemoryWarning() {
+        print("🧹 WorkoutViewModel: Limpieza por advertencia de memoria")
+        
+        // Limpiar datos no esenciales
+        cleanupNonEssentialData()
+        
+        // Detener timer si está activo
+        if timerActive {
+            stopTimer()
+        }
+        
+        // Forzar guardado y limpieza
+        saveData()
+    }
+    
+    // NUEVO: Limpieza de datos no esenciales
+    private func cleanupNonEssentialData() {
+        let calendar = Calendar.current
+        let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        
+        let oldKeys = workoutHistory.keys.filter { $0 < twoWeeksAgo }
+        for key in oldKeys {
+            workoutHistory.removeValue(forKey: key)
+        }
+        
+        let oldNoteKeys = sessionNotes.keys.filter { $0 < twoWeeksAgo }
+        for key in oldNoteKeys {
+            sessionNotes.removeValue(forKey: key)
+        }
+        
+        print("🧹 Limpiados \(oldKeys.count) registros antiguos y \(oldNoteKeys.count) notas")
+    }
+    
+    // NUEVO: Limpieza en deinit
+    deinit {
+        print("🧹 WorkoutViewModel: Iniciando deinit...")
+        
+        // Detener todos los observers de forma segura
+        DispatchQueue.main.async {
+            NotificationCenter.default.removeObserver(self)
+        }
+        
+        // Limpiar timers de forma segura
+        DispatchQueue.main.sync {
+            self.timer?.invalidate()
+            self.timer = nil
+            self.timerWorkItem?.cancel()
+            self.timerWorkItem = nil
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+        
+        // Resetear flags
+        isUpdatingRestDuration = false
+        
+        print("WorkoutViewModel: deinit completo - recursos limpiados")
+    }
+    
+    // MARK: - Safe Update Functions
+    
+    /// Actualiza restDuration de forma segura para evitar bucles infinitos
+    func updateRestDuration(_ newDuration: Int) {
+        guard !isUpdatingRestDuration else { return }
+        isUpdatingRestDuration = true
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.restDuration = newDuration
+            UserDefaults.standard.set(newDuration, forKey: "RestDuration")
+            print("WorkoutViewModel: restDuration actualizado y guardado: \(newDuration) segundos")
+            self.isUpdatingRestDuration = false
+        }
     }
     
     // Helper para obtener un Exercise base por su ID
@@ -80,43 +170,35 @@ class WorkoutViewModel: ObservableObject {
     func completedExercisesForDate(_ date: Date) -> [WorkoutDay: [WorkoutExercise]]? {
         let key = Calendar.current.startOfDay(for: date)
         guard let historyForDate = workoutHistory[key] else { return nil }
-        
-        var filteredHistory: [WorkoutDay: [WorkoutExercise]] = [:]
-        
-        for (workoutDay, exercises) in historyForDate {
-            // Primero verificar si este día tiene ejercicios programados
-            let hasScheduledExercises = dailyWorkoutRecords[workoutDay]?.isEmpty == false
             
-            // Solo procesar si el día tiene ejercicios programados
+        var filteredHistory: [WorkoutDay: [WorkoutExercise]] = [:]
+            
+        for (workoutDay, exercises) in historyForDate {
+            let hasScheduledExercises = !availableExercises.isEmpty
+            
             if hasScheduledExercises {
-                // Filtrar solo ejercicios que fueron realmente completados ese día
                 let completedExercises = exercises.filter { workoutExercise in
-                    // Un ejercicio se considera "completado en este día" si:
-                    // 1. Tiene sets completados Y
-                    // 2. La fecha de última completación es del día seleccionado
                     guard workoutExercise.completedSets > 0,
                           let lastCompleted = workoutExercise.lastSetCompletedAt else {
                         return false
                     }
-                    
+                        
                     let completionDate = Calendar.current.startOfDay(for: lastCompleted)
                     let selectedDate = Calendar.current.startOfDay(for: date)
-                    
+                        
                     return completionDate == selectedDate
                 }
-                
-                // Solo incluir días que tengan ejercicios completados
+                    
                 if !completedExercises.isEmpty {
                     filteredHistory[workoutDay] = completedExercises
                 }
             }
         }
-        
+            
         return filteredHistory.isEmpty ? nil : filteredHistory
     }
     
     func hasWorkoutForDate(_ date: Date) -> Bool {
-        // Verificar si hay ejercicios completados para esta fecha
         guard let completedExercises = completedExercisesForDate(date) else { return false }
         return !completedExercises.values.allSatisfy { $0.isEmpty }
     }
@@ -124,15 +206,14 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Session Notes Management
     func getSessionNote(for date: Date) -> String? {
         let key = Calendar.current.startOfDay(for: date)
-        
-        // Si no hay nota y es hoy, añadir una nota de ejemplo
+            
         if sessionNotes[key] == nil && Calendar.current.isDateInToday(date) {
             let exampleNote = "Entrenamiento completado con buena energía. Se sintió más fácil el peso de hoy, quizás puedo subir en la próxima sesión. 💪"
             sessionNotes[key] = exampleNote
             saveData()
             return exampleNote
         }
-        
+            
         return sessionNotes[key]
     }
     
@@ -166,130 +247,146 @@ class WorkoutViewModel: ObservableObject {
         saveData()
     }
     
+    // MÉTODO CORREGIDO: saveData con límites estrictos y manejo de concurrencia mejorado
     private func saveData() {
-        DispatchQueue.global(qos: .background).async {
-            // Limpiar datos antiguos antes de guardar
-            self.cleanupOldData()
+        // Prevenir llamadas concurrentes múltiples
+        guard !isSaving else {
+            print("⚠️ SaveData ya en progreso, saltando...")
+            return
+        }
+        
+        isSaving = true
+        
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            
+            defer {
+                DispatchQueue.main.async {
+                    self.isSaving = false
+                }
+            }
+            
+            // Limpiar datos antes de guardar
+            self.enforceDataLimits()
             
             let encoder = JSONEncoder()
             
-            // Guardar availableExercises
-                if let enc = try? encoder.encode(self.availableExercises) {
-                    let dataSize = enc.count
-                    print("WorkoutViewModel: Guardando availableExercises - \(dataSize) bytes")
-                    if dataSize < 1_000_000 { // Límite de 1MB por entrada
-                        UserDefaults.standard.set(enc, forKey: "AvailableExercises")
+            // Función auxiliar para guardar con límite de tamaño
+            func saveWithSizeLimit<T: Codable>(_ data: T, key: String, maxSize: Int = self.MAX_USERDEFAULTS_SIZE) {
+                do {
+                    let encoded = try encoder.encode(data)
+                    let dataSize = encoded.count
+                    
+                    if dataSize <= maxSize {
+                        UserDefaults.standard.set(encoded, forKey: key)
+                        print("✅ Guardado \(key): \(dataSize) bytes")
                     } else {
-                        print("WorkoutViewModel: ERROR - availableExercises excede el límite de tamaño")
+                        print("❌ ERROR: \(key) excede límite - \(dataSize) bytes > \(maxSize) bytes")
+                        // En caso de exceso, limpiar más agresivamente
+                        if key == "WorkoutHistory" {
+                            self.emergencyHistoryCleanup()
+                            // Intentar guardar de nuevo después de la limpieza
+                            if let cleanedEncoded = try? encoder.encode(self.workoutHistory),
+                               cleanedEncoded.count <= maxSize {
+                                UserDefaults.standard.set(cleanedEncoded, forKey: key)
+                                print("✅ Guardado \(key) después de limpieza: \(cleanedEncoded.count) bytes")
+                            }
+                        }
                     }
+                } catch {
+                    print("❌ Error codificando \(key): \(error)")
                 }
-                
-                // Guardar dailyWorkoutRecords
-                if let encD = try? encoder.encode(self.dailyWorkoutRecords) {
-                    let dataSize = encD.count
-                    print("WorkoutViewModel: Guardando dailyWorkoutRecords - \(dataSize) bytes")
-                    if dataSize < 1_000_000 {
-                        UserDefaults.standard.set(encD, forKey: "DailyWorkoutRecords")
-                    } else {
-                        print("WorkoutViewModel: ERROR - dailyWorkoutRecords excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar workoutHistory (limitado)
-                if let encH = try? encoder.encode(self.workoutHistory) {
-                    let dataSize = encH.count
-                    print("WorkoutViewModel: Guardando workoutHistory - \(dataSize) bytes")
-                    if dataSize < 1_000_000 {
-                        UserDefaults.standard.set(encH, forKey: "WorkoutHistory")
-                    } else {
-                        print("WorkoutViewModel: ERROR - workoutHistory excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar bodyWeightHistory (limitado)
-                if let encW = try? encoder.encode(self.bodyWeightHistory) {
-                    let dataSize = encW.count
-                    print("WorkoutViewModel: Guardando bodyWeightHistory - \(dataSize) bytes")
-                    if dataSize < 1_000_000 {
-                        UserDefaults.standard.set(encW, forKey: "BodyWeightHistory")
-                    } else {
-                        print("WorkoutViewModel: ERROR - bodyWeightHistory excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar activeDays
-                if let encA = try? encoder.encode(self.activeDays) {
-                    let dataSize = encA.count
-                    print("WorkoutViewModel: Guardando activeDays - \(dataSize) bytes")
-                    if dataSize < 100_000 {
-                        UserDefaults.standard.set(encA, forKey: "ActiveDays")
-                    } else {
-                        print("WorkoutViewModel: ERROR - activeDays excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar sessionNotes
-                if let encN = try? encoder.encode(self.sessionNotes) {
-                    let dataSize = encN.count
-                    print("WorkoutViewModel: Guardando sessionNotes - \(dataSize) bytes")
-                    if dataSize < 500_000 {
-                        UserDefaults.standard.set(encN, forKey: "SessionNotes")
-                    } else {
-                        print("WorkoutViewModel: ERROR - sessionNotes excede el límite de tamaño")
-                    }
-                }
-                
+            }
+            
+            // Guardar cada estructura con límites
+            saveWithSizeLimit(self.availableExercises, key: "AvailableExercises", maxSize: 100_000)
+            saveWithSizeLimit(self.dailyWorkoutRecords, key: "DailyWorkoutRecords", maxSize: 100_000)
+            saveWithSizeLimit(self.workoutHistory, key: "WorkoutHistory", maxSize: 300_000)
+            saveWithSizeLimit(self.bodyWeightHistory, key: "BodyWeightHistory", maxSize: 50_000)
+            saveWithSizeLimit(self.sessionNotes, key: "SessionNotes", maxSize: 100_000)
+            saveWithSizeLimit(self.activeDays, key: "ActiveDays", maxSize: 10_000)
+            
+            // Guardar configuración simple
             UserDefaults.standard.set(self.restDuration, forKey: "RestDuration")
-            print("WorkoutViewModel: Datos guardados exitosamente")
+            
+            print("WorkoutViewModel: Guardado completado")
         }
     }
     
-    private func cleanupOldData() {
+    // NUEVO: Aplicar límites estrictos a los datos
+    private func enforceDataLimits() {
         let calendar = Calendar.current
-        let sixMonthsAgo = calendar.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+        let cutoffDate = calendar.date(byAdding: .day, value: -MAX_HISTORY_DAYS, to: Date()) ?? Date()
         
-        // Limpiar workoutHistory - mantener solo los últimos 6 meses
-        let oldHistoryKeys = workoutHistory.keys.filter { $0 < sixMonthsAgo }
+        // Limpiar historial antiguo
+        let oldHistoryKeys = workoutHistory.keys.filter { $0 < cutoffDate }
         for key in oldHistoryKeys {
             workoutHistory.removeValue(forKey: key)
         }
         
-        // Limpiar bodyWeightHistory - mantener solo los últimos 6 meses
-        let oldWeightKeys = bodyWeightHistory.keys.filter { $0 < sixMonthsAgo }
+        // Limpiar peso antiguo
+        let oldWeightKeys = bodyWeightHistory.keys.filter { $0 < cutoffDate }
         for key in oldWeightKeys {
             bodyWeightHistory.removeValue(forKey: key)
         }
         
-        // Limpiar sessionNotes - mantener solo los últimos 6 meses
-        let oldNotesKeys = sessionNotes.keys.filter { $0 < sixMonthsAgo }
+        // Limpiar notas antiguas
+        let oldNotesKeys = sessionNotes.keys.filter { $0 < cutoffDate }
         for key in oldNotesKeys {
             sessionNotes.removeValue(forKey: key)
         }
         
-        print("WorkoutViewModel: Limpieza completada - removidos \(oldHistoryKeys.count) registros de historial, \(oldWeightKeys.count) registros de peso y \(oldNotesKeys.count) notas de sesión")
+        // Limitar número de ejercicios únicos
+        if availableExercises.count > 50 {
+            print("⚠️ Demasiados ejercicios (\(availableExercises.count)), limitando a 50")
+            availableExercises = Array(availableExercises.prefix(50))
+        }
+        
+        print("Datos limitados: Historial=\(workoutHistory.count) días, Ejercicios=\(availableExercises.count)")
     }
     
+    // NUEVO: Limpieza de emergencia para historial
+    private func emergencyHistoryCleanup() {
+        let calendar = Calendar.current
+        let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        
+        // Mantener solo el último mes
+        let recentKeys = workoutHistory.keys.filter { $0 >= oneMonthAgo }
+        let recentHistory = Dictionary(uniqueKeysWithValues: recentKeys.map { ($0, workoutHistory[$0]!) })
+        
+        workoutHistory = recentHistory
+        print("🚨 Limpieza de emergencia: Historial reducido a \(workoutHistory.count) días")
+    }
+    
+    // MARK: - Actualizado: completeSet
     func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
+        print("🔥 CompleteSet iniciado para: \(workoutExerciseId)")
+        
         guard let recordIndex = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }),
-              let baseExercise = getExercise(by: dailyWorkoutRecords[day]![recordIndex].exerciseId) else { return }
+              let baseExercise = getExercise(by: dailyWorkoutRecords[day]![recordIndex].exerciseId) else {
+            print("❌ CompleteSet: No se encontró el record o ejercicio")
+            return
+        }
         
         var record = dailyWorkoutRecords[day]![recordIndex]
         if record.completedSets < baseExercise.totalSets {
             record.completedSets += 1
             record.lastSetCompletedAt = Date()
             dailyWorkoutRecords[day]![recordIndex] = record
+            
+            print("✅ CompleteSet: Serie completada \(record.completedSets)/\(baseExercise.totalSets)")
+            
             recordHistory(for: day)
-            
-            // Verificar y celebrar nuevo Personal Record
             checkAndCelebratePersonalRecord(for: baseExercise)
-            
-            // Haptic feedback para completar serie
             HapticManager.shared.setCompleted()
             
-            if record.completedSets < baseExercise.totalSets { 
+            if record.completedSets < baseExercise.totalSets {
+                print("🔄 CompleteSet: Iniciando timer de \(baseExercise.restDuration)s")
                 startTimer(duration: baseExercise.restDuration, isEnabled: isTimerEnabled)
             }
         }
+        
+        print("🏁 CompleteSet completado")
     }
     
     func addExercise(name: String, reps: Int, weight: Double, sets: Int, info: String, imageData: Data?, restDuration: Int, toDays selectedDays: Set<WorkoutDay>, sfSymbolIcon: String? = nil, iconColor: String = "blue", segundos: Int = 0, rir: Int = 0) {
@@ -308,7 +405,7 @@ class WorkoutViewModel: ObservableObject {
             rir: rir
         )
         availableExercises.append(newBaseExercise)
-        
+            
         // Asignar este ejercicio a los días seleccionados
         for day in selectedDays {
             let newWorkoutRecord = WorkoutExercise(
@@ -319,30 +416,28 @@ class WorkoutViewModel: ObservableObject {
             )
             dailyWorkoutRecords[day]?.append(newWorkoutRecord)
         }
-        
+            
         // Haptic feedback para añadir ejercicio
         HapticManager.shared.exerciseAdded()
-        
+            
         // Iniciar onboarding si es el primer ejercicio
         if onboardingManager.isFirstExercise {
             onboardingManager.startOnboarding()
         }
-        
+            
         saveData()
     }
     
-    func toggleDay(_ day: WorkoutDay) { 
-        if let idx = activeDays.firstIndex(of: day) { 
-            activeDays.remove(at: idx) 
-        } else { 
+    func toggleDay(_ day: WorkoutDay) {
+        if let idx = activeDays.firstIndex(of: day) {
+            activeDays.remove(at: idx)
+        } else {
             activeDays.append(day)
-            activeDays.sort { WorkoutDay.allCases.firstIndex(of: $0)! < WorkoutDay.allCases.firstIndex(of: $1)! } 
+            activeDays.sort { WorkoutDay.allCases.firstIndex(of: $0)! < WorkoutDay.allCases.firstIndex(of: $1)! }
         }
-        
-        // Haptic feedback para cambiar día
+            
         HapticManager.shared.selectionFeedback()
-        
-        saveData() 
+        saveData()
     }
     
     func removeExercise(recordId: UUID, from day: WorkoutDay) {
@@ -352,40 +447,35 @@ class WorkoutViewModel: ObservableObject {
     
     func undoLastSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
         guard let recordIndex = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
-        
+            
         var record = dailyWorkoutRecords[day]![recordIndex]
         if record.completedSets > 0 {
             record.completedSets -= 1
             if record.completedSets == 0 { record.lastSetCompletedAt = nil }
             dailyWorkoutRecords[day]![recordIndex] = record
             recordHistory(for: day)
-            
-            // Haptic feedback para deshacer set
             HapticManager.shared.warning()
         }
     }
     
-    func updateBodyWeight(for date: Date, weight: Double) { 
+    func updateBodyWeight(for date: Date, weight: Double) {
         let key = Calendar.current.startOfDay(for: date)
         bodyWeightHistory[key] = weight
-        
-        // Haptic feedback para actualizar peso
         HapticManager.shared.success()
-        
         saveData()
     }
     
-    func bodyWeightForDate(_ date: Date) -> Double? { 
+    func bodyWeightForDate(_ date: Date) -> Double? {
         let key = Calendar.current.startOfDay(for: date)
-        return bodyWeightHistory[key] 
+        return bodyWeightHistory[key]
     }
     
     func progressForDay(_ day: WorkoutDay) -> Double {
         guard let records = dailyWorkoutRecords[day], !records.isEmpty else { return 0 }
-        
+            
         var totalSets = 0
         var completedSets = 0
-        
+            
         for record in records {
             if let baseExercise = getExercise(by: record.exerciseId) {
                 totalSets += baseExercise.totalSets
@@ -393,12 +483,6 @@ class WorkoutViewModel: ObservableObject {
             }
         }
         return totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0
-    }
-    func updateRestDuration(_ duration: Int) {
-        restDuration = duration
-        timeRemaining = duration
-        print("WorkoutViewModel: restDuration actualizado a \(duration) segundos")
-        saveData()
     }
     
     func updateExerciseRestDuration(_ exerciseId: UUID, newDuration: Int) {
@@ -439,67 +523,142 @@ class WorkoutViewModel: ObservableObject {
     func removeExercise(baseExercise: Exercise) {
         // Eliminar de availableExercises
         availableExercises.removeAll { $0.id == baseExercise.id }
-        
+            
         // Eliminar todas las ocurrencias diarias de este ejercicio
         for day in WorkoutDay.allCases {
             dailyWorkoutRecords[day]?.removeAll { $0.exerciseId == baseExercise.id }
         }
-        
-        // Haptic feedback para eliminar ejercicio
+            
         HapticManager.shared.exerciseDeleted()
-        
         saveData()
     }
     
-    func startRestTimer() { 
-        timerActive = true
-        timeRemaining = restDuration
-        currentTimerDuration = restDuration
-        print("WorkoutViewModel: Timer iniciado con duración: \(restDuration) segundos")
-        
-        // Iniciar Live Activity si está disponible
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: restDuration)
-            }
+    // MARK: - TIMER METHODS CORREGIDOS
+    
+    // MÉTODO CORREGIDO: startTimer
+    func startTimer(duration: Int, isEnabled: Bool = true) {
+        guard isEnabled else {
+            print("WorkoutViewModel: Timer desactivado por configuración")
+            return
         }
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in 
-            if self.timeRemaining > 0 { 
-                self.timeRemaining -= 1
-                
-                // Actualizar Live Activity
-                Task { @MainActor in
-                    if #available(iOS 16.1, *) {
-                        self.liveActivityManager?.updateTimerActivity(
-                            timeRemaining: self.timeRemaining,
-                            totalTime: self.restDuration,
-                            isActive: true
-                        )
+        // Validar duración
+        guard duration > 0 && duration <= 600 else {
+            print("WorkoutViewModel: Duración de timer inválida: \(duration)")
+            return
+        }
+        
+        print("WorkoutViewModel: Iniciando timer con duración: \(duration) segundos")
+        
+        // CRÍTICO: Detener completamente cualquier timer existente
+        stopTimer()
+        
+        // Esperar un ciclo de run loop para asegurar limpieza
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Verificar que realmente no hay timer activo
+            guard self.timer == nil else {
+                print("WorkoutViewModel: ERROR - Timer anterior aún existe")
+                return
+            }
+            
+            // Configurar estado
+            self.timeRemaining = duration
+            self.currentTimerDuration = duration
+            self.timerActive = true
+            
+            // Mantener pantalla encendida
+            UIApplication.shared.isIdleTimerDisabled = true
+            
+            // Haptic feedback
+            HapticManager.shared.timerStarted()
+            
+            // Programar notificación
+            NotificationManager.shared.scheduleRestNotification(after: TimeInterval(duration))
+            
+            // Crear timer con mejor gestión de memoria
+            self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] currentTimer in
+                DispatchQueue.main.async {
+                    guard let self = self else {
+                        currentTimer.invalidate()
+                        return
+                    }
+                    
+                    // Verificar que este timer sigue siendo el activo
+                    guard currentTimer.isValid && self.timer === currentTimer else {
+                        currentTimer.invalidate()
+                        return
+                    }
+                    
+                    guard self.timerActive else {
+                        self.cleanupTimer(currentTimer)
+                        return
+                    }
+                    
+                    if self.timeRemaining > 0 {
+                        self.timeRemaining -= 1
+                        
+                        // Actualizar Live Activity
+                        Task { @MainActor in
+                            if #available(iOS 16.1, *) {
+                                self.liveActivityManager?.updateTimerActivity(
+                                    timeRemaining: self.timeRemaining,
+                                    totalTime: duration,
+                                    isActive: true
+                                )
+                            }
+                        }
+                    } else {
+                        self.completeTimer()
                     }
                 }
-            } else { 
-                self.stopTimer()
-                AudioServicesPlaySystemSound(1057)
             }
+            
+            // Verificar que el timer se creó correctamente
+            if self.timer == nil {
+                print("WorkoutViewModel: ERROR - No se pudo crear el timer")
+                self.timerActive = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                return
+            }
+            
+            // Iniciar Live Activity
+            Task { @MainActor in
+                if #available(iOS 16.1, *) {
+                    self.liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration)
+                }
+            }
+            
+            print("WorkoutViewModel: Timer iniciado exitosamente")
         }
     }
     
-    func stopTimer() { 
-        timer?.invalidate()
-        timer = nil
-        timerActive = false
-        timeRemaining = currentTimerDuration // Restaurar al valor original
+    // MÉTODO CORREGIDO: stopTimer
+    func stopTimer() {
+        print("WorkoutViewModel: Deteniendo timer")
         
-        // Permite que la pantalla vuelva a bloquearse normalmente
+        // Cancelar work item si existe
+        timerWorkItem?.cancel()
+        timerWorkItem = nil
+        
+        // Limpiar timer
+        if let currentTimer = timer {
+            cleanupTimer(currentTimer)
+        }
+        
+        // Limpiar estado
+        timerActive = false
+        
+        // Restaurar configuración de pantalla
         DispatchQueue.main.async {
             UIApplication.shared.isIdleTimerDisabled = false
         }
         
-        // Haptic feedback para detener timer
+        // Haptic feedback
         HapticManager.shared.timerStopped()
         
-        // Cancelar notificación programada
+        // Cancelar notificación
         NotificationManager.shared.cancelRestNotification()
         
         // Terminar Live Activity
@@ -508,119 +667,157 @@ class WorkoutViewModel: ObservableObject {
                 liveActivityManager?.endTimerActivity()
             }
         }
+        
+        print("WorkoutViewModel: Timer detenido completamente")
     }
+    
+    // NUEVO MÉTODO: Limpieza segura de timer
+    private func cleanupTimer(_ timerToClean: Timer) {
+        timerToClean.invalidate()
+        if timer === timerToClean {
+            timer = nil
+        }
+    }
+    
+    // MÉTODO CORREGIDO: completeTimer
+    private func completeTimer() {
+        print("WorkoutViewModel: Timer completado naturalmente")
+        
+        // Limpiar timer
+        if let currentTimer = timer {
+            cleanupTimer(currentTimer)
+        }
+        
+        timerActive = false
+        timeRemaining = 0
+        
+        // Restaurar configuración de pantalla
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+        
+        // Haptic feedback especial
+        HapticManager.shared.timerCompleted()
+        
+        // Cancelar notificación
+        NotificationManager.shared.cancelRestNotification()
+        
+        // Terminar Live Activity
+        Task { @MainActor in
+            if #available(iOS 16.1, *) {
+                liveActivityManager?.endTimerActivity()
+            }
+        }
+        
+        print("WorkoutViewModel: Timer completado y limpiado")
+    }
+    
+    // MÉTODO CORREGIDO: loadData con mejor manejo de errores
     private func loadData() {
         let decoder = JSONDecoder()
         
-        // Verificar si es la primera vez que se abre la app
-        let isFirstLaunch = !userDefaults.bool(forKey: "HasLaunchedBefore")
-        
-        // Cargar availableExercises
-        if let data = userDefaults.data(forKey: "AvailableExercises") {
-            print("WorkoutViewModel: Cargando availableExercises - \(data.count) bytes")
-            if let decoded = try? decoder.decode([Exercise].self, from: data) {
-                availableExercises = decoded
+        // Función auxiliar para cargar datos de forma segura
+        func loadSafely<T: Codable>(_ type: T.Type, key: String, fallback: T) -> T {
+            guard let data = UserDefaults.standard.data(forKey: key) else {
+                print("📁 \(key): No hay datos guardados")
+                return fallback
             }
-        } else if isFirstLaunch {
-            // Primera vez - configurar datos por defecto
+            
+            print("📁 Cargando \(key): \(data.count) bytes")
+            
+            // Verificar tamaño antes de decodificar
+            if data.count > MAX_USERDEFAULTS_SIZE * 2 { // Doble del límite es sospechoso
+                print("⚠️ \(key) tiene tamaño sospechoso: \(data.count) bytes. Eliminando.")
+                UserDefaults.standard.removeObject(forKey: key)
+                return fallback
+            }
+            
+            do {
+                return try decoder.decode(type, from: data)
+            } catch {
+                print("❌ Error decodificando \(key): \(error)")
+                // Eliminar datos corruptos
+                UserDefaults.standard.removeObject(forKey: key)
+                return fallback
+            }
+        }
+        
+        // Verificar si es primera vez
+        let isFirstLaunch = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
+        
+        if isFirstLaunch {
             setupDefaultData()
-            userDefaults.set(true, forKey: "HasLaunchedBefore")
-        }
-        
-        // Cargar dailyWorkoutRecords
-        if let data = userDefaults.data(forKey: "DailyWorkoutRecords") {
-            print("WorkoutViewModel: Cargando dailyWorkoutRecords - \(data.count) bytes")
-            if let decoded = try? decoder.decode([WorkoutDay: [WorkoutExercise]].self, from: data) {
-                dailyWorkoutRecords = decoded
-            }
-        }
-        
-        // Cargar workoutHistory
-        if let data = userDefaults.data(forKey: "WorkoutHistory") {
-            print("WorkoutViewModel: Cargando workoutHistory - \(data.count) bytes")
-            if data.count > 3_000_000 { // Si es mayor a 3MB, hay un problema
-                print("WorkoutViewModel: ADVERTENCIA - workoutHistory muy grande, ejecutando limpieza de emergencia")
-                // En lugar de cargar datos corruptos, limpiar
-                userDefaults.removeObject(forKey: "WorkoutHistory")
-                workoutHistory = [:]
-            } else if let decoded = try? decoder.decode([Date: [WorkoutDay: [WorkoutExercise]]].self, from: data) {
-                workoutHistory = decoded
-            }
-        }
-        
-        // Cargar bodyWeightHistory
-        if let data = userDefaults.data(forKey: "BodyWeightHistory") {
-            print("WorkoutViewModel: Cargando bodyWeightHistory - \(data.count) bytes")
-            if data.count > 1_000_000 { // Si es mayor a 1MB, limpiar
-                print("WorkoutViewModel: ADVERTENCIA - bodyWeightHistory muy grande, ejecutando limpieza")
-                userDefaults.removeObject(forKey: "BodyWeightHistory")
-                bodyWeightHistory = [:]
-            } else if let decoded = try? decoder.decode([Date: Double].self, from: data) {
-                bodyWeightHistory = decoded
-            }
-        }
-        
-        // Cargar días activos
-        if let data = userDefaults.data(forKey: "ActiveDays") {
-            print("WorkoutViewModel: Cargando activeDays - \(data.count) bytes")
-            if let decoded = try? decoder.decode([WorkoutDay].self, from: data) {
-                activeDays = decoded
-            }
-        }
-        
-        // Cargar sessionNotes
-        if let data = userDefaults.data(forKey: "SessionNotes") {
-            print("WorkoutViewModel: Cargando sessionNotes - \(data.count) bytes")
-            if let decoded = try? decoder.decode([Date: String].self, from: data) {
-                sessionNotes = decoded
-            }
-        }
-        
-        // Cargar duración del descanso
-        if let savedRestDuration = userDefaults.object(forKey: "RestDuration") as? Int {
-            restDuration = savedRestDuration
-            print("WorkoutViewModel: restDuration cargado de UserDefaults: \(restDuration) segundos")
+            UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
         } else {
-            print("WorkoutViewModel: No se encontró restDuration guardado. Usando valor por defecto: \(restDuration) segundos")
+            // Cargar datos existentes
+            availableExercises = loadSafely([Exercise].self, key: "AvailableExercises", fallback: [])
+            dailyWorkoutRecords = loadSafely([WorkoutDay: [WorkoutExercise]].self, key: "DailyWorkoutRecords", fallback: [:])
+            workoutHistory = loadSafely([Date: [WorkoutDay: [WorkoutExercise]]].self, key: "WorkoutHistory", fallback: [:])
+            bodyWeightHistory = loadSafely([Date: Double].self, key: "BodyWeightHistory", fallback: [:])
+            sessionNotes = loadSafely([Date: String].self, key: "SessionNotes", fallback: [:])
+            activeDays = loadSafely([WorkoutDay].self, key: "ActiveDays", fallback: WorkoutDay.allCases)
+            
+            // Cargar configuración simple
+            restDuration = UserDefaults.standard.object(forKey: "RestDuration") as? Int ?? 120
         }
         
-        // Mostrar información del tamaño de datos
-        print("WorkoutViewModel: Datos cargados exitosamente")
-        print(getDataSizeInfo())
-        
-        // Asegurarse de que todos los días tengan un array vacío si no hay records
+        // Asegurar estructura básica
         WorkoutDay.allCases.forEach { day in
             if dailyWorkoutRecords[day] == nil {
                 dailyWorkoutRecords[day] = []
             }
         }
+        
+        // Aplicar límites después de cargar
+        enforceDataLimits()
+        
+        print("✅ Datos cargados exitosamente")
+        printMemoryInfo()
+    }
+    
+    // NUEVO: Información de memoria
+    private func printMemoryInfo() {
+        let encoder = JSONEncoder()
+        var totalSize = 0
+        
+        if let data = try? encoder.encode(availableExercises) { totalSize += data.count }
+        if let data = try? encoder.encode(dailyWorkoutRecords) { totalSize += data.count }
+        if let data = try? encoder.encode(workoutHistory) { totalSize += data.count }
+        if let data = try? encoder.encode(bodyWeightHistory) { totalSize += data.count }
+        if let data = try? encoder.encode(sessionNotes) { totalSize += data.count }
+        
+        print("📊 Tamaño total de datos: \(totalSize) bytes (\(totalSize/1024) KB)")
+        
+        if totalSize > 1_000_000 { // Mayor a 1MB
+            print("⚠️ ADVERTENCIA: Datos muy grandes, considerar limpieza")
+        }
     }
     
     private func setupDefaultData() {
         print("WorkoutViewModel: Configurando datos por defecto...")
-        
+            
         // Crear ejercicios por defecto basados en la rutina
         let defaultExercises = createDefaultExercises()
         availableExercises = defaultExercises
-        
+            
         // Configurar días activos (Lunes, Miércoles, Viernes)
         activeDays = [.monday, .wednesday, .friday]
-        
+            
         // Configurar rutina diaria
         setupDefaultWorkoutPlan(exercises: defaultExercises)
-        
+            
         // Crear historial de entrenamiento del último mes
         createMonthlyWorkoutHistory()
-        
+            
         // Guardar datos
         saveData()
-        
+            
         print("WorkoutViewModel: Datos por defecto configurados exitosamente")
     }
     
     private func createDefaultExercises() -> [Exercise] {
         var exercises: [Exercise] = []
-        
+            
         // DÍA 1 - LUNES (Glúteos e Isquiosurales)
         exercises.append(Exercise(
             id: UUID(),
@@ -634,7 +831,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "pink"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "MÁQUINA DE ABDUCCIÓN",
@@ -647,7 +844,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "pink"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "PESO MUERTO CON PESA RUSA",
@@ -660,7 +857,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "orange"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "FLEXIÓN DE RODILLA MÁQUINA TUMBADO",
@@ -673,7 +870,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "red"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "FLEXIÓN DE RODILLA MÁQUINA SENTADO",
@@ -686,7 +883,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "red"
         ))
-        
+            
         // DÍA 2 - MIÉRCOLES (Espalda y Deltoides)
         exercises.append(Exercise(
             id: UUID(),
@@ -700,7 +897,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "blue"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "REMO EN POLEA BAJA AGARRE SUPINO",
@@ -713,7 +910,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.rower",
             iconColor: "blue"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "REMO UNILATERAL CON APOYO EN PECHO",
@@ -726,7 +923,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "cyan"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "VUELO POSTERIOR DE HOMBROS EN MÁQUINA",
@@ -739,7 +936,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "purple"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "ELEVACIÓN LATERAL SENTADO MANCUERNAS",
@@ -752,7 +949,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "purple"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "ELEVACIÓN FRONTAL MANCUERNAS DE PIE",
@@ -765,7 +962,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "yellow"
         ))
-        
+            
         // DÍA 3 - VIERNES (Cuádriceps)
         exercises.append(Exercise(
             id: UUID(),
@@ -779,7 +976,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "pink"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "SENTADILLA HACK",
@@ -792,7 +989,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "green"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "ZANCADA PIES EN SUELO",
@@ -805,7 +1002,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "green"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "PRENSA DE PIERNA UNILATERAL",
@@ -818,7 +1015,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.traditional",
             iconColor: "green"
         ))
-        
+            
         exercises.append(Exercise(
             id: UUID(),
             name: "EXTENSIÓN RODILLA EN SILLA LEG EXTENSION",
@@ -831,7 +1028,7 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: "figure.strengthtraining.functional",
             iconColor: "green"
         ))
-        
+            
         return exercises
     }
     
@@ -839,34 +1036,34 @@ class WorkoutViewModel: ObservableObject {
         // Limpiar rutinas existentes
         dailyWorkoutRecords = [:]
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
-        
+            
         // DÍA 1 - LUNES (Glúteos e Isquiosurales)
         let mondayExercises = exercises.filter { exercise in
-            ["HIP THRUST MÁQUINA", "MÁQUINA DE ABDUCCIÓN", "PESO MUERTO CON PESA RUSA", 
+            ["HIP THRUST MÁQUINA", "MÁQUINA DE ABDUCCIÓN", "PESO MUERTO CON PESA RUSA",
              "FLEXIÓN DE RODILLA MÁQUINA TUMBADO", "FLEXIÓN DE RODILLA MÁQUINA SENTADO"].contains(exercise.name)
         }
-        
+            
         dailyWorkoutRecords[.monday] = mondayExercises.map { exercise in
             WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
         }
-        
+            
         // DÍA 2 - MIÉRCOLES (Espalda y Deltoides)
         let wednesdayExercises = exercises.filter { exercise in
-            ["JALÓN AL PECHO TOMA NEUTRA ANCHO HOMBROS", "REMO EN POLEA BAJA AGARRE SUPINO", 
+            ["JALÓN AL PECHO TOMA NEUTRA ANCHO HOMBROS", "REMO EN POLEA BAJA AGARRE SUPINO",
              "REMO UNILATERAL CON APOYO EN PECHO", "VUELO POSTERIOR DE HOMBROS EN MÁQUINA",
              "ELEVACIÓN LATERAL SENTADO MANCUERNAS", "ELEVACIÓN FRONTAL MANCUERNAS DE PIE"].contains(exercise.name)
         }
-        
+            
         dailyWorkoutRecords[.wednesday] = wednesdayExercises.map { exercise in
             WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
         }
-        
+            
         // DÍA 3 - VIERNES (Cuádriceps)
         let fridayExercises = exercises.filter { exercise in
-            ["HIP THRUST EN MÁQUINA", "SENTADILLA HACK", "ZANCADA PIES EN SUELO", 
+            ["HIP THRUST EN MÁQUINA", "SENTADILLA HACK", "ZANCADA PIES EN SUELO",
              "PRENSA DE PIERNA UNILATERAL", "EXTENSIÓN RODILLA EN SILLA LEG EXTENSION"].contains(exercise.name)
         }
-        
+            
         dailyWorkoutRecords[.friday] = fridayExercises.map { exercise in
             WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
         }
@@ -875,19 +1072,16 @@ class WorkoutViewModel: ObservableObject {
     private func createMonthlyWorkoutHistory() {
         let calendar = Calendar.current
         let today = Date()
-        
-        // Crear historial para las últimas 4 semanas
-        // Asumiendo que el último miércoles del mes fue el último entrenamiento
-        
+            
         var dates: [Date] = []
-        
+            
         // Generar fechas para los últimos entrenamientos (Lunes, Miércoles, Viernes)
         for weekOffset in (1...4).reversed() {
             if let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today) {
                 // Encontrar lunes, miércoles y viernes de esa semana
                 let weekdayOfWeekStart = calendar.component(.weekday, from: weekStart)
                 let daysToMonday = (weekdayOfWeekStart == 1) ? 1 : 8 - weekdayOfWeekStart + 1
-                
+                    
                 if let monday = calendar.date(byAdding: .day, value: daysToMonday, to: weekStart),
                    let wednesday = calendar.date(byAdding: .day, value: 2, to: monday),
                    let friday = calendar.date(byAdding: .day, value: 4, to: monday) {
@@ -895,14 +1089,14 @@ class WorkoutViewModel: ObservableObject {
                 }
             }
         }
-        
+            
         // Crear registros completados para cada fecha
         for date in dates {
             let dateKey = calendar.startOfDay(for: date)
             let dayOfWeek = calendar.component(.weekday, from: date)
-            
+                
             var historyForDate: [WorkoutDay: [WorkoutExercise]] = [:]
-            
+                
             switch dayOfWeek {
             case 2: // Lunes
                 if let mondayWorkouts = dailyWorkoutRecords[.monday] {
@@ -916,7 +1110,7 @@ class WorkoutViewModel: ObservableObject {
                     }
                     historyForDate[.monday] = completedWorkouts
                 }
-                
+                    
             case 4: // Miércoles
                 if let wednesdayWorkouts = dailyWorkoutRecords[.wednesday] {
                     let completedWorkouts = wednesdayWorkouts.map { workout in
@@ -929,7 +1123,7 @@ class WorkoutViewModel: ObservableObject {
                     }
                     historyForDate[.wednesday] = completedWorkouts
                 }
-                
+                    
             case 6: // Viernes
                 if let fridayWorkouts = dailyWorkoutRecords[.friday] {
                     let completedWorkouts = fridayWorkouts.map { workout in
@@ -942,16 +1136,16 @@ class WorkoutViewModel: ObservableObject {
                     }
                     historyForDate[.friday] = completedWorkouts
                 }
-                
+                    
             default:
                 break
             }
-            
+                
             if !historyForDate.isEmpty {
                 workoutHistory[dateKey] = historyForDate
             }
         }
-        
+            
         // Simular algunos registros de peso corporal
         for weekOffset in (1...4).reversed() {
             if let date = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today) {
@@ -959,27 +1153,34 @@ class WorkoutViewModel: ObservableObject {
                 bodyWeightHistory[calendar.startOfDay(for: date)] = weight
             }
         }
-        
+            
         print("WorkoutViewModel: Historial de entrenamiento creado para \(dates.count) días")
     }
     
     func resetAllData() {
         print("🚨 WORKOUT_VIEW_MODEL: ¡Se ha llamado a resetAllData! Borrando TODOS los datos.")
         print("📍 STACK TRACE: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
-        
+            
         self.availableExercises = []
         self.dailyWorkoutRecords = [:]
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
         self.workoutHistory = [:]
         self.bodyWeightHistory = [:]
+        self.sessionNotes = [:]
         self.activeDays = WorkoutDay.allCases
         userDefaults.removeObject(forKey: "AvailableExercises")
         userDefaults.removeObject(forKey: "DailyWorkoutRecords")
         userDefaults.removeObject(forKey: "WorkoutHistory")
         userDefaults.removeObject(forKey: "BodyWeightHistory")
+        userDefaults.removeObject(forKey: "SessionNotes")
         userDefaults.removeObject(forKey: "ActiveDays")
         userDefaults.removeObject(forKey: "RestDuration")
         userDefaults.removeObject(forKey: "HasLaunchedBefore")
+    }
+    
+    // Función para actualizar el estado del timer desde las vistas
+    func updateTimerEnabledState(_ isEnabled: Bool) {
+        isTimerEnabled = isEnabled
     }
     
     // MARK: - Weekly Statistics
@@ -987,7 +1188,7 @@ class WorkoutViewModel: ObservableObject {
     func weeklyProgress() -> Double {
         var totalSets = 0
         var completedSets = 0
-        
+            
         for day in activeDays {
             if let records = dailyWorkoutRecords[day] {
                 for record in records {
@@ -1030,7 +1231,7 @@ class WorkoutViewModel: ObservableObject {
     func weeklyExercisesSummary() -> [(day: WorkoutDay, exercises: [(baseExercise: Exercise, record: WorkoutExercise)])] {
         return WorkoutDay.allCases.compactMap { day -> (day: WorkoutDay, exercises: [(baseExercise: Exercise, record: WorkoutExercise)])? in
             guard let records = dailyWorkoutRecords[day], !records.isEmpty else { return nil }
-            
+                
             let exercisesWithRecords = records.compactMap { record -> (baseExercise: Exercise, record: WorkoutExercise)? in
                 guard let baseExercise = getExercise(by: record.exerciseId) else { return nil }
                 return (baseExercise: baseExercise, record: record)
@@ -1046,7 +1247,7 @@ class WorkoutViewModel: ObservableObject {
         let sortedHistoryDates = workoutHistory.keys.sorted(by: >)
         var consecutiveDays = 0
         var currentDate = Calendar.current.startOfDay(for: Date())
-        
+            
         for historyDate in sortedHistoryDates {
             if historyDate <= currentDate && historyDate >= Calendar.current.date(byAdding: .day, value: -consecutiveDays - 1, to: currentDate)! {
                 if let dayHistory = workoutHistory[historyDate] {
@@ -1070,17 +1271,17 @@ class WorkoutViewModel: ObservableObject {
                 break
             }
         }
-        
+            
         return consecutiveDays
     }
     
     func bestWorkoutDay() -> WorkoutDay? {
         var dayProgress: [WorkoutDay: Double] = [:]
-        
+            
         for day in WorkoutDay.allCases {
             dayProgress[day] = progressForDay(day)
         }
-        
+            
         return dayProgress.max(by: { $0.value < $1.value })?.key
     }
     
@@ -1091,14 +1292,14 @@ class WorkoutViewModel: ObservableObject {
     func getTotalWorkoutDuration() -> Int {
         // Calcular duración aproximada basada en entrenamientos completados
         var totalSets = 0
-        
+            
         for day in WorkoutDay.allCases {
             let exercises = dailyWorkoutRecords[day] ?? []
             for exercise in exercises {
                 totalSets += exercise.completedSets
             }
         }
-        
+            
         // Estimación: 1 minuto por serie + tiempo de descanso
         let estimatedMinutes = totalSets * 1 + (totalSets > 0 ? (totalSets - 1) * (restDuration / 60) : 0)
         return estimatedMinutes * 60 // Convertir a segundos
@@ -1117,7 +1318,7 @@ class WorkoutViewModel: ObservableObject {
         if !availableExercises.contains(where: { $0.id == exercise.id }) {
             availableExercises.append(exercise)
         }
-        
+            
         let newWorkoutRecord = WorkoutExercise(
             id: UUID(),
             exerciseId: exercise.id,
@@ -1152,16 +1353,15 @@ class WorkoutViewModel: ObservableObject {
     
     func toggleSetCompletion(exercise: Exercise, setIndex: Int) {
         // Esta función necesita ser actualizada para usar WorkoutExercise
-        // Por ahora, vamos a buscar el primer record de este ejercicio
         for day in WorkoutDay.allCases {
             if let recordIndex = dailyWorkoutRecords[day]?.firstIndex(where: { $0.exerciseId == exercise.id }) {
                 var record = dailyWorkoutRecords[day]![recordIndex]
-                
+                    
                 if setIndex == record.completedSets {
                     // Completar la siguiente serie
                     record.completedSets += 1
                     record.lastSetCompletedAt = Date()
-                    
+                        
                     // Iniciar timer automáticamente si no es el último set
                     if record.completedSets < exercise.totalSets {
                         startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
@@ -1173,7 +1373,7 @@ class WorkoutViewModel: ObservableObject {
                         record.lastSetCompletedAt = nil
                     }
                 }
-                
+                    
                 dailyWorkoutRecords[day]![recordIndex] = record
                 recordHistory(for: day)
                 break
@@ -1190,100 +1390,27 @@ class WorkoutViewModel: ObservableObject {
         return nil
     }
     
-    // MARK: - Timer Methods
-    
-    func startTimer(duration: Int, isEnabled: Bool = true) {
-        guard isEnabled else {
-            print("WorkoutViewModel: Timer desactivado por configuración")
-            return
-        }
-        
-        stopTimer() // Detener cualquier timer existente
-        
-        // Mantiene la pantalla encendida mientras el timer esté activo
-        DispatchQueue.main.async {
-            UIApplication.shared.isIdleTimerDisabled = true
-        }
-        
-        timeRemaining = duration
-        currentTimerDuration = duration // Guardar la duración actual del timer
-        timerActive = true
-        
-        // Haptic feedback para iniciar timer
-        HapticManager.shared.timerStarted()
-        
-        // Programar notificación para cuando termine el timer
-        NotificationManager.shared.scheduleRestNotification(after: TimeInterval(duration))
-        
-        print("WorkoutViewModel: Timer iniciado con duración: \(duration) segundos")
-        
-        // Iniciar Live Activity si está disponible
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration)
-            }
-        }
-        
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            DispatchQueue.main.async {
-                if self.timeRemaining > 0 {
-                    self.timeRemaining -= 1
-                    
-                    // Actualizar Live Activity
-                    Task { @MainActor in
-                        if #available(iOS 16.1, *) {
-                            self.liveActivityManager?.updateTimerActivity(
-                                timeRemaining: self.timeRemaining,
-                                totalTime: duration,
-                                isActive: true
-                            )
-                        }
-                    }
-                } else {
-                    self.completeTimer()
-                }
-            }
-        }
-    }
-    
-    private func completeTimer() {
-        stopTimer()
-        
-        // Haptic feedback mejorado para completar timer
-        HapticManager.shared.timerCompleted()
-        
-        // Notificación local si la app está en background
-        scheduleTimerCompletionNotification()
-    }
-    
-    private func scheduleTimerCompletionNotification() {
-        // Esta función podría implementar notificaciones locales
-        // Por ahora solo hacemos vibración
-    }
-    
-    // Función para actualizar el estado del timer desde las vistas
-    func updateTimerEnabledState(_ isEnabled: Bool) {
-        isTimerEnabled = isEnabled
-    }
-    
     // MARK: - Métodos de limpieza de datos
     func clearAllData() {
         print("🚨 WORKOUT_VIEW_MODEL: ¡Se ha llamado a clearAllData! Borrando datos de entrenamiento.")
         print("📍 STACK TRACE: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
-        
+            
         // Limpiar todas las estructuras de datos
         availableExercises.removeAll()
         dailyWorkoutRecords.removeAll()
         workoutHistory.removeAll()
         bodyWeightHistory.removeAll()
+        sessionNotes.removeAll()
         activeDays = WorkoutDay.allCases
-        
+            
         // Limpiar UserDefaults
         UserDefaults.standard.removeObject(forKey: "AvailableExercises")
         UserDefaults.standard.removeObject(forKey: "DailyWorkoutRecords")
         UserDefaults.standard.removeObject(forKey: "WorkoutHistory")
         UserDefaults.standard.removeObject(forKey: "BodyWeightHistory")
+        UserDefaults.standard.removeObject(forKey: "SessionNotes")
         UserDefaults.standard.removeObject(forKey: "ActiveDays")
+        UserDefaults.standard.removeObject(forKey: "HasLaunchedBefore")
         
         print("WorkoutViewModel: Todos los datos han sido limpiados")
     }
@@ -1291,27 +1418,31 @@ class WorkoutViewModel: ObservableObject {
     func getDataSizeInfo() -> String {
         let encoder = JSONEncoder()
         var info = "Tamaño de datos guardados:\n"
-        
+            
         if let enc = try? encoder.encode(availableExercises) {
             info += "- Ejercicios disponibles: \(enc.count) bytes\n"
         }
-        
+            
         if let enc = try? encoder.encode(dailyWorkoutRecords) {
             info += "- Registros diarios: \(enc.count) bytes\n"
         }
-        
+            
         if let enc = try? encoder.encode(workoutHistory) {
             info += "- Historial de entrenamientos: \(enc.count) bytes\n"
         }
-        
+            
         if let enc = try? encoder.encode(bodyWeightHistory) {
             info += "- Historial de peso: \(enc.count) bytes\n"
         }
-        
+            
         if let enc = try? encoder.encode(activeDays) {
             info += "- Días activos: \(enc.count) bytes\n"
         }
-        
+            
+        if let enc = try? encoder.encode(sessionNotes) {
+            info += "- Notas de sesión: \(enc.count) bytes\n"
+        }
+            
         return info
     }
     
@@ -1319,34 +1450,34 @@ class WorkoutViewModel: ObservableObject {
     func emergencyCleanup() {
         print("🔧 WORKOUT_VIEW_MODEL: ¡Se ha llamado a emergencyCleanup! Limpiando datos por tamaño.")
         print("📍 STACK TRACE: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
-        
+            
         let encoder = JSONEncoder()
-        
+            
         // Verificar cada estructura de datos
         if let enc = try? encoder.encode(workoutHistory), enc.count > 2_000_000 {
             // Si el historial es mayor a 2MB, mantener solo el último mes
             let calendar = Calendar.current
             let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-            
+                
             let oldKeys = workoutHistory.keys.filter { $0 < oneMonthAgo }
             for key in oldKeys {
                 workoutHistory.removeValue(forKey: key)
             }
             print("WorkoutViewModel: Limpieza de emergencia del historial completada")
         }
-        
+            
         if let enc = try? encoder.encode(bodyWeightHistory), enc.count > 500_000 {
             // Si el historial de peso es mayor a 500KB, mantener solo el último mes
             let calendar = Calendar.current
             let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-            
+                
             let oldKeys = bodyWeightHistory.keys.filter { $0 < oneMonthAgo }
             for key in oldKeys {
                 bodyWeightHistory.removeValue(forKey: key)
             }
             print("WorkoutViewModel: Limpieza de emergencia del peso completada")
         }
-        
+            
         // Guardar datos después de la limpieza
         saveData()
     }
@@ -1357,86 +1488,41 @@ class WorkoutViewModel: ObservableObject {
     private func checkAndCelebratePersonalRecord(for exercise: Exercise) {
         let currentWeight = exercise.weight
         let currentPR = exercise.personalRecordWeight ?? 0
-        
+            
         // Si el peso actual es mayor que el PR anterior, es un nuevo récord
         if currentWeight > currentPR {
             // Actualizar el Personal Record en el ejercicio
             updatePersonalRecord(for: exercise.id, newWeight: currentWeight)
-            
+                
             // Celebrar el nuevo récord
-            celebratePersonalRecord(exerciseName: exercise.name, newWeight: currentWeight)
+            HapticManager.shared.goalAchieved()
+            print("🎉 ¡Nuevo Personal Record! \(exercise.name): \(currentWeight)kg")
         }
     }
     
-    /// Actualiza el Personal Record de un ejercicio específico
+    /// Actualiza el personal record de un ejercicio
     private func updatePersonalRecord(for exerciseId: UUID, newWeight: Double) {
         if let index = availableExercises.firstIndex(where: { $0.id == exerciseId }) {
             availableExercises[index].personalRecordWeight = newWeight
-            saveData() // Guardar los datos actualizados
+            saveData()
         }
     }
     
-    /// Celebra un nuevo Personal Record con efectos visuales y sonoros
-    private func celebratePersonalRecord(exerciseName: String, newWeight: Double) {
-        // Haptic feedback especial para PR
-        HapticManager.shared.workoutCompleted() // Usamos el más fuerte disponible
-        
-        // Notificación de logro
-        let message = "¡Nuevo PR en \(exerciseName)! \(String(format: "%.1f", newWeight)) kg"
-        NotificationStore.shared.addAchievement(message: message)
-        
-        // Log para debugging
-        print("🏆 PERSONAL RECORD: \(exerciseName) - \(newWeight) kg")
-    }
-    
-    /// Obtiene los top Personal Records del usuario
+    /// Obtiene los mejores personal records ordenados por peso
     func getTopPersonalRecords(limit: Int = 5) -> [(exerciseName: String, weight: Double)] {
-        return availableExercises
-            .compactMap { exercise in
-                guard let pr = exercise.personalRecordWeight, pr > 0 else { return nil }
-                return (exerciseName: exercise.name, weight: pr)
+        let exercisesWithPR = availableExercises
+            .compactMap { exercise -> (String, Double)? in
+                guard let prWeight = exercise.personalRecordWeight, prWeight > 0 else { return nil }
+                return (exercise.name, prWeight)
             }
-            .sorted { $0.weight > $1.weight }
+            .sorted { $0.1 > $1.1 } // Ordenar por peso descendente
             .prefix(limit)
-            .map { $0 }
+        
+        return Array(exercisesWithPR).map { (exerciseName: $0.0, weight: $0.1) }
     }
     
-    /// Obtiene el Personal Record de un ejercicio específico
+    /// Obtiene el personal record de un ejercicio específico
     func getPersonalRecord(for exerciseId: UUID) -> Double? {
         return availableExercises.first(where: { $0.id == exerciseId })?.personalRecordWeight
-    }
-    
-    // FUNCIÓN DE PRUEBA TEMPORAL - Para verificar que los segundos funcionan
-    func addTestExerciseWithSeconds() {
-        let testExercise = Exercise(
-            id: UUID(),
-            name: "PRUEBA SEGUNDOS",
-            repetitions: 0, // Sin repeticiones
-            weight: 0,
-            totalSets: 3,
-            info: "Ejercicio de prueba con segundos",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "timer",
-            iconColor: "red",
-            segundos: 45, // 45 segundos
-            rir: 0
-        )
-        
-        availableExercises.append(testExercise)
-        
-        // Agregar a todos los días
-        for day in WorkoutDay.allCases {
-            let workoutRecord = WorkoutExercise(
-                id: UUID(),
-                exerciseId: testExercise.id,
-                completedSets: 0,
-                lastSetCompletedAt: nil
-            )
-            dailyWorkoutRecords[day]?.append(workoutRecord)
-        }
-        
-        saveData()
-        print("🔥 TEST: Ejercicio de prueba con 45 segundos agregado a todos los días")
     }
 }

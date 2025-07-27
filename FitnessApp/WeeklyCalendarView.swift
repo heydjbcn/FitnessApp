@@ -32,34 +32,34 @@ struct WeeklyCalendarView: View {
             ZStack {
                 AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                 
-                VStack(spacing: 0) {
-                    // Progreso del día seleccionado (movido arriba)
-                    DailyProgressContainer(day: selectedDay)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 8)
-                    
-                    // Selector de días
-                    HStack(spacing: 8) {
-                        ForEach(daysWithExercises, id: \.self) { day in
-                            DayCard(
-                                day: day,
-                                isSelected: selectedDay == day,
-                                exerciseCount: viewModel.dailyWorkoutRecords[day]?.count ?? 0,
-                                themeManager: themeManager
-                            ) {
-                                selectedDay = day
+                // TODO EL CONTENIDO HACE SCROLL AHORA
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        // Progreso del día seleccionado (ahora hace scroll)
+                        DailyProgressContainer(day: selectedDay)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                            .padding(.bottom, 8)
+                        
+                        // Selector de días (ahora hace scroll)
+                        HStack(spacing: 8) {
+                            ForEach(daysWithExercises, id: \.self) { day in
+                                DayCard(
+                                    day: day,
+                                    isSelected: selectedDay == day,
+                                    exerciseCount: viewModel.dailyWorkoutRecords[day]?.count ?? 0,
+                                    themeManager: themeManager
+                                ) {
+                                    selectedDay = day
+                                }
                             }
                         }
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    
-                    // Contenido del día seleccionado
-                    ScrollView {
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        
+                        // Lista de ejercicios
                         VStack(spacing: 20) {
-                            // Lista de ejercicios
                             if let workoutRecords = viewModel.dailyWorkoutRecords[selectedDay], !workoutRecords.isEmpty {
                                 LazyVStack(spacing: 16) {
                                     ForEach(workoutRecords, id: \.id) { workoutRecord in
@@ -77,7 +77,7 @@ struct WeeklyCalendarView: View {
                                 }
                                 .padding(.horizontal)
                                 .onboardingHighlight(
-                                    isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                                    isHighlighted: viewModel.onboardingManager.showingOnboarding &&
                                                  viewModel.onboardingManager.onboardingStep == 4 &&
                                                  OnboardingManager.onboardingSteps[4].highlightArea == .calendar
                                 )
@@ -122,7 +122,7 @@ struct WeeklyCalendarView: View {
                                 .padding(.top, 60)
                             }
                         }
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 100) // Espacio para la TabBar
                     }
                 }
                 
@@ -150,7 +150,6 @@ struct WeeklyCalendarView: View {
                         }
                     }
                 }
-                }
             }
             .navigationTitle("Calendario Semanal")
             .navigationBarTitleDisplayMode(.inline)
@@ -170,6 +169,7 @@ struct WeeklyCalendarView: View {
         case .friday: return "Viernes"
         }
     }
+}
 
 struct DayCard: View {
     let day: WorkoutDay
@@ -235,10 +235,11 @@ struct CalendarExerciseCard: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @State private var showingTooltip = false
     @State private var showingExerciseDetail = false
+    @State private var showingExerciseEdit = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Header con nombre y peso
+            // Header con nombre, info y editar
             HStack {
                 Text(exercise.name)
                     .font(AppFonts.subtitle)
@@ -252,6 +253,16 @@ struct CalendarExerciseCard: View {
                     Image(systemName: "info.circle")
                         .font(.system(size: 16))
                         .foregroundColor(AppColors.primary(themeManager: themeManager))
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // NUEVO: Botón de editar ejercicio
+                Button(action: {
+                    showingExerciseEdit = true
+                }) {
+                    Image(systemName: "pencil.circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(AppColors.accentCyan)
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -317,7 +328,7 @@ struct CalendarExerciseCard: View {
                     .buttonStyle(PlainButtonStyle())
                 }
                 .onboardingHighlight(
-                    isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                    isHighlighted: viewModel.onboardingManager.showingOnboarding &&
                                  viewModel.onboardingManager.onboardingStep == 5 &&
                                  OnboardingManager.onboardingSteps[5].highlightArea == .setButtons
                 )
@@ -350,6 +361,22 @@ struct CalendarExerciseCard: View {
         .sheet(isPresented: $showingExerciseDetail) {
             ExerciseDetailSheet(exercise: exercise)
                 .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showingExerciseEdit) {
+            NavigationView {
+                AddExerciseForm(exerciseToEdit: exercise)
+                    .environmentObject(viewModel)
+                    .environmentObject(themeManager)
+                    .navigationTitle("Editar Ejercicio")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancelar") {
+                                showingExerciseEdit = false
+                            }
+                        }
+                    }
+            }
         }
     }
     
@@ -487,7 +514,7 @@ struct DailyProgressContainer: View {
             // Título
             Text("Progreso \(dayDisplayName(for: day))")
                 .font(.system(size: 22, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
             
             // Anillos de progreso (mismo diseño que progreso semanal)
             HStack(spacing: 25) {
@@ -531,7 +558,7 @@ struct DailyProgressContainer: View {
         .padding(24)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(AppColors.cardBackground(isDark: themeManager.isDarkMode).opacity(0.85))
+                .fill(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         )
     }
     
@@ -546,13 +573,14 @@ struct DailyProgressContainer: View {
     }
 }
 
-// Componente ProgressRing (igual al de la pantalla principal)
+// Componente ProgressRing (corregido sin dependencia de themeManager)
 struct ProgressRing: View {
     let value: Double
     let maxValue: Double
     let color: Color
     let title: String
     let subtitle: String
+    @EnvironmentObject var themeManager: ThemeManager
     
     private var progress: Double {
         guard maxValue > 0 else { return 0 }
@@ -575,12 +603,12 @@ struct ProgressRing: View {
                 
                 Text(subtitle)
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
             }
             
             Text(title)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
         }
     }
 }
