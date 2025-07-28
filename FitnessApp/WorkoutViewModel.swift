@@ -59,6 +59,7 @@ class WorkoutViewModel: ObservableObject {
         return nil
     }()
 
+    @MainActor
     init() {
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
         
@@ -78,16 +79,18 @@ class WorkoutViewModel: ObservableObject {
     @objc private func handleMemoryWarning() {
         print("🧹 WorkoutViewModel: Limpieza por advertencia de memoria")
         
-        // Limpiar datos no esenciales
+        // Solo hacer limpieza básica sin guardado para evitar conflictos
         cleanupNonEssentialData()
         
         // Detener timer si está activo
         if timerActive {
-            stopTimer()
+            timer?.invalidate()
+            timer = nil
+            timerActive = false
+            UIApplication.shared.isIdleTimerDisabled = false
         }
         
-        // Forzar guardado y limpieza
-        saveData()
+        print("🧹 Limpieza de memoria completada")
     }
     
     // NUEVO: Limpieza de datos no esenciales
@@ -113,16 +116,16 @@ class WorkoutViewModel: ObservableObject {
         print("🧹 WorkoutViewModel: Iniciando deinit...")
         
         // Detener todos los observers de forma segura
-        DispatchQueue.main.async {
-            NotificationCenter.default.removeObserver(self)
-        }
+        NotificationCenter.default.removeObserver(self)
         
-        // Limpiar timers de forma segura
-        DispatchQueue.main.sync {
-            self.timer?.invalidate()
-            self.timer = nil
-            self.timerWorkItem?.cancel()
-            self.timerWorkItem = nil
+        // Limpiar timers de forma segura - NUNCA usar sync en deinit
+        timer?.invalidate()
+        timer = nil
+        timerWorkItem?.cancel()
+        timerWorkItem = nil
+        
+        // Resetear configuración de pantalla de forma asíncrona para evitar deadlock
+        DispatchQueue.main.async {
             UIApplication.shared.isIdleTimerDisabled = false
         }
         
@@ -158,7 +161,7 @@ class WorkoutViewModel: ObservableObject {
         var historyForToday = workoutHistory[key] ?? [:]
         historyForToday[day] = self.dailyWorkoutRecords[day]
         workoutHistory[key] = historyForToday
-        saveData()
+        // Eliminar saveData() aquí para reducir llamadas
     }
 
     func exercisesForDate(_ date: Date) -> [WorkoutDay: [WorkoutExercise]]? {
@@ -210,7 +213,7 @@ class WorkoutViewModel: ObservableObject {
         if sessionNotes[key] == nil && Calendar.current.isDateInToday(date) {
             let exampleNote = "Entrenamiento completado con buena energía. Se sintió más fácil el peso de hoy, quizás puedo subir en la próxima sesión. 💪"
             sessionNotes[key] = exampleNote
-            saveData()
+            // Eliminar saveData() automático
             return exampleNote
         }
             
@@ -247,7 +250,6 @@ class WorkoutViewModel: ObservableObject {
         saveData()
     }
     
-    // MÉTODO CORREGIDO: saveData con límites estrictos y manejo de concurrencia mejorado
     private func saveData() {
         // Prevenir llamadas concurrentes múltiples
         guard !isSaving else {
@@ -257,64 +259,53 @@ class WorkoutViewModel: ObservableObject {
         
         isSaving = true
         
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self = self else { return }
-            
-            defer {
-                DispatchQueue.main.async {
+        Task { @MainActor in
+            do {
+                // Aplicar límites antes de guardar
+                self.enforceDataLimitsSync()
+                
+                let encoder = JSONEncoder()
+                
+                // Codificar datos directamente desde main thread
+                let exercisesData = try encoder.encode(self.availableExercises)
+                let recordsData = try encoder.encode(self.dailyWorkoutRecords)
+                let historyData = try encoder.encode(self.workoutHistory)
+                let bodyWeightData = try encoder.encode(self.bodyWeightHistory)
+                let sessionNotesData = try encoder.encode(self.sessionNotes)
+                let activeDaysData = try encoder.encode(self.activeDays)
+                
+                // Verificar tamaños antes de guardar
+                let totalSize = exercisesData.count + recordsData.count + historyData.count + 
+                               bodyWeightData.count + sessionNotesData.count + activeDaysData.count
+                
+                if totalSize > self.MAX_USERDEFAULTS_SIZE {
+                    print("⚠️ Datos demasiado grandes (\(totalSize) bytes), aplicando limpieza")
+                    self.enforceDataLimitsSync()
                     self.isSaving = false
+                    return
                 }
+                
+                // Guardar en UserDefaults
+                self.userDefaults.set(exercisesData, forKey: "AvailableExercises")
+                self.userDefaults.set(recordsData, forKey: "DailyWorkoutRecords")
+                self.userDefaults.set(historyData, forKey: "WorkoutHistory")
+                self.userDefaults.set(bodyWeightData, forKey: "BodyWeightHistory")
+                self.userDefaults.set(sessionNotesData, forKey: "SessionNotes")
+                self.userDefaults.set(activeDaysData, forKey: "ActiveDays")
+                
+                self.isSaving = false
+                print("✅ Datos guardados exitosamente (\(totalSize) bytes)")
+                
+            } catch {
+                self.isSaving = false
+                print("❌ Error guardando datos: \(error)")
             }
-            
-            // Limpiar datos antes de guardar
-            self.enforceDataLimits()
-            
-            let encoder = JSONEncoder()
-            
-            // Función auxiliar para guardar con límite de tamaño
-            func saveWithSizeLimit<T: Codable>(_ data: T, key: String, maxSize: Int = self.MAX_USERDEFAULTS_SIZE) {
-                do {
-                    let encoded = try encoder.encode(data)
-                    let dataSize = encoded.count
-                    
-                    if dataSize <= maxSize {
-                        UserDefaults.standard.set(encoded, forKey: key)
-                        print("✅ Guardado \(key): \(dataSize) bytes")
-                    } else {
-                        print("❌ ERROR: \(key) excede límite - \(dataSize) bytes > \(maxSize) bytes")
-                        // En caso de exceso, limpiar más agresivamente
-                        if key == "WorkoutHistory" {
-                            self.emergencyHistoryCleanup()
-                            // Intentar guardar de nuevo después de la limpieza
-                            if let cleanedEncoded = try? encoder.encode(self.workoutHistory),
-                               cleanedEncoded.count <= maxSize {
-                                UserDefaults.standard.set(cleanedEncoded, forKey: key)
-                                print("✅ Guardado \(key) después de limpieza: \(cleanedEncoded.count) bytes")
-                            }
-                        }
-                    }
-                } catch {
-                    print("❌ Error codificando \(key): \(error)")
-                }
-            }
-            
-            // Guardar cada estructura con límites
-            saveWithSizeLimit(self.availableExercises, key: "AvailableExercises", maxSize: 100_000)
-            saveWithSizeLimit(self.dailyWorkoutRecords, key: "DailyWorkoutRecords", maxSize: 100_000)
-            saveWithSizeLimit(self.workoutHistory, key: "WorkoutHistory", maxSize: 300_000)
-            saveWithSizeLimit(self.bodyWeightHistory, key: "BodyWeightHistory", maxSize: 50_000)
-            saveWithSizeLimit(self.sessionNotes, key: "SessionNotes", maxSize: 100_000)
-            saveWithSizeLimit(self.activeDays, key: "ActiveDays", maxSize: 10_000)
-            
-            // Guardar configuración simple
-            UserDefaults.standard.set(self.restDuration, forKey: "RestDuration")
-            
-            print("WorkoutViewModel: Guardado completado")
         }
     }
     
-    // NUEVO: Aplicar límites estrictos a los datos
-    private func enforceDataLimits() {
+    // NUEVO: Aplicar límites estrictos de forma síncrona
+    @MainActor
+    private func enforceDataLimitsSync() {
         let calendar = Calendar.current
         let cutoffDate = calendar.date(byAdding: .day, value: -MAX_HISTORY_DAYS, to: Date()) ?? Date()
         
@@ -337,28 +328,16 @@ class WorkoutViewModel: ObservableObject {
         }
         
         // Limitar número de ejercicios únicos
-        if availableExercises.count > 50 {
-            print("⚠️ Demasiados ejercicios (\(availableExercises.count)), limitando a 50")
-            availableExercises = Array(availableExercises.prefix(50))
+        if availableExercises.count > 30 {
+            print("⚠️ Demasiados ejercicios (\(availableExercises.count)), limitando a 30")
+            availableExercises = Array(availableExercises.prefix(30))
         }
         
         print("Datos limitados: Historial=\(workoutHistory.count) días, Ejercicios=\(availableExercises.count)")
     }
     
-    // NUEVO: Limpieza de emergencia para historial
-    private func emergencyHistoryCleanup() {
-        let calendar = Calendar.current
-        let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-        
-        // Mantener solo el último mes
-        let recentKeys = workoutHistory.keys.filter { $0 >= oneMonthAgo }
-        let recentHistory = Dictionary(uniqueKeysWithValues: recentKeys.map { ($0, workoutHistory[$0]!) })
-        
-        workoutHistory = recentHistory
-        print("🚨 Limpieza de emergencia: Historial reducido a \(workoutHistory.count) días")
-    }
-    
     // MARK: - Actualizado: completeSet
+    @MainActor
     func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
         print("🔥 CompleteSet iniciado para: \(workoutExerciseId)")
         
@@ -442,7 +421,12 @@ class WorkoutViewModel: ObservableObject {
     
     func removeExercise(recordId: UUID, from day: WorkoutDay) {
         dailyWorkoutRecords[day]?.removeAll { $0.id == recordId }
+        // Solo guardar historial, no datos completos
         recordHistory(for: day)
+        // Guardar de forma diferida
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.saveData()
+        }
     }
     
     func undoLastSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
@@ -455,6 +439,11 @@ class WorkoutViewModel: ObservableObject {
             dailyWorkoutRecords[day]![recordIndex] = record
             recordHistory(for: day)
             HapticManager.shared.warning()
+            
+            // Guardar de forma diferida
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.saveData()
+            }
         }
     }
     
@@ -536,6 +525,7 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - TIMER METHODS CORREGIDOS
     
     // MÉTODO CORREGIDO: startTimer
+    @MainActor
     func startTimer(duration: Int, isEnabled: Bool = true) {
         guard isEnabled else {
             print("WorkoutViewModel: Timer desactivado por configuración")
@@ -577,9 +567,9 @@ class WorkoutViewModel: ObservableObject {
             // Programar notificación
             NotificationManager.shared.scheduleRestNotification(after: TimeInterval(duration))
             
-            // Crear timer con mejor gestión de memoria
+            // Crear timer con gestión segura sin dispatch anidados
             self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] currentTimer in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     guard let self = self else {
                         currentTimer.invalidate()
                         return
@@ -599,15 +589,13 @@ class WorkoutViewModel: ObservableObject {
                     if self.timeRemaining > 0 {
                         self.timeRemaining -= 1
                         
-                        // Actualizar Live Activity
-                        Task { @MainActor in
-                            if #available(iOS 16.1, *) {
-                                self.liveActivityManager?.updateTimerActivity(
-                                    timeRemaining: self.timeRemaining,
-                                    totalTime: duration,
-                                    isActive: true
-                                )
-                            }
+                        // FIJO: Ahora estamos en @MainActor, acceso seguro
+                        if #available(iOS 16.1, *) {
+                            self.liveActivityManager?.updateTimerActivity(
+                                timeRemaining: self.timeRemaining,
+                                totalTime: duration,
+                                isActive: true
+                            )
                         }
                     } else {
                         self.completeTimer()
@@ -623,11 +611,9 @@ class WorkoutViewModel: ObservableObject {
                 return
             }
             
-            // Iniciar Live Activity
-            Task { @MainActor in
-                if #available(iOS 16.1, *) {
-                    self.liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration)
-                }
+            // Iniciar Live Activity - FIJO: NO usar Task desde main queue
+            if #available(iOS 16.1, *) {
+                self.liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration)
             }
             
             print("WorkoutViewModel: Timer iniciado exitosamente")
@@ -635,6 +621,7 @@ class WorkoutViewModel: ObservableObject {
     }
     
     // MÉTODO CORREGIDO: stopTimer
+    @MainActor
     func stopTimer() {
         print("WorkoutViewModel: Deteniendo timer")
         
@@ -650,10 +637,8 @@ class WorkoutViewModel: ObservableObject {
         // Limpiar estado
         timerActive = false
         
-        // Restaurar configuración de pantalla
-        DispatchQueue.main.async {
-            UIApplication.shared.isIdleTimerDisabled = false
-        }
+        // Restaurar configuración de pantalla - FIJO: Ya estamos en main queue
+        UIApplication.shared.isIdleTimerDisabled = false
         
         // Haptic feedback
         HapticManager.shared.timerStopped()
@@ -661,11 +646,9 @@ class WorkoutViewModel: ObservableObject {
         // Cancelar notificación
         NotificationManager.shared.cancelRestNotification()
         
-        // Terminar Live Activity
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.endTimerActivity()
-            }
+        // Terminar Live Activity - FIJO: NO usar Task desde main queue
+        if #available(iOS 16.1, *) {
+            liveActivityManager?.endTimerActivity()
         }
         
         print("WorkoutViewModel: Timer detenido completamente")
@@ -680,6 +663,7 @@ class WorkoutViewModel: ObservableObject {
     }
     
     // MÉTODO CORREGIDO: completeTimer
+    @MainActor
     private func completeTimer() {
         print("WorkoutViewModel: Timer completado naturalmente")
         
@@ -691,10 +675,8 @@ class WorkoutViewModel: ObservableObject {
         timerActive = false
         timeRemaining = 0
         
-        // Restaurar configuración de pantalla
-        DispatchQueue.main.async {
-            UIApplication.shared.isIdleTimerDisabled = false
-        }
+        // Restaurar configuración de pantalla - FIJO: Ya estamos en main queue
+        UIApplication.shared.isIdleTimerDisabled = false
         
         // Haptic feedback especial
         HapticManager.shared.timerCompleted()
@@ -702,64 +684,20 @@ class WorkoutViewModel: ObservableObject {
         // Cancelar notificación
         NotificationManager.shared.cancelRestNotification()
         
-        // Terminar Live Activity
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.endTimerActivity()
-            }
+        // Terminar Live Activity - FIJO: NO usar Task desde main queue
+        if #available(iOS 16.1, *) {
+            liveActivityManager?.endTimerActivity()
         }
         
         print("WorkoutViewModel: Timer completado y limpiado")
     }
     
-    // MÉTODO CORREGIDO: loadData con mejor manejo de errores
+    @MainActor
     private func loadData() {
-        let decoder = JSONDecoder()
+        print("WorkoutViewModel: Iniciando carga de datos...")
         
-        // Función auxiliar para cargar datos de forma segura
-        func loadSafely<T: Codable>(_ type: T.Type, key: String, fallback: T) -> T {
-            guard let data = UserDefaults.standard.data(forKey: key) else {
-                print("📁 \(key): No hay datos guardados")
-                return fallback
-            }
-            
-            print("📁 Cargando \(key): \(data.count) bytes")
-            
-            // Verificar tamaño antes de decodificar
-            if data.count > MAX_USERDEFAULTS_SIZE * 2 { // Doble del límite es sospechoso
-                print("⚠️ \(key) tiene tamaño sospechoso: \(data.count) bytes. Eliminando.")
-                UserDefaults.standard.removeObject(forKey: key)
-                return fallback
-            }
-            
-            do {
-                return try decoder.decode(type, from: data)
-            } catch {
-                print("❌ Error decodificando \(key): \(error)")
-                // Eliminar datos corruptos
-                UserDefaults.standard.removeObject(forKey: key)
-                return fallback
-            }
-        }
-        
-        // Verificar si es primera vez
-        let isFirstLaunch = !UserDefaults.standard.bool(forKey: "HasLaunchedBefore")
-        
-        if isFirstLaunch {
-            setupDefaultData()
-            UserDefaults.standard.set(true, forKey: "HasLaunchedBefore")
-        } else {
-            // Cargar datos existentes
-            availableExercises = loadSafely([Exercise].self, key: "AvailableExercises", fallback: [])
-            dailyWorkoutRecords = loadSafely([WorkoutDay: [WorkoutExercise]].self, key: "DailyWorkoutRecords", fallback: [:])
-            workoutHistory = loadSafely([Date: [WorkoutDay: [WorkoutExercise]]].self, key: "WorkoutHistory", fallback: [:])
-            bodyWeightHistory = loadSafely([Date: Double].self, key: "BodyWeightHistory", fallback: [:])
-            sessionNotes = loadSafely([Date: String].self, key: "SessionNotes", fallback: [:])
-            activeDays = loadSafely([WorkoutDay].self, key: "ActiveDays", fallback: WorkoutDay.allCases)
-            
-            // Cargar configuración simple
-            restDuration = UserDefaults.standard.object(forKey: "RestDuration") as? Int ?? 120
-        }
+        // Cargar configuración básica
+        restDuration = userDefaults.object(forKey: "RestDuration") as? Int ?? 120
         
         // Asegurar estructura básica
         WorkoutDay.allCases.forEach { day in
@@ -768,29 +706,135 @@ class WorkoutViewModel: ObservableObject {
             }
         }
         
-        // Aplicar límites después de cargar
-        enforceDataLimits()
+        // Verificar si es el primer lanzamiento
+        let hasLaunchedBefore = userDefaults.bool(forKey: "HasLaunchedBefore")
         
-        print("✅ Datos cargados exitosamente")
+        if !hasLaunchedBefore {
+            print("WorkoutViewModel: Primer lanzamiento detectado, configurando datos por defecto...")
+            setupDefaultData()
+            userDefaults.set(true, forKey: "HasLaunchedBefore")
+            return
+        }
+        
+        // Cargar datos existentes
+        let decoder = JSONDecoder()
+        
+        do {
+            // Cargar ejercicios disponibles
+            if let exercisesData = userDefaults.data(forKey: "AvailableExercises") {
+                availableExercises = try decoder.decode([Exercise].self, from: exercisesData)
+                print("✅ Ejercicios cargados: \(availableExercises.count)")
+            }
+            
+            // Cargar registros diarios
+            if let recordsData = userDefaults.data(forKey: "DailyWorkoutRecords") {
+                dailyWorkoutRecords = try decoder.decode([WorkoutDay: [WorkoutExercise]].self, from: recordsData)
+                print("✅ Registros diarios cargados")
+            }
+            
+            // Cargar historial de entrenamientos
+            if let historyData = userDefaults.data(forKey: "WorkoutHistory") {
+                workoutHistory = try decoder.decode([Date: [WorkoutDay: [WorkoutExercise]]].self, from: historyData)
+                print("✅ Historial cargado: \(workoutHistory.count) días")
+            }
+            
+            // Cargar historial de peso corporal
+            if let bodyWeightData = userDefaults.data(forKey: "BodyWeightHistory") {
+                bodyWeightHistory = try decoder.decode([Date: Double].self, from: bodyWeightData)
+                print("✅ Historial de peso cargado: \(bodyWeightHistory.count) registros")
+            }
+            
+            // Cargar notas de sesión
+            if let sessionNotesData = userDefaults.data(forKey: "SessionNotes") {
+                sessionNotes = try decoder.decode([Date: String].self, from: sessionNotesData)
+                print("✅ Notas de sesión cargadas: \(sessionNotes.count) notas")
+            }
+            
+            // Cargar días activos
+            if let activeDaysData = userDefaults.data(forKey: "ActiveDays") {
+                activeDays = try decoder.decode([WorkoutDay].self, from: activeDaysData)
+                print("✅ Días activos cargados: \(activeDays.count)")
+            }
+            
+            // Aplicar límites de datos después de cargar
+            enforceDataLimits()
+            
+        } catch {
+            print("❌ Error cargando datos: \(error)")
+            print("🔄 Configurando datos por defecto como fallback...")
+            setupDefaultData()
+        }
+        
+        print("✅ Carga de datos completada")
         printMemoryInfo()
     }
     
-    // NUEVO: Información de memoria
+    // NUEVO: Aplicar límites estrictos a los datos (versión síncrona para loadData)
+    @MainActor
+    private func enforceDataLimits() {
+        enforceDataLimitsSync()
+    }
+    
+    // NUEVO: Información de memoria con DIAGNÓSTICO CRÍTICO
     private func printMemoryInfo() {
         let encoder = JSONEncoder()
         var totalSize = 0
         
-        if let data = try? encoder.encode(availableExercises) { totalSize += data.count }
-        if let data = try? encoder.encode(dailyWorkoutRecords) { totalSize += data.count }
-        if let data = try? encoder.encode(workoutHistory) { totalSize += data.count }
-        if let data = try? encoder.encode(bodyWeightHistory) { totalSize += data.count }
-        if let data = try? encoder.encode(sessionNotes) { totalSize += data.count }
+        print("🔍 === DIAGNÓSTICO CRÍTICO DE DATOS ===")
+        
+        if let data = try? encoder.encode(availableExercises) { 
+            totalSize += data.count 
+            print("📊 availableExercises: \(data.count) bytes (\(data.count/1024) KB)")
+            if data.count > 50_000 {
+                print("❌ CRÍTICO: availableExercises excede 50KB - esto MATARÁ la app")
+            }
+        }
+        
+        if let data = try? encoder.encode(dailyWorkoutRecords) { 
+            totalSize += data.count 
+            print("📊 dailyWorkoutRecords: \(data.count) bytes (\(data.count/1024) KB)")
+            if data.count > 50_000 {
+                print("❌ CRÍTICO: dailyWorkoutRecords excede 50KB - esto MATARÁ la app")
+            }
+        }
+        
+        if let data = try? encoder.encode(workoutHistory) { 
+            totalSize += data.count 
+            print("📊 workoutHistory: \(data.count) bytes (\(data.count/1024) KB)")
+            if data.count > 50_000 {
+                print("❌ CRÍTICO: workoutHistory excede 50KB - esto MATARÁ la app")
+            }
+        }
+        
+        if let data = try? encoder.encode(bodyWeightHistory) { 
+            totalSize += data.count 
+            print("📊 bodyWeightHistory: \(data.count) bytes (\(data.count/1024) KB)")
+        }
+        
+        if let data = try? encoder.encode(sessionNotes) { 
+            totalSize += data.count 
+            print("📊 sessionNotes: \(data.count) bytes (\(data.count/1024) KB)")
+        }
         
         print("📊 Tamaño total de datos: \(totalSize) bytes (\(totalSize/1024) KB)")
         
-        if totalSize > 1_000_000 { // Mayor a 1MB
-            print("⚠️ ADVERTENCIA: Datos muy grandes, considerar limpieza")
+        if totalSize > 100_000 { // Mayor a 100KB
+            print("🚨 EMERGENCIA: UserDefaults sobrecargado - iOS MATARÁ la app")
+            print("🚨 SOLUCIÓN: Necesitas Core Data o archivos JSON")
         }
+        
+        // Verificar UserDefaults existentes
+        let userDefaults = UserDefaults.standard
+        for key in ["AvailableExercises", "DailyWorkoutRecords", "WorkoutHistory", "BodyWeightHistory", "SessionNotes"] {
+            if let data = userDefaults.data(forKey: key) {
+                print("💾 UserDefaults[\(key)]: \(data.count) bytes")
+                if data.count > 50_000 {
+                    print("❌ CRÍTICO: \(key) en UserDefaults excede 50KB")
+                }
+            }
+        }
+        
+        print("🔍 === FIN DIAGNÓSTICO ===")
     }
     
     private func setupDefaultData() {
@@ -1351,6 +1395,7 @@ class WorkoutViewModel: ObservableObject {
     
     // MARK: - Set Completion Methods
     
+    @MainActor
     func toggleSetCompletion(exercise: Exercise, setIndex: Int) {
         // Esta función necesita ser actualizada para usar WorkoutExercise
         for day in WorkoutDay.allCases {

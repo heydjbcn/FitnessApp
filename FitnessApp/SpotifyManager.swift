@@ -20,7 +20,7 @@ class SpotifyManager: NSObject, ObservableObject {
     private var reconnectionAttempts = 0
     private let maxReconnectionAttempts = 3
 
-    override private init() {
+    override init() {
         super.init()
         print("🎵 SpotifyManager: Inicializado en modo MOCK (sin SDK)")
     }

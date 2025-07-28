@@ -150,12 +150,11 @@ struct ContentView: View {
                     }
                     .tag(3)
 
-                // CONFIGURACIÓN
-                SettingsView()
+                // CONFIGURACIÓN - VERSIÓN SIMPLIFICADA PARA DIAGNÓSTICO
+                SettingsViewSimple(mainSelectedTab: $selectedTab)
                     .environmentObject(themeManager)
                     .environmentObject(userManager)
                     .environmentObject(viewModel)
-                    .environmentObject(focusModeManager)
                     .tabItem {
                         Image(systemName: "gearshape.fill")
                         Text("Configuración")
