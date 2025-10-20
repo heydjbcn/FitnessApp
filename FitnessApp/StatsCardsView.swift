@@ -73,6 +73,8 @@ struct StatsCardsView: View {
         case .wednesday: return "Mié"
         case .thursday: return "Jue"
         case .friday: return "Vie"
+        case .saturday: return "Sáb"
+        case .sunday: return "Dom"
         }
     }
     

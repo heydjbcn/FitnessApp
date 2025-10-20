@@ -18,12 +18,14 @@ struct WeeklyCalendarView: View {
         let weekday = Calendar.current.component(.weekday, from: Date())
         // weekday: 1 = domingo, 2 = lunes, 3 = martes, 4 = miércoles, 5 = jueves, 6 = viernes, 7 = sábado
         switch weekday {
+        case 1: return .sunday
         case 2: return .monday
         case 3: return .tuesday
         case 4: return .wednesday
         case 5: return .thursday
         case 6: return .friday
-        default: return .monday // Por defecto lunes si es fin de semana
+        case 7: return .saturday
+        default: return .monday
         }
     }
     
@@ -167,6 +169,8 @@ struct WeeklyCalendarView: View {
         case .wednesday: return "Miércoles"
         case .thursday: return "Jueves"
         case .friday: return "Viernes"
+        case .saturday: return "Sábado"
+        case .sunday: return "Domingo"
         }
     }
 }
@@ -223,6 +227,8 @@ struct DayCard: View {
         case .wednesday: return "Mié"
         case .thursday: return "Jue"
         case .friday: return "Vie"
+        case .saturday: return "Sáb"
+        case .sunday: return "Dom"
         }
     }
 }
@@ -569,6 +575,8 @@ struct DailyProgressContainer: View {
         case .wednesday: return "Miércoles"
         case .thursday: return "Jueves"
         case .friday: return "Viernes"
+        case .saturday: return "Sábado"
+        case .sunday: return "Domingo"
         }
     }
 }

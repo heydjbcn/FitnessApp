@@ -13,13 +13,15 @@ enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
     case wednesday = "Miércoles"
     case thursday  = "Jueves"
     case friday    = "Viernes"
+    case saturday  = "Sábado"
+    case sunday    = "Domingo"
 
     var id: String { self.rawValue }
-    
+
     var displayName: String {
         return self.rawValue
     }
-    
+
     var shortName: String {
         switch self {
         case .monday: return "LUN"
@@ -27,6 +29,8 @@ enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
         case .wednesday: return "MIE"
         case .thursday: return "JUE"
         case .friday: return "VIE"
+        case .saturday: return "SAB"
+        case .sunday: return "DOM"
         }
     }
 }

@@ -156,6 +156,8 @@ struct WeeklyDayRow: View {
         case .wednesday: return "Miércoles"
         case .thursday: return "Jueves"
         case .friday: return "Viernes"
+        case .saturday: return "Sábado"
+        case .sunday: return "Domingo"
         }
     }
 }
