@@ -76,6 +76,27 @@ struct WeeklyCalendarView: View {
                                                  viewModel.onboardingManager.onboardingStep == 4 &&
                                                  OnboardingManager.onboardingSteps[4].highlightArea == .calendar
                                 )
+
+                                // Botón añadir ejercicio (también cuando el día ya tiene ejercicios)
+                                Button(action: {
+                                    HapticManager.shared.buttonTapped()
+                                    onNavigateToAddExercise?()
+                                }) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "plus.circle.fill")
+                                        Text("Añadir ejercicio")
+                                    }
+                                    .font(AppFonts.subtitle)
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(AppColors.primary(themeManager: themeManager), lineWidth: 1.5)
+                                    )
+                                }
+                                .padding(.horizontal)
+                                .padding(.top, 4)
                             } else {
                                 // Vista vacía
                                 VStack(spacing: 16) {
@@ -246,8 +267,9 @@ struct CalendarExerciseCard: View {
                     .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .fontWeight(.semibold)
-                
-                // Botón de información para tooltip
+                    .onTapGesture { showingTooltip = true }
+
+                // Botón de información / detalle
                 Button(action: {
                     showingTooltip = true
                 }) {
@@ -349,27 +371,10 @@ struct CalendarExerciseCard: View {
         }
         .padding()
         .cardStyle(isDarkMode: themeManager.isDarkMode)
-        .alert(exercise.name, isPresented: $showingTooltip) {
-            Button("Cerrar", role: .cancel) { }
-        } message: {
-            VStack(alignment: .leading, spacing: 8) {
-                if !exercise.info.isEmpty {
-                    Text(exercise.info)
-                        .font(AppFonts.body)
-                }
-
-                if exercise.imageData != nil {
-                    Text("📷 Imagen disponible")
-                        .font(AppFonts.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                if exercise.info.isEmpty && exercise.imageData == nil {
-                    Text("No hay información adicional disponible")
-                        .font(AppFonts.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
+        .sheet(isPresented: $showingTooltip) {
+            ExerciseDetailSheet(exerciseId: exercise.id)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
         }
     }
     
