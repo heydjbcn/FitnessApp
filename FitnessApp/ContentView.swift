@@ -175,6 +175,8 @@ struct ContentView: View {
             .tint(AppColors.primary(themeManager: themeManager))
             .onAppear {
                 updateTabBarAppearance()
+                PhoneConnectivity.shared.viewModel = viewModel
+                PhoneConnectivity.shared.sendTodayContext()
             }
             .onChange(of: themeManager.isDarkMode) { _, _ in
                 updateTabBarAppearance()
