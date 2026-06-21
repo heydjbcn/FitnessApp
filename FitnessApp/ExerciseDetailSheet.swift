@@ -19,6 +19,7 @@ struct ExerciseDetailSheet: View {
 
     @State private var weightText: String = ""
     @State private var repsText: String = ""
+    @State private var showingPlates: Bool = false
 
     private var exercise: Exercise? { viewModel.getExercise(by: exerciseId) }
     private var isDark: Bool { themeManager.isDarkMode }
@@ -94,6 +95,23 @@ struct ExerciseDetailSheet: View {
                         .padding(16)
                         .cardStyle(isDarkMode: isDark)
 
+                        // Calculadora de discos
+                        Button { showingPlates = true } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "circle.hexagongrid.fill")
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                Text("Calculadora de discos")
+                                    .font(AppFonts.bodyMedium)
+                                    .foregroundColor(AppColors.textPrimary(isDark: isDark))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(AppColors.textTertiary(isDark: isDark))
+                            }
+                            .padding(16)
+                            .cardStyle(isDarkMode: isDark)
+                        }
+
                         // Récord personal
                         if let pr = viewModel.personalRecord(for: exerciseId), pr.weight > 0 {
                             HStack(spacing: 12) {
@@ -154,6 +172,10 @@ struct ExerciseDetailSheet: View {
                     weightText = ex.weight > 0 ? fmt(ex.weight) : ""
                     repsText = ex.repetitions > 0 ? "\(ex.repetitions)" : ""
                 }
+            }
+            .sheet(isPresented: $showingPlates) {
+                PlateCalculatorView(initialWeight: exercise?.weight ?? 0)
+                    .environmentObject(themeManager)
             }
         }
     }
