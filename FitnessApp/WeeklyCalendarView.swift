@@ -372,7 +372,9 @@ struct CalendarExerciseCard: View {
         .padding()
         .cardStyle(isDarkMode: themeManager.isDarkMode)
         .sheet(isPresented: $showingTooltip) {
-            ExerciseDetailSheet(exerciseId: exercise.id)
+            ExerciseDetailSheet(exerciseId: exercise.id,
+                                workoutExerciseId: workoutRecord.id,
+                                day: findDayForWorkoutRecord())
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
