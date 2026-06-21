@@ -12,6 +12,8 @@ struct ExerciseManagementView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddSheet = false
+    @State private var showingCatalog = false
+    @State private var prefillExercise: CatalogExercise? = nil
     // Compatibilidad: si se pide abrir "Añadir" desde fuera, se presenta el sheet.
     var shouldShowAddExerciseTab: Bool = false
 
@@ -26,7 +28,7 @@ struct ExerciseManagementView: View {
 
             // BOTÓN FLOTANTE (+)
             Button(action: {
-                showingAddSheet = true
+                showingCatalog = true
             }) {
                 Image(systemName: "plus")
                     .font(.system(size: 26, weight: .semibold))
@@ -49,8 +51,19 @@ struct ExerciseManagementView: View {
         .onAppear {
             // Si se debe mostrar el formulario de añadir, presentar el sheet
             if shouldShowAddExerciseTab {
-                showingAddSheet = true
+                showingCatalog = true
             }
+        }
+        .sheet(isPresented: $showingCatalog) {
+            ExerciseCatalogPicker { selected in
+                prefillExercise = selected
+                showingCatalog = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    showingAddSheet = true
+                }
+            }
+            .environmentObject(viewModel)
+            .environmentObject(themeManager)
         }
         .sheet(isPresented: $showingAddSheet) {
             addExerciseSheet
@@ -62,7 +75,7 @@ struct ExerciseManagementView: View {
         NavigationView {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
-                    AddExerciseForm()
+                    AddExerciseForm(prefill: prefillExercise)
                         .environmentObject(viewModel)
                         .environmentObject(themeManager)
                 }
@@ -713,7 +726,21 @@ struct AddExerciseForm: View {
     @State private var includeRIR: Bool = false
     
     let days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
-    
+
+    var prefill: CatalogExercise? = nil
+
+    init(prefill: CatalogExercise? = nil) {
+        self.prefill = prefill
+        if let p = prefill {
+            _name = State(initialValue: p.name)
+            _selectedMuscleGroup = State(initialValue: p.muscleGroup)
+            _selectedIcon = State(initialValue: p.icon)
+            _repetitions = State(initialValue: p.reps > 0 ? "\(p.reps)" : "")
+            _weight = State(initialValue: p.weight > 0 ? "\(Int(p.weight))" : "")
+            _totalSets = State(initialValue: p.sets)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 24) {
             // Botón de modo de enfoque
