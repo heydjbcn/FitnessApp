@@ -90,10 +90,10 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack {
-            GeometryReader { geometry in
-                ZStack {
-                    AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
-                    
+            ZStack {
+                AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
                         // Header del perfil (centrado y aireado)
                         VStack(spacing: 14) {
@@ -216,8 +216,7 @@ struct ProfileView: View {
                         }
                         .padding(.horizontal)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .padding(.bottom, 40)
                 }
             }
             .navigationTitle("Mi Perfil")

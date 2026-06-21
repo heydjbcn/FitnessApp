@@ -203,12 +203,12 @@ struct DayCard: View {
                 .frame(height: 20)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 64)
-            .padding(.vertical, 8)
+            .frame(height: 84)
+            .padding(.vertical, 14)
             .background(isSelected ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: themeManager.isDarkMode))
-            .cornerRadius(12)
+            .cornerRadius(16)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 16)
                     .stroke(isSelected ? AppColors.primary(themeManager: themeManager) : Color.clear, lineWidth: 2)
             )
         }
