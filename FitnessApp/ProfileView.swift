@@ -95,53 +95,56 @@ struct ProfileView: View {
                     AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                     
                     VStack(spacing: 24) {
-                        // Header del perfil horizontal
-                        HStack(spacing: 16) {
-                            Spacer() // Empuja el contenido al centro
-                            
-                            // Foto de perfil a la izquierda
-                            if let imageData = userManager.profileImageData,
-                               let uiImage = UIImage(data: imageData) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(AppColors.primary(themeManager: themeManager), lineWidth: 3))
-                            } else {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 80))
-                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
-                            }
-                            
-                            // Nombre y botón a la derecha
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(userManager.currentUserName.isEmpty ? "Usuario" : userManager.currentUserName)
-                                    .font(AppFonts.title)
-                                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                
-                                // Botón editar perfil
-                                Button(action: {
-                                    showingProfileEdit = true
-                                }) {
-                                    HStack {
-                                        Image(systemName: "pencil")
-                                        Text("Editar perfil")
-                                    }
-                                    .font(AppFonts.subtitle)
-                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-                                    .cornerRadius(16)
+                        // Header del perfil (centrado y aireado)
+                        VStack(spacing: 14) {
+                            // Avatar
+                            Group {
+                                if let imageData = userManager.profileImageData,
+                                   let uiImage = UIImage(data: imageData) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 96, height: 96)
+                                        .clipShape(Circle())
+                                } else {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 44))
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                        .frame(width: 96, height: 96)
+                                        .background(Circle().fill(AppColors.cardBackground(isDark: themeManager.isDarkMode)))
                                 }
                             }
-                            
-                            Spacer() // Empuja el contenido al centro
+                            .overlay(Circle().stroke(AppColors.primary(themeManager: themeManager), lineWidth: 3))
+
+                            // Nombre
+                            Text(userManager.currentUserName.isEmpty ? "Usuario" : userManager.currentUserName)
+                                .font(AppFonts.title2)
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+
+                            // Botón editar perfil (pill centrado)
+                            Button(action: {
+                                showingProfileEdit = true
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "pencil")
+                                    Text("Editar perfil")
+                                }
+                                .font(AppFonts.subtitle)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(
+                                    Capsule().fill(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                                )
+                                .overlay(
+                                    Capsule().stroke(AppColors.hairline(isDark: themeManager.isDarkMode), lineWidth: 1)
+                                )
+                            }
                         }
+                        .frame(maxWidth: .infinity)
                         .padding(.horizontal)
-                        .padding(.top, 20)
-                        .padding(.bottom, 30)
+                        .padding(.top, 24)
+                        .padding(.bottom, 16)
                         
                         // Estadísticas del perfil
                         VStack(spacing: 12) {

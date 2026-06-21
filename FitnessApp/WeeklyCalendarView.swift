@@ -48,8 +48,8 @@ struct WeeklyCalendarView: View {
                     }
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 16)
-                    .padding(.bottom, 16)
+                    .padding(.top, 28)
+                    .padding(.bottom, 18)
                     
                     // Contenido del día seleccionado
                     ScrollView {
@@ -189,11 +189,11 @@ struct DayCard: View {
                 Group {
                     if exerciseCount > 0 {
                         Text("\(exerciseCount)")
-                            .font(AppFonts.caption)
-                            .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                            .padding(.horizontal, 6)
+                            .font(AppFonts.label)
+                            .foregroundColor(isSelected ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .padding(.horizontal, 7)
                             .padding(.vertical, 2)
-                            .background(isSelected ? AppColors.background(isDark: themeManager.isDarkMode).opacity(0.85) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
+                            .background(isSelected ? Color.black.opacity(0.55) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
                             .cornerRadius(8)
                     } else {
                         // Mantiene la altura aunque no haya número

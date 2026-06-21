@@ -172,7 +172,7 @@ struct ContentView: View {
                     }
                     .tag(4)
             }
-            .accentColor(AppColors.primary(themeManager: themeManager))
+            .tint(AppColors.primary(themeManager: themeManager))
             .onAppear {
                 updateTabBarAppearance()
             }
@@ -218,19 +218,36 @@ struct ContentView: View {
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         
-        // Color de texto para pestañas no seleccionadas
+        // Color de los items NO seleccionados (gris). El color del SELECCIONADO
+        // lo controla SwiftUI con .tint(...) para que reaccione al cambio de acento.
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
         ]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-        
-        // Color de texto para pestaña seleccionada
-        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(AppColors.primary(themeManager: themeManager))
-        ]
-        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.primary(themeManager: themeManager))
-        
+
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+
+        // Aplicar también a las tab bars ya instanciadas (el proxy appearance no
+        // refresca las vivas), y fijar el tint del seleccionado al acento actual.
+        let tint = UIColor(AppColors.primary(themeManager: themeManager))
+        for window in UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).flatMap({ $0.windows }) {
+            for tabBar in window.allTabBars() {
+                tabBar.standardAppearance = appearance
+                tabBar.scrollEdgeAppearance = appearance
+                tabBar.tintColor = tint
+            }
+        }
+    }
+}
+
+extension UIView {
+    /// Busca recursivamente todas las UITabBar dentro de la jerarquía de vistas.
+    func allTabBars() -> [UITabBar] {
+        var result: [UITabBar] = []
+        if let tb = self as? UITabBar { result.append(tb) }
+        for sub in subviews { result.append(contentsOf: sub.allTabBars()) }
+        return result
     }
 }
