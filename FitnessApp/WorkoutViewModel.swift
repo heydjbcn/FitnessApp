@@ -173,15 +173,20 @@ class WorkoutViewModel: ObservableObject {
         
         var record = dailyWorkoutRecords[day]![recordIndex]
         if record.completedSets < baseExercise.totalSets {
+            // Registrar la serie con el peso/reps por defecto (última vez o plantilla)
+            let last = lastPerformance(for: baseExercise.id)
+            let log = SetLog(reps: last?.reps ?? baseExercise.repetitions,
+                             weight: last?.weight ?? baseExercise.weight)
+            record.setLogs.append(log)
             record.completedSets += 1
             record.lastSetCompletedAt = Date()
             dailyWorkoutRecords[day]![recordIndex] = record
             recordHistory(for: day)
-            
+
             // Haptic feedback para completar serie
             HapticManager.shared.setCompleted()
-            
-            if record.completedSets < baseExercise.totalSets { 
+
+            if record.completedSets < baseExercise.totalSets {
                 startTimer(duration: baseExercise.restDuration, isEnabled: isTimerEnabled)
             }
         }
@@ -251,13 +256,64 @@ class WorkoutViewModel: ObservableObject {
         var record = dailyWorkoutRecords[day]![recordIndex]
         if record.completedSets > 0 {
             record.completedSets -= 1
+            if !record.setLogs.isEmpty { record.setLogs.removeLast() }
             if record.completedSets == 0 { record.lastSetCompletedAt = nil }
             dailyWorkoutRecords[day]![recordIndex] = record
             recordHistory(for: day)
-            
+
             // Haptic feedback para deshacer set
             HapticManager.shared.warning()
         }
+    }
+
+    // MARK: - Registro por serie / rendimiento (Fase 1)
+
+    /// Última serie registrada de un ejercicio (la más reciente entre hoy y el historial).
+    func lastPerformance(for exerciseId: UUID) -> SetLog? {
+        allSetLogs(for: exerciseId).max(by: { $0.date < $1.date })
+    }
+
+    /// Todas las series registradas de un ejercicio (hoy + historial). Para PRs/gráficas.
+    func allSetLogs(for exerciseId: UUID) -> [SetLog] {
+        var logs: [SetLog] = []
+        for (_, records) in dailyWorkoutRecords {
+            for r in records where r.exerciseId == exerciseId { logs.append(contentsOf: r.setLogs) }
+        }
+        for (_, byDay) in workoutHistory {
+            for (_, records) in byDay {
+                for r in records where r.exerciseId == exerciseId { logs.append(contentsOf: r.setLogs) }
+            }
+        }
+        return logs
+    }
+
+    /// Volumen (peso × reps) registrado en un día.
+    func volume(for day: WorkoutDay) -> Double {
+        (dailyWorkoutRecords[day] ?? []).reduce(0) { acc, r in
+            acc + r.setLogs.reduce(0) { $0 + $1.volume }
+        }
+    }
+
+    /// Volumen total de la semana (días activos).
+    func weeklyVolume() -> Double {
+        activeDays.reduce(0) { $0 + volume(for: $1) }
+    }
+
+    /// Récord personal de un ejercicio: mejor peso y mejor 1RM estimado (Epley).
+    func personalRecord(for exerciseId: UUID) -> (weight: Double, oneRepMax: Double)? {
+        let logs = allSetLogs(for: exerciseId)
+        guard !logs.isEmpty else { return nil }
+        let maxW = logs.map { $0.weight }.max() ?? 0
+        let max1RM = logs.map { $0.estimatedOneRepMax }.max() ?? 0
+        return (maxW, max1RM)
+    }
+
+    /// Actualiza el peso/reps de una serie concreta ya registrada (edición manual).
+    func updateSetLog(_ updated: SetLog, for workoutExerciseId: UUID, in day: WorkoutDay) {
+        guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
+        guard let logIdx = dailyWorkoutRecords[day]![idx].setLogs.firstIndex(where: { $0.id == updated.id }) else { return }
+        dailyWorkoutRecords[day]![idx].setLogs[logIdx] = updated
+        recordHistory(for: day)
     }
     
     func updateBodyWeight(for date: Date, weight: Double) { 
