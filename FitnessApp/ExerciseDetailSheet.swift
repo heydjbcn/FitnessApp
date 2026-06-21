@@ -216,7 +216,7 @@ struct ExerciseDetailSheet: View {
     }
 }
 
-/// Fila editable de una serie registrada (peso/reps reales).
+/// Fila editable de una serie registrada (peso/reps reales + tipo + RPE).
 private struct SetLogRow: View {
     let index: Int
     let log: SetLog
@@ -226,40 +226,74 @@ private struct SetLogRow: View {
 
     @State private var weight: String = ""
     @State private var reps: String = ""
+    @State private var type: SetType = .normal
+    @State private var rpe: String = ""
+
+    private func typeColor(_ t: SetType) -> Color {
+        switch t {
+        case .normal:  return AppColors.textSecondary(isDark: isDark)
+        case .warmup:  return AppColors.accentOrange
+        case .drop:    return AppColors.accentBlue
+        case .failure: return AppColors.accentRed
+        }
+    }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text("\(index)")
-                .font(AppFonts.label)
-                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(AppColors.primary(themeManager: themeManager)))
+        HStack(spacing: 8) {
+            // Tipo de serie (menú): círculo con nº o etiqueta corta del tipo
+            Menu {
+                ForEach(SetType.allCases, id: \.self) { t in
+                    Button(t.label) { type = t; commit() }
+                }
+            } label: {
+                Text(type.shortTag ?? "\(index)")
+                    .font(AppFonts.label)
+                    .foregroundColor(type == .normal ? AppColors.onPrimary(themeManager: themeManager) : .white)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(type == .normal ? AppColors.primary(themeManager: themeManager) : typeColor(type)))
+            }
 
-            field(text: $weight, suffix: "kg", keyboard: .decimalPad)
+            field(text: $weight, suffix: "kg", keyboard: .decimalPad, width: 44)
             Text("×").foregroundColor(AppColors.textSecondary(isDark: isDark))
-            field(text: $reps, suffix: "reps", keyboard: .numberPad)
+            field(text: $reps, suffix: "reps", keyboard: .numberPad, width: 36)
 
-            Spacer()
+            Spacer(minLength: 4)
+
+            // RPE opcional
+            HStack(spacing: 3) {
+                Text("RPE").font(.system(size: 10)).foregroundColor(AppColors.textTertiary(isDark: isDark))
+                TextField("-", text: $rpe)
+                    .keyboardType(.numberPad)
+                    .font(AppFonts.caption)
+                    .foregroundColor(AppColors.textPrimary(isDark: isDark))
+                    .frame(width: 24)
+                    .multilineTextAlignment(.center)
+                    .onChange(of: rpe) { _, _ in commit() }
+            }
+            .padding(.horizontal, 8).frame(height: 34)
+            .background(AppColors.surface(isDark: isDark)).cornerRadius(8)
         }
         .onAppear {
             weight = String(format: "%g", log.weight)
             reps = "\(log.reps)"
+            type = log.type
+            rpe = log.rpe.map { "\($0)" } ?? ""
         }
     }
 
     @ViewBuilder
-    private func field(text: Binding<String>, suffix: String, keyboard: UIKeyboardType) -> some View {
-        HStack(spacing: 4) {
+    private func field(text: Binding<String>, suffix: String, keyboard: UIKeyboardType, width: CGFloat) -> some View {
+        HStack(spacing: 3) {
             TextField("0", text: text)
                 .keyboardType(keyboard)
                 .font(AppFonts.bodyMedium)
                 .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                .frame(width: 48)
+                .frame(width: width)
                 .multilineTextAlignment(.trailing)
                 .onChange(of: text.wrappedValue) { _, _ in commit() }
-            Text(suffix).font(AppFonts.caption).foregroundColor(AppColors.textSecondary(isDark: isDark))
+            Text(suffix).font(.system(size: 11)).foregroundColor(AppColors.textSecondary(isDark: isDark))
         }
-        .padding(.horizontal, 10).frame(height: 40)
+        .padding(.horizontal, 8).frame(height: 40)
         .background(AppColors.surface(isDark: isDark)).cornerRadius(10)
     }
 
@@ -267,6 +301,8 @@ private struct SetLogRow: View {
         var updated = log
         if let w = Double(weight.replacingOccurrences(of: ",", with: ".")) { updated.weight = w }
         if let r = Int(reps) { updated.reps = r }
+        updated.type = type
+        updated.rpe = Int(rpe)
         onUpdate(updated)
     }
 }
