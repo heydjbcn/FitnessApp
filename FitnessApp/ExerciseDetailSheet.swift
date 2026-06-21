@@ -94,6 +94,9 @@ struct ExerciseDetailSheet: View {
                         .padding(16)
                         .cardStyle(isDarkMode: isDark)
 
+                        // Gráfica de progreso del ejercicio
+                        ExerciseProgressChart(exerciseId: exerciseId)
+
                         // Ajustar valores por defecto (plantilla)
                         VStack(alignment: .leading, spacing: 14) {
                             Text("VALORES POR DEFECTO")

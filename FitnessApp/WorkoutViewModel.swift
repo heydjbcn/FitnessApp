@@ -315,6 +315,35 @@ class WorkoutViewModel: ObservableObject {
         dailyWorkoutRecords[day]![idx].setLogs[logIdx] = updated
         recordHistory(for: day)
     }
+
+    // MARK: - Series temporales para gráficas (Fase 3)
+
+    /// Peso máximo por día de un ejercicio (ordenado por fecha).
+    func exerciseDailyMaxWeight(for exerciseId: UUID) -> [(date: Date, weight: Double)] {
+        let cal = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for log in allSetLogs(for: exerciseId) {
+            let d = cal.startOfDay(for: log.date)
+            byDay[d] = Swift.max(byDay[d] ?? 0, log.weight)
+        }
+        return byDay.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
+    }
+
+    /// Volumen por día de un ejercicio (peso×reps sumado, ordenado por fecha).
+    func exerciseDailyVolume(for exerciseId: UUID) -> [(date: Date, volume: Double)] {
+        let cal = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for log in allSetLogs(for: exerciseId) {
+            let d = cal.startOfDay(for: log.date)
+            byDay[d] = (byDay[d] ?? 0) + log.volume
+        }
+        return byDay.map { (date: $0.key, volume: $0.value) }.sorted { $0.date < $1.date }
+    }
+
+    /// Serie temporal de peso corporal (ordenada por fecha).
+    func bodyWeightSeries() -> [(date: Date, weight: Double)] {
+        bodyWeightHistory.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
+    }
     
     func updateBodyWeight(for date: Date, weight: Double) { 
         let key = Calendar.current.startOfDay(for: date)

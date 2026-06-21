@@ -215,6 +215,10 @@ struct ProfileView: View {
                             }
                         }
                         .padding(.horizontal)
+
+                        // Gráfica de evolución del peso corporal
+                        BodyWeightChart()
+                            .padding(.horizontal)
                     }
                     .padding(.bottom, 40)
                 }
