@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0737929935E4EC13F94B41E0 /* AppFit Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47734AD5D3B0E75128EE7AE4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 07B0E053139FD794AC3B3522 /* Foundation.framework */; };
+		679FAB50BC638A7D0495ED97 /* AppFitWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */; };
+		8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */; };
+		E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		54FF56C72E272C090011485E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +29,38 @@
 			remoteGlobalIDString = 54FF56B82E272C080011485E;
 			remoteInfo = FitnessApp;
 		};
+		B8927474E806E03E3F088D0A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 54FF56B12E272C080011485E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21A71F4E33AA0164458D83DE;
+			remoteInfo = "AppFit Watch";
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		1CC36A8C489D2029DABB3A77 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				0737929935E4EC13F94B41E0 /* AppFit Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AppFit Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		07B0E053139FD794AC3B3522 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
 		54FF56B92E272C080011485E /* FitnessApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		54FF56C62E272C090011485E /* FitnessAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		54FF56D02E272C090011485E /* FitnessAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
+		8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppFitWatchApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -50,11 +84,15 @@
 		};
 		54FF56C92E272C090011485E /* FitnessAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = FitnessAppTests;
 			sourceTree = "<group>";
 		};
 		54FF56D32E272C090011485E /* FitnessAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = FitnessAppUITests;
 			sourceTree = "<group>";
 		};
@@ -82,9 +120,36 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F95C97125957F7BFEBF04030 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47734AD5D3B0E75128EE7AE4 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0643BDBB73A86B239B2BE817 /* watchOS */ = {
+			isa = PBXGroup;
+			children = (
+				07B0E053139FD794AC3B3522 /* Foundation.framework */,
+			);
+			name = watchOS;
+			sourceTree = "<group>";
+		};
+		2A2295E9FF484650FCD9397E /* WatchApp */ = {
+			isa = PBXGroup;
+			children = (
+				8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */,
+				33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */,
+				5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */,
+			);
+			name = WatchApp;
+			path = WatchApp;
+			sourceTree = "<group>";
+		};
 		54FF56B02E272C080011485E = {
 			isa = PBXGroup;
 			children = (
@@ -92,6 +157,8 @@
 				54FF56C92E272C090011485E /* FitnessAppTests */,
 				54FF56D32E272C090011485E /* FitnessAppUITests */,
 				54FF56BA2E272C080011485E /* Products */,
+				598A3F196EF4C1890544D396 /* Frameworks */,
+				2A2295E9FF484650FCD9397E /* WatchApp */,
 			);
 			sourceTree = "<group>";
 		};
@@ -101,13 +168,39 @@
 				54FF56B92E272C080011485E /* FitnessApp.app */,
 				54FF56C62E272C090011485E /* FitnessAppTests.xctest */,
 				54FF56D02E272C090011485E /* FitnessAppUITests.xctest */,
+				07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		598A3F196EF4C1890544D396 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0643BDBB73A86B239B2BE817 /* watchOS */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		21A71F4E33AA0164458D83DE /* AppFit Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 57500671A7C954B4078E04C8 /* Build configuration list for PBXNativeTarget "AppFit Watch" */;
+			buildPhases = (
+				A7B74F94C1D453A315324E64 /* Sources */,
+				F95C97125957F7BFEBF04030 /* Frameworks */,
+				A827D8EBBD3324F52C07862D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "AppFit Watch";
+			productName = "AppFit Watch";
+			productReference = 07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		54FF56B82E272C080011485E /* FitnessApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 54FF56DA2E272C090011485E /* Build configuration list for PBXNativeTarget "FitnessApp" */;
@@ -115,17 +208,17 @@
 				54FF56B52E272C080011485E /* Sources */,
 				54FF56B62E272C080011485E /* Frameworks */,
 				54FF56B72E272C080011485E /* Resources */,
+				1CC36A8C489D2029DABB3A77 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				192B8EA1BCEF9C7CCB53BF5F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				54FF56BB2E272C080011485E /* FitnessApp */,
 			);
 			name = FitnessApp;
-			packageProductDependencies = (
-			);
 			productName = FitnessApp;
 			productReference = 54FF56B92E272C080011485E /* FitnessApp.app */;
 			productType = "com.apple.product-type.application";
@@ -147,8 +240,6 @@
 				54FF56C92E272C090011485E /* FitnessAppTests */,
 			);
 			name = FitnessAppTests;
-			packageProductDependencies = (
-			);
 			productName = FitnessAppTests;
 			productReference = 54FF56C62E272C090011485E /* FitnessAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -170,8 +261,6 @@
 				54FF56D32E272C090011485E /* FitnessAppUITests */,
 			);
 			name = FitnessAppUITests;
-			packageProductDependencies = (
-			);
 			productName = FitnessAppUITests;
 			productReference = 54FF56D02E272C090011485E /* FitnessAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -208,8 +297,6 @@
 			);
 			mainGroup = 54FF56B02E272C080011485E;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 54FF56BA2E272C080011485E /* Products */;
 			projectDirPath = "";
@@ -218,6 +305,7 @@
 				54FF56B82E272C080011485E /* FitnessApp */,
 				54FF56C52E272C090011485E /* FitnessAppTests */,
 				54FF56CF2E272C090011485E /* FitnessAppUITests */,
+				21A71F4E33AA0164458D83DE /* AppFit Watch */,
 			);
 		};
 /* End PBXProject section */
@@ -238,6 +326,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		54FF56CE2E272C090011485E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A827D8EBBD3324F52C07862D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -268,9 +363,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A7B74F94C1D453A315324E64 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				679FAB50BC638A7D0495ED97 /* AppFitWatchApp.swift in Sources */,
+				E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */,
+				8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		192B8EA1BCEF9C7CCB53BF5F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "AppFit Watch";
+			target = 21A71F4E33AA0164458D83DE /* AppFit Watch */;
+			targetProxy = B8927474E806E03E3F088D0A /* PBXContainerItemProxy */;
+		};
 		54FF56C82E272C090011485E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 54FF56B82E272C080011485E /* FitnessApp */;
@@ -596,6 +707,53 @@
 			};
 			name = Release;
 		};
+		8D6A9C50114D1C6DC918FCA8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 47BY9SGLT7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = AppFit;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Mauri.FitnessApp;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp;
+				PRODUCT_NAME = "AppFit Watch";
+				SDKROOT = watchos;
+				SKIP_INSTALL = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		C4F3B171A7E3A0F7D8AB0FF4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 47BY9SGLT7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = AppFit;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Mauri.FitnessApp;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp;
+				PRODUCT_NAME = "AppFit Watch";
+				SDKROOT = watchos;
+				SKIP_INSTALL = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -631,6 +789,15 @@
 			buildConfigurations = (
 				54FF56E12E272C090011485E /* Debug */,
 				54FF56E22E272C090011485E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		57500671A7C954B4078E04C8 /* Build configuration list for PBXNativeTarget "AppFit Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4F3B171A7E3A0F7D8AB0FF4 /* Release */,
+				8D6A9C50114D1C6DC918FCA8 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
