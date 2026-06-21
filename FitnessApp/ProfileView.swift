@@ -216,6 +216,10 @@ struct ProfileView: View {
                         }
                         .padding(.horizontal)
 
+                        // Resumen semanal por grupo muscular
+                        WeeklyMuscleSummary()
+                            .padding(.horizontal)
+
                         // Gráfica de evolución del peso corporal
                         BodyWeightChart()
                             .padding(.horizontal)

@@ -54,6 +54,64 @@ struct ExerciseProgressChart: View {
     }
 }
 
+/// Resumen semanal: volumen total + series por grupo muscular (barras).
+struct WeeklyMuscleSummary: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    private var isDark: Bool { themeManager.isDarkMode }
+
+    private func volStr(_ v: Double) -> String {
+        v >= 1000 ? String(format: "%.1ft", v / 1000) : "\(Int(v)) kg"
+    }
+
+    var body: some View {
+        let groups = viewModel.setsByMuscleGroup()
+        let maxSets = max(groups.map { $0.sets }.max() ?? 1, 1)
+        let vol = viewModel.weeklyVolume()
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("ESTA SEMANA · POR MÚSCULO")
+                    .font(AppFonts.label).tracking(1.0)
+                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                Spacer()
+                if vol > 0 {
+                    Text(volStr(vol))
+                        .font(AppFonts.caption)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                }
+            }
+            if groups.isEmpty {
+                Text("Registra series para ver tu reparto por grupo muscular.")
+                    .font(AppFonts.caption)
+                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
+            } else {
+                ForEach(groups, id: \.group) { g in
+                    HStack(spacing: 10) {
+                        Text(g.group)
+                            .font(AppFonts.caption)
+                            .foregroundColor(AppColors.textPrimary(isDark: isDark))
+                            .frame(width: 78, alignment: .leading)
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(AppColors.hairline(isDark: isDark))
+                                Capsule().fill(AppColors.primary(themeManager: themeManager))
+                                    .frame(width: max(8, geo.size.width * CGFloat(g.sets) / CGFloat(maxSets)))
+                            }
+                        }
+                        .frame(height: 10)
+                        Text("\(g.sets)")
+                            .font(AppFonts.caption)
+                            .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                            .frame(width: 26, alignment: .trailing)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .cardStyle(isDarkMode: isDark)
+    }
+}
+
 /// Gráfica de evolución del peso corporal.
 struct BodyWeightChart: View {
     @EnvironmentObject var viewModel: WorkoutViewModel

@@ -703,7 +703,8 @@ struct AddExerciseForm: View {
     @State private var iconColor: String = "blue"
     @State private var rir: String = ""
     @State private var segundos: String = ""
-    
+    @State private var selectedMuscleGroup: String = ""
+
     // Checkboxes para campos opcionales
     @State private var includeRepetitions: Bool = true
     @State private var includeSegundos: Bool = false
@@ -749,6 +750,38 @@ struct AddExerciseForm: View {
                 }
             }
             
+            // Grupo muscular (opcional)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                        .font(.system(size: 18))
+                    Text("Grupo muscular")
+                        .font(AppFonts.subtitle)
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                }
+                Menu {
+                    Button("Sin especificar") { selectedMuscleGroup = "" }
+                    ForEach(MuscleGroup.all, id: \.self) { g in
+                        Button(g) { selectedMuscleGroup = g }
+                    }
+                } label: {
+                    HStack {
+                        Text(selectedMuscleGroup.isEmpty ? "Sin especificar" : selectedMuscleGroup)
+                            .foregroundColor(selectedMuscleGroup.isEmpty ? AppColors.textSecondary(isDark: themeManager.isDarkMode) : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .font(.system(size: 12))
+                    }
+                    .font(AppFonts.body)
+                    .padding(.horizontal, 14)
+                    .frame(height: 48)
+                    .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                    .cornerRadius(12)
+                }
+            }
+
             // Nombre del ejercicio (Obligatorio)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -1280,11 +1313,13 @@ struct AddExerciseForm: View {
             sfSymbolIcon: selectedIcon,
             iconColor: iconColor,
             segundos: segValue,
-            rir: rirValue
+            rir: rirValue,
+            muscleGroup: selectedMuscleGroup.isEmpty ? nil : selectedMuscleGroup
         )
-        
+
         // Limpiar formulario
         name = ""
+        selectedMuscleGroup = ""
         info = ""
         repetitions = ""
         segundos = ""

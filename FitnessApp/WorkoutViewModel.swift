@@ -193,7 +193,7 @@ class WorkoutViewModel: ObservableObject {
         }
     }
     
-    func addExercise(name: String, reps: Int, weight: Double, sets: Int, info: String, imageData: Data?, restDuration: Int, toDays selectedDays: Set<WorkoutDay>, sfSymbolIcon: String? = nil, iconColor: String = "blue", segundos: Int = 0, rir: Int = 0) {
+    func addExercise(name: String, reps: Int, weight: Double, sets: Int, info: String, imageData: Data?, restDuration: Int, toDays selectedDays: Set<WorkoutDay>, sfSymbolIcon: String? = nil, iconColor: String = "blue", segundos: Int = 0, rir: Int = 0, muscleGroup: String? = nil) {
         let newBaseExercise = Exercise(
             id: UUID(),
             name: name,
@@ -206,7 +206,8 @@ class WorkoutViewModel: ObservableObject {
             sfSymbolIcon: sfSymbolIcon,
             iconColor: iconColor,
             segundos: segundos,
-            rir: rir
+            rir: rir,
+            muscleGroup: (muscleGroup?.isEmpty == false) ? muscleGroup : nil
         )
         availableExercises.append(newBaseExercise)
         
@@ -365,6 +366,21 @@ class WorkoutViewModel: ObservableObject {
     /// Serie temporal de peso corporal (ordenada por fecha).
     func bodyWeightSeries() -> [(date: Date, weight: Double)] {
         bodyWeightHistory.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
+    }
+
+    /// Series totales por grupo muscular en la semana (días activos), ordenado desc.
+    func setsByMuscleGroup() -> [(group: String, sets: Int)] {
+        var counts: [String: Int] = [:]
+        for day in activeDays {
+            for r in dailyWorkoutRecords[day] ?? [] {
+                let g = getExercise(by: r.exerciseId)?.muscleGroup ?? ""
+                let key = g.isEmpty ? "Otros" : g
+                counts[key, default: 0] += r.completedSets
+            }
+        }
+        return counts.map { (group: $0.key, sets: $0.value) }
+            .filter { $0.sets > 0 }
+            .sorted { $0.sets > $1.sets }
     }
     
     func updateBodyWeight(for date: Date, weight: Double) { 
