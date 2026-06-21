@@ -22,7 +22,7 @@ struct ExerciseCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "dumbbell.fill").foregroundColor(AppColors.primary(themeManager: themeManager))
-                Text(exercise.name.uppercased()).font(.headline.weight(.bold)).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                Text(exercise.name.uppercased()).font(AppFonts.subtitle).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 Spacer()
                 Button { showInfo = true } label: { Image(systemName: "info.circle.fill").foregroundColor(AppColors.accentCyan) }
                 Button {
@@ -78,11 +78,11 @@ struct ExerciseCardView: View {
                         if idx < workoutRecord.completedSets {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                         } else {
                             Text("\(idx + 1)")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(AppFonts.label)
+                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                         }
                     }
                     .onTapGesture {
@@ -109,7 +109,7 @@ struct ExerciseCardView: View {
         
         return HStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 14)).foregroundColor(AppColors.accentCyan)
-            Text(text).font(.caption.weight(.semibold)).foregroundColor(finalColor)
+            Text(text).font(AppFonts.caption).foregroundColor(finalColor)
         }
     }
 }
@@ -136,7 +136,7 @@ struct ExerciseInfoSheet: View {
                         // Detalles del ejercicio
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Detalles del Ejercicio")
-                                .font(.headline)
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                                 .padding(.horizontal)
                             

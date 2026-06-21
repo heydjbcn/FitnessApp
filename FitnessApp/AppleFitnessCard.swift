@@ -34,8 +34,7 @@ struct AppleFitnessCard: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Actividad Diaria")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(AppFonts.title2)
                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
             
             HStack(spacing: 20) {
@@ -111,11 +110,11 @@ struct ActivityRing: View {
                 VStack(spacing: 2) {
                     if unit.isEmpty {
                         Text("\(Int(value))")
-                            .font(.caption)
+                            .font(AppFonts.caption)
                             .fontWeight(.bold)
                     } else {
                         Text(String(format: "%.0f", value))
-                            .font(.caption)
+                            .font(AppFonts.caption)
                             .fontWeight(.bold)
                     }
                 }
@@ -123,12 +122,11 @@ struct ActivityRing: View {
             
             VStack(spacing: 2) {
                 Text(label)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                
+                    .font(AppFonts.label)
+
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.caption2)
+                        .font(AppFonts.label)
                         .foregroundColor(.secondary)
                 }
             }

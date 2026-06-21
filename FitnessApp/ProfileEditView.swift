@@ -29,7 +29,7 @@ struct ProfileEditView: View {
                                     .scaledToFill()
                                     .frame(width: 120, height: 120)
                                     .clipShape(Circle())
-                                    .overlay(Circle().stroke(AppColors.primary, lineWidth: 3))
+                                    .overlay(Circle().stroke(AppColors.primary(themeManager: themeManager), lineWidth: 3))
                             } else {
                                 Image(systemName: "person.circle.fill")
                                     .font(.system(size: 120))
@@ -38,8 +38,8 @@ struct ProfileEditView: View {
                             
                             PhotosPicker(selection: $selectedPhoto, matching: .images) {
                                 Text("Cambiar foto")
-                                    .font(AppFonts.caption)
-                                    .foregroundColor(AppColors.primary)
+                                    .font(AppFonts.subtitle)
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
                                     .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
@@ -53,7 +53,7 @@ struct ProfileEditView: View {
                             // Nombre
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Nombre")
-                                    .font(AppFonts.caption)
+                                    .font(AppFonts.label)
                                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 
                                 TextField("Tu nombre", text: $name)
@@ -67,7 +67,7 @@ struct ProfileEditView: View {
                             // Edad
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Edad")
-                                    .font(AppFonts.caption)
+                                    .font(AppFonts.label)
                                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 
                                 TextField("Años", text: $age)
@@ -82,7 +82,7 @@ struct ProfileEditView: View {
                             // Altura
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Altura")
-                                    .font(AppFonts.caption)
+                                    .font(AppFonts.label)
                                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 
                                 TextField("cm", text: $height)
@@ -97,7 +97,7 @@ struct ProfileEditView: View {
                             // Peso
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Peso")
-                                    .font(AppFonts.caption)
+                                    .font(AppFonts.label)
                                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 
                                 TextField("kg", text: $weight)
@@ -114,11 +114,11 @@ struct ProfileEditView: View {
                         // Botón Guardar
                         Button(action: saveProfile) {
                             Text("Guardar cambios")
-                                .font(AppFonts.body)
-                                .foregroundColor(.white)
+                                .font(AppFonts.subtitle)
+                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(AppColors.primary)
+                                .background(AppColors.primary(themeManager: themeManager))
                                 .cornerRadius(12)
                         }
                         .padding(.horizontal)
@@ -133,7 +133,7 @@ struct ProfileEditView: View {
                     Button("Cerrar") {
                         dismiss()
                     }
-                    .foregroundColor(AppColors.primary)
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                 }
             }
         }

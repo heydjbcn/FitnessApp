@@ -4,6 +4,10 @@ import SwiftUI
 struct FitnessAppApp: App {
     @StateObject var workoutViewModel = WorkoutViewModel()
 
+    init() {
+        FontLoader.registerFonts()
+    }
+
     var body: some Scene {
         WindowGroup {
             NavigationStack {

@@ -22,15 +22,15 @@ struct NameInputView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 80))
-                            .foregroundColor(AppColors.primary)
-                        
-                        Text("¡Bienvenido a ChamaFit!")
-                            .font(.title.bold())
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
+
+                        Text("¡Bienvenido a AppFit!")
+                            .font(AppFonts.largeTitle)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             .multilineTextAlignment(.center)
-                        
+
                         Text("Para personalizar tu experiencia, cuéntanos tu nombre")
-                            .font(.body)
+                            .font(AppFonts.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -46,14 +46,14 @@ struct NameInputView: View {
                         Button(action: saveNameIfValid) {
                             HStack {
                                 Text("Continuar")
-                                    .font(.headline)
+                                    .font(AppFonts.subtitle)
                                 Image(systemName: "arrow.right")
                             }
-                            .foregroundColor(.white)
+                            .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
-                                       AppColors.textSecondary(isDark: themeManager.isDarkMode) : AppColors.primary)
+                            .background(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?
+                                       AppColors.textSecondary(isDark: themeManager.isDarkMode) : AppColors.primary(themeManager: themeManager))
                             .cornerRadius(12)
                         }
                         .disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

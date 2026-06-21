@@ -32,10 +32,10 @@ struct WeeklyProgressView: View {
                     
                     VStack(spacing: 2) {
                         Text("\(Int(viewModel.weeklyProgress() * 100))%")
-                            .font(.headline.bold())
+                            .font(AppFonts.metric)
                             .foregroundColor(AppColors.primary(themeManager: themeManager))
                         Text("completado")
-                            .font(.caption2)
+                            .font(AppFonts.label)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
                 }
@@ -45,23 +45,23 @@ struct WeeklyProgressView: View {
                         Image(systemName: "target")
                             .foregroundColor(AppColors.primary(themeManager: themeManager))
                         Text("\(viewModel.weeklyCompletedSets())/\(viewModel.weeklyTotalSets()) series")
-                            .font(.body)
+                            .font(AppFonts.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
-                    
+
                     HStack {
                         Image(systemName: "flame.fill")
                             .foregroundColor(AppColors.danger)
                         Text("\(viewModel.consecutiveWorkoutDays()) días seguidos")
-                            .font(.body)
+                            .font(AppFonts.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
-                    
+
                     HStack {
                         Image(systemName: "clock.fill")
                             .foregroundColor(AppColors.accentCyan)
                         Text("\(viewModel.estimatedWeeklyWorkoutTime()) min esta semana")
-                            .font(.body)
+                            .font(AppFonts.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
                 }
@@ -91,10 +91,10 @@ struct WeeklyExercisesList: View {
                         .font(.system(size: 40))
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.5))
                     Text("No hay ejercicios programados")
-                        .font(.body)
+                        .font(AppFonts.body)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     Text("Agrega ejercicios desde Configuración")
-                        .font(.caption)
+                        .font(AppFonts.caption)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }
                 .frame(maxWidth: .infinity)
@@ -121,13 +121,13 @@ struct WeeklyDayRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(dayName(for: day))
-                    .font(.headline)
+                    .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
+
                 Spacer()
-                
+
                 Text("\(exercises.reduce(into: 0) { $0 += $1.repetitions })/\(exercises.reduce(into: 0) { $0 += $1.totalSets }) series")
-                    .font(.caption)
+                    .font(AppFonts.caption)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -173,12 +173,12 @@ struct WeeklyExerciseItem: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(exercise.name)
-                    .font(.caption)
+                    .font(AppFonts.caption)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .lineLimit(1)
-                
+
                 Text("0/\(exercise.totalSets) series × \(exercise.repetitions)")
-                    .font(.caption2)
+                    .font(AppFonts.label)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
             

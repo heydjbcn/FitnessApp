@@ -55,13 +55,13 @@ struct OnboardingOverlayView: View {
                 
                 // Título
                 Text(currentStep.title)
-                    .font(.title2.bold())
+                    .font(AppFonts.title2)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .multilineTextAlignment(.center)
                 
                 // Descripción
                 Text(currentStep.description)
-                    .font(.body)
+                    .font(AppFonts.body)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 10)
@@ -94,7 +94,7 @@ struct OnboardingOverlayView: View {
                     .padding(.horizontal, 30)
                     .padding(.vertical, 12)
                     .background(AppColors.primary(themeManager: themeManager))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                     .cornerRadius(25)
                     .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
                 }

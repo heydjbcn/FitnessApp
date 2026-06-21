@@ -74,11 +74,11 @@ struct WorkoutDayView: View {
             ZStack {
                 Circle().stroke(AppColors.secondaryGray, lineWidth: 8)
                 Circle().trim(from: 0, to: progress).stroke(AppColors.primary, style: StrokeStyle(lineWidth: 8, lineCap: .round)).rotationEffect(.degrees(-90)).animation(.easeInOut, value: progress)
-                Text("\(Int(progress * 100))%").font(.caption.weight(.bold))
+                Text("\(Int(progress * 100))%").font(AppFonts.caption)
             }
             .frame(width: 60, height: 60)
             VStack(alignment: .leading, spacing: 4) {
-                Text(day.rawValue).font(.title2.weight(.bold)).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                Text(day.rawValue).font(AppFonts.title2).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 HStack(spacing: 16) {
                     let doneCount = exercisesForDay.compactMap { record in
                         if let baseExercise = viewModel.getExercise(by: record.exerciseId) {
@@ -86,8 +86,8 @@ struct WorkoutDayView: View {
                         }
                         return 0
                     }.reduce(0, +)
-                    Text("\(doneCount) Hechos").font(.subheadline.weight(.medium)).foregroundColor(AppColors.success)
-                    Text("\(exercisesForDay.count) Total").font(.subheadline.weight(.medium)).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    Text("\(doneCount) Hechos").font(AppFonts.bodyMedium).foregroundColor(AppColors.success)
+                    Text("\(exercisesForDay.count) Total").font(AppFonts.bodyMedium).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }
             }
             Spacer()
@@ -100,8 +100,8 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "dumbbell").font(.system(size: 50)).foregroundColor(AppColors.primary.opacity(0.7))
-            Text("No hay ejercicios").font(.headline).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-            Text("Añade ejercicios desde el menú de Configuración.").font(.subheadline).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)).multilineTextAlignment(.center)
+            Text("No hay ejercicios").font(AppFonts.subtitle).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+            Text("Añade ejercicios desde el menú de Configuración.").font(AppFonts.body).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)).multilineTextAlignment(.center)
         }.padding()
     }
 }

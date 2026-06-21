@@ -104,11 +104,11 @@ struct WeeklyCalendarView: View {
                                     }) {
                                         HStack {
                                             Image(systemName: "plus.circle.fill")
-                                                .foregroundColor(.white)
+                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                                 .font(.system(size: 16))
                                             Text("Añadir Ejercicio")
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(.white)
+                                                .font(AppFonts.subtitle)
+                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                         }
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 12)
@@ -183,20 +183,20 @@ struct DayCard: View {
             VStack(spacing: 8) {
                 Image(systemName: dayIcon(for: day))
                     .font(.title2)
-                    .foregroundColor(isSelected ? .white : AppColors.primary(themeManager: themeManager))
-                
+                    .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.primary(themeManager: themeManager))
+
                 Text(dayShortName(for: day))
                     .font(AppFonts.caption)
-                    .foregroundColor(isSelected ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .fontWeight(.semibold)
-                
+
                 if exerciseCount > 0 {
                     Text("\(exerciseCount)")
-                        .font(.caption2)
-                        .foregroundColor(isSelected ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                        .font(AppFonts.caption)
+                        .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.3) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
+                        .background(isSelected ? AppColors.onPrimary(themeManager: themeManager).opacity(0.3) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
                         .cornerRadius(8)
                 }
             }
@@ -303,12 +303,12 @@ struct CalendarExerciseCard: View {
                             if setIndex < workoutRecord.completedSets {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                     .scaleEffect(setIndex < workoutRecord.completedSets ? 1.0 : 0.1)
                                     .animation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.1), value: workoutRecord.completedSets)
                             } else {
                                 Text("\(setIndex + 1)")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(AppFonts.caption)
                                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             }
                         }
@@ -335,7 +335,7 @@ struct CalendarExerciseCard: View {
                         Text("\(exercise.restDuration)s")
                     }
                     .font(AppFonts.caption)
-                    .foregroundColor(themeManager.isTimerEnabled ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    .foregroundColor(themeManager.isTimerEnabled ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(themeManager.isTimerEnabled ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
@@ -352,18 +352,18 @@ struct CalendarExerciseCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 if !exercise.info.isEmpty {
                     Text(exercise.info)
-                        .font(.system(size: 14))
+                        .font(AppFonts.body)
                 }
-                
+
                 if exercise.imageData != nil {
                     Text("📷 Imagen disponible")
-                        .font(.system(size: 12))
+                        .font(AppFonts.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 if exercise.info.isEmpty && exercise.imageData == nil {
                     Text("No hay información adicional disponible")
-                        .font(.system(size: 12))
+                        .font(AppFonts.caption)
                         .foregroundColor(.secondary)
                 }
             }
@@ -418,26 +418,26 @@ struct CompactTimerView: View {
                 
                 VStack(spacing: 4) {
                     Text("\(viewModel.timeRemaining)")
-                        .font(.system(size: 32, weight: .bold))
+                        .font(AppFonts.metric)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
+
                     Text("segundos")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppFonts.caption)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }
             }
             
             VStack(spacing: 12) {
                 Text("Descanso")
-                    .font(.system(size: 24, weight: .semibold))
+                    .font(AppFonts.title)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
+
                 Button("Parar Timer") {
                     viewModel.stopTimer()
                     onStop()
                 }
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
+                .font(AppFonts.subtitle)
+                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                 .padding(.horizontal, 32)
                 .padding(.vertical, 12)
                 .background(AppColors.primary(themeManager: themeManager))
@@ -503,8 +503,8 @@ struct DailyProgressContainer: View {
         VStack(spacing: 20) {
             // Título
             Text("Progreso \(dayDisplayName(for: day))")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(.white)
+                .font(AppFonts.title)
+                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
             
             // Anillos de progreso (mismo diseño que progreso semanal)
             HStack(spacing: 25) {
@@ -591,12 +591,12 @@ struct ProgressRing: View {
                     .animation(.easeInOut(duration: 1), value: progress)
                 
                 Text(subtitle)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(AppFonts.subtitle)
                     .foregroundColor(.white)
             }
-            
+
             Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .font(AppFonts.caption)
                 .foregroundColor(.white.opacity(0.7))
         }
     }

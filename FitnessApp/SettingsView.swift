@@ -23,12 +23,12 @@ struct FocusModeSettingsCard: View {
                             .font(AppFonts.body)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         Text("Evita que la pantalla se apague durante entrenamientos")
-                            .font(.caption)
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
                     Spacer()
                     Toggle("", isOn: $focusManager.keepScreenOn)
-                        .tint(AppColors.primary)
+                        .tint(AppColors.primary(themeManager: themeManager))
                 }
                 
                 HStack {
@@ -37,12 +37,12 @@ struct FocusModeSettingsCard: View {
                             .font(AppFonts.body)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         Text("Activa automáticamente durante entrenamientos")
-                            .font(.caption)
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
                     Spacer()
                     Toggle("", isOn: $focusManager.isActive)
-                        .tint(AppColors.primary)
+                        .tint(AppColors.primary(themeManager: themeManager))
                 }
                 
                 if focusManager.isActive {
@@ -53,7 +53,7 @@ struct FocusModeSettingsCard: View {
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             Spacer()
                             Toggle("", isOn: $focusManager.hideTabBar)
-                                .tint(AppColors.primary)
+                                .tint(AppColors.primary(themeManager: themeManager))
                         }
                         
                         HStack {
@@ -62,7 +62,7 @@ struct FocusModeSettingsCard: View {
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             Spacer()
                             Toggle("", isOn: $focusManager.dimUI)
-                                .tint(AppColors.primary)
+                                .tint(AppColors.primary(themeManager: themeManager))
                         }
                     }
                     .padding(.top, 8)
@@ -128,13 +128,13 @@ struct SettingsView: View {
                 } label: {
                     VStack(spacing: 8) {
                         Text(tab.rawValue)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundColor(selectedTab == tab ? AppColors.primary : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(selectedTab == tab ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity, alignment: .center)
-                        
+
                         Rectangle()
-                            .fill(selectedTab == tab ? AppColors.primary : Color.clear)
+                            .fill(selectedTab == tab ? AppColors.primary(themeManager: themeManager) : Color.clear)
                             .frame(height: 2)
                     }
                 }
@@ -174,7 +174,7 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
-                        .tint(AppColors.primary)
+                        .tint(AppColors.primary(themeManager: themeManager))
                     }
                     .padding()
                     .cardStyle(isDarkMode: themeManager.isDarkMode)
@@ -192,37 +192,40 @@ struct SettingsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 8) { // Reducido de 16 a 8
                     // Card para personalización de colores
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Color de Acento")
-                            .font(AppFonts.subtitle)
-                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    VStack(spacing: 24) {
+                        VStack(spacing: 12) {
+                            Text("Color Personalizado")
+                                .font(AppFonts.title)
+                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            
+                            Text("Selecciona el color principal de la app")
+                                .font(AppFonts.body)
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                .multilineTextAlignment(.center)
+                        }
                         
-                        Text("Selecciona el color principal de la app")
-                            .font(AppFonts.caption)
-                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                            .padding(.bottom, 8)
-                        
-                        // Paleta de colores (las bolitas)
-                        HStack(spacing: 8) {
+                        // Selector de colores en grid
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 16) {
                             ForEach(AccentColor.allCases, id: \.id) { color in
                                 Button(action: {
                                     themeManager.setAccentColor(color)
                                 }) {
                                     Circle()
                                         .fill(color.color)
-                                        .frame(width: 30, height: 30)
+                                        .frame(width: 44, height: 44)
                                         .overlay(
                                             Circle()
-                                                .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 2)
+                                                .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 3)
                                         )
-                                        .scaleEffect(themeManager.selectedAccentColor == color ? 1.1 : 1.0)
-                                        .animation(.spring(), value: themeManager.selectedAccentColor)
+                                        .scaleEffect(themeManager.selectedAccentColor == color ? 1.2 : 1.0)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
                                 }
                             }
-                            Spacer() // Empuja las bolitas a la izquierda
                         }
+                        .padding(.horizontal, 8)
                     }
-                    .padding()
+                    .padding(.vertical, 24)
+                    .padding(.horizontal, 20)
                     .cardStyle(isDarkMode: themeManager.isDarkMode)
                     
                     // Card combinado para añadir ejercicios y timer
@@ -298,8 +301,8 @@ struct SettingsView: View {
                                             }
                                         }
                                         .buttonStyle(.borderedProminent)
-                                        .tint(AppColors.primary)
-                                        .foregroundColor(.black)
+                                        .tint(AppColors.primary(themeManager: themeManager))
+                                        .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                     }
                                 }
                             }

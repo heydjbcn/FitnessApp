@@ -32,9 +32,9 @@ struct NumericTextFieldModifier: ViewModifier {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption)
                         .foregroundColor(.red)
-                    
+
                     Text(validationMessage)
-                        .font(.caption)
+                        .font(AppFonts.caption)
                         .foregroundColor(.red)
                 }
                 .transition(.opacity)
@@ -42,21 +42,21 @@ struct NumericTextFieldModifier: ViewModifier {
         }
         .animation(.easeInOut(duration: 0.2), value: showError)
     }
-    
+
     private var borderColor: Color {
         if showError && !isValid {
             return .red
         }
         return Color.gray.opacity(0.3)
     }
-    
+
     private func validateInput(_ input: String) {
         if input.isEmpty {
             isValid = true
             showError = false
             return
         }
-        
+
         // Validar que solo contiene números y punto decimal
         let validCharacters = CharacterSet(charactersIn: "0123456789.")
         let characterSet = CharacterSet(charactersIn: input)
@@ -105,9 +105,9 @@ struct IntegerTextFieldModifier: ViewModifier {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption)
                         .foregroundColor(.red)
-                    
+
                     Text(validationMessage)
-                        .font(.caption)
+                        .font(AppFonts.caption)
                         .foregroundColor(.red)
                 }
                 .transition(.opacity)
@@ -115,21 +115,21 @@ struct IntegerTextFieldModifier: ViewModifier {
         }
         .animation(.easeInOut(duration: 0.2), value: showError)
     }
-    
+
     private var borderColor: Color {
         if showError && !isValid {
             return .red
         }
         return Color.gray.opacity(0.3)
     }
-    
+
     private func validateInput(_ input: String) {
         if input.isEmpty {
             isValid = true
             showError = false
             return
         }
-        
+
         // Validar que solo contiene números
         let validCharacters = CharacterSet.decimalDigits
         let characterSet = CharacterSet(charactersIn: input)

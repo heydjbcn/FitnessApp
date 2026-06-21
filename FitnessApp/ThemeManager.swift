@@ -16,20 +16,28 @@ enum AccentColor: String, CaseIterable, Identifiable {
     
     var color: Color {
         switch self {
-        case .green: return .green
-        case .blue: return .blue
-        case .purple: return .purple
-        case .orange: return .orange
-        case .red: return .red
-        case .pink: return .pink
-        case .teal: return .teal
-        case .indigo: return .indigo
+        case .green:  return AppColors.accentLime
+        case .blue:   return AppColors.accentBlue
+        case .purple: return AppColors.accentPurple
+        case .orange: return AppColors.accentOrange
+        case .red:    return AppColors.accentRed
+        case .pink:   return AppColors.accentPink
+        case .teal:   return AppColors.accentTeal
+        case .indigo: return AppColors.accentIndigo
         }
     }
-    
+
+    /// Color de texto/icono legible ENCIMA del acento (contraste).
+    var onColor: Color {
+        switch self {
+        case .green: return Color(hex: "#0B0D0F") // lima es muy claro → texto oscuro
+        default:     return .white
+        }
+    }
+
     var displayName: String {
         switch self {
-        case .green: return "Verde"
+        case .green: return "Lima eléctrico"
         case .blue: return "Azul"
         case .purple: return "Morado"
         case .orange: return "Naranja"
@@ -42,7 +50,7 @@ enum AccentColor: String, CaseIterable, Identifiable {
 }
 
 class ThemeManager: ObservableObject {
-    @Published var isDarkMode: Bool = false {
+    @Published var isDarkMode: Bool = true {
         didSet {
             UserDefaults.standard.set(isDarkMode, forKey: "isDarkMode")
             // Haptic feedback para cambio de tema
@@ -67,7 +75,7 @@ class ThemeManager: ObservableObject {
     }
     
     init() {
-        isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+        isDarkMode = UserDefaults.standard.object(forKey: "isDarkMode") as? Bool ?? true
         isTimerEnabled = UserDefaults.standard.object(forKey: "isTimerEnabled") as? Bool ?? true
         
         if let colorString = UserDefaults.standard.string(forKey: "selectedAccentColor"),

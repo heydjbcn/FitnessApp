@@ -45,7 +45,7 @@ struct CustomCalendarView: View {
                 Spacer()
                 
                 Text(dateFormatter.string(from: currentMonth))
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 
                 Spacer()
@@ -62,7 +62,7 @@ struct CustomCalendarView: View {
             HStack {
                 ForEach(weekdays, id: \.self) { dayInitial in
                     Text(dayInitial)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(AppFonts.label)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         .frame(maxWidth: .infinity)
                 }
@@ -170,7 +170,7 @@ struct DayView: View {
         }) {
             ZStack {
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(AppFonts.bodyMedium)
                     .foregroundColor(textColor)
                     .frame(width: 36, height: 36)
                     .background(backgroundColor)
@@ -179,7 +179,7 @@ struct DayView: View {
                 // Indicador verde para días con entrenamiento
                 if hasWorkout && isCurrentMonth {
                     Circle()
-                        .fill(Color.green)
+                        .fill(AppColors.primary(themeManager: themeManager))
                         .frame(width: 6, height: 6)
                         .offset(x: 12, y: -12)
                 }
@@ -217,7 +217,7 @@ struct DayView: View {
     
     private var textColor: Color {
         if isSelected {
-            return .white
+            return AppColors.onPrimary(themeManager: themeManager)
         } else if isCurrentMonth {
             return AppColors.textPrimary(isDark: themeManager.isDarkMode)
         } else {

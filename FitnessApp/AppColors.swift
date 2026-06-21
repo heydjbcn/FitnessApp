@@ -1,6 +1,20 @@
 import SwiftUI
 import Combine
 
+// MARK: - Helper hex
+extension Color {
+    /// Crea un Color desde "#RRGGBB" o "RRGGBB".
+    init(hex: String) {
+        let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        var rgb: UInt64 = 0
+        Scanner(string: s).scanHexInt64(&rgb)
+        let r = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let g = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let b = Double(rgb & 0x0000FF) / 255.0
+        self.init(red: r, green: g, blue: b)
+    }
+}
+
 // Enum para el tema
 enum AppTheme: String, CaseIterable {
     case light = "light"
@@ -8,81 +22,102 @@ enum AppTheme: String, CaseIterable {
 }
 
 struct AppColors {
-    // Color primario dinámico que cambia según el tema seleccionado
+    // MARK: - Paleta (rediseño 2026, dark-first, acento lima eléctrico)
+    static let limeAccent   = Color(hex: "#C6F542")
+    static let accentLime    = Color(hex: "#C6F542")
+    static let accentBlue    = Color(hex: "#3B82F6")
+    static let accentPurple  = Color(hex: "#A855F7")
+    static let accentOrange  = Color(hex: "#F97316")
+    static let accentRed     = Color(hex: "#EF4444")
+    static let accentPink    = Color(hex: "#EC4899")
+    static let accentTeal    = Color(hex: "#14B8A6")
+    static let accentIndigo  = Color(hex: "#6366F1")
+
+    // Fondos / superficies
+    static let bgDark    = Color(hex: "#0B0D0F")
+    static let surfaceDark = Color(hex: "#16191D")
+    static let cardDark  = Color(hex: "#1F242A")
+    static let bgLight   = Color(hex: "#F2F4F2")
+    static let cardLight = Color(hex: "#FFFFFF")
+
+    // MARK: - Color primario (acento del usuario)
     static func primary(themeManager: ThemeManager) -> Color {
         themeManager.selectedAccentColor.color
     }
-    
-    // Función para obtener el color primario dinámico desde ThemeManager (mantener para compatibilidad)
     static func primaryDynamic(themeManager: ThemeManager) -> Color {
         themeManager.selectedAccentColor.color
     }
-    
-    // Color primario estático (fallback) - Verde brillante
-    static let primary = Color(red: 0/255, green: 255/255, blue: 102/255)
-    
-    // Colores dinámicos que cambian según el tema
+    /// Color de texto/icono legible sobre el acento (contraste correcto).
+    static func onPrimary(themeManager: ThemeManager) -> Color {
+        themeManager.selectedAccentColor.onColor
+    }
+    /// Texto oscuro para usar sobre el acento lima por defecto.
+    static let onAccentDark = Color(hex: "#0B0D0F")
+    static let primary = accentLime  // fallback estático
+
+    // MARK: - Colores dinámicos por isDark
     static func background(isDark: Bool) -> Color {
-        isDark ? Color(red: 0.1, green: 0.1, blue: 0.1) : Color.white
+        isDark ? bgDark : bgLight
     }
-    
+    static func surface(isDark: Bool) -> Color {
+        isDark ? surfaceDark : Color(hex: "#F2F4EE")
+    }
     static func cardBackground(isDark: Bool) -> Color {
-        isDark ? Color(red: 0.2, green: 0.2, blue: 0.2) : Color(red: 0.95, green: 0.95, blue: 0.97)
+        isDark ? cardDark : cardLight
     }
-    
     static func textPrimary(isDark: Bool) -> Color {
-        isDark ? Color.white : Color.black
+        isDark ? Color(hex: "#F2F4F2") : Color(hex: "#0B0D0F")
     }
-    
     static func textSecondary(isDark: Bool) -> Color {
-        isDark ? Color(red: 0.8, green: 0.8, blue: 0.8) : Color(red: 0.6, green: 0.6, blue: 0.6)
+        isDark ? Color(hex: "#8B929B") : Color(hex: "#565D66")
     }
-    
-    // Funciones de compatibilidad con el enum (mantener si se usan en otras partes)
-    static func background(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color.white
-        case .dark: return Color(red: 28/255, green: 28/255, blue: 30/255) // Gris muy oscuro
-        }
+    static func textTertiary(isDark: Bool) -> Color {
+        isDark ? Color(hex: "#565D66") : Color(hex: "#8B929B")
     }
-    
-    static func cardBackground(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color(red: 247/255, green: 247/255, blue: 247/255) // #F7F7F7
-        case .dark: return Color(red: 44/255, green: 44/255, blue: 46/255) // Gris oscuro para tarjetas
-        }
+    static func hairline(isDark: Bool) -> Color {
+        isDark ? Color.white.opacity(0.06) : Color.black.opacity(0.06)
     }
-    
-    static func textPrimary(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color.black
-        case .dark: return Color.white
-        }
-    }
-    
-    static func textSecondary(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color(white: 0.4)
-        case .dark: return Color(white: 0.7)
-        }
-    }
-    
-    // Colores estáticos que no cambian
-    static let secondaryGray = Color(red: 230/255, green: 230/255, blue: 230/255)
-    static let accentCyan = Color(red: 0.0, green: 0.85, blue: 0.85)
-    static let danger = Color.red
-    static let success = Color.green
-    
-    // Para compatibilidad con código existente (modo claro por defecto)
-    static let background = Color.white
-    static let cardBackground = Color(red: 247/255, green: 247/255, blue: 247/255)
-    static let textPrimary = Color.black
-    static let textSecondary = Color(white: 0.4)
+
+    // MARK: - Compatibilidad con AppTheme
+    static func background(for theme: AppTheme) -> Color { background(isDark: theme == .dark) }
+    static func cardBackground(for theme: AppTheme) -> Color { cardBackground(isDark: theme == .dark) }
+    static func textPrimary(for theme: AppTheme) -> Color { textPrimary(isDark: theme == .dark) }
+    static func textSecondary(for theme: AppTheme) -> Color { textSecondary(isDark: theme == .dark) }
+
+    // MARK: - Colores estáticos / estado
+    static let secondaryGray = Color(hex: "#565D66")
+    static let accentCyan = accentTeal
+    static let danger  = accentRed
+    static let success = accentLime
+    static let warning = accentOrange
+
+    // Estáticos "por defecto" (dark-first)
+    static let background     = bgDark
+    static let cardBackground = cardDark
+    static let textPrimary    = Color(hex: "#F2F4F2")
+    static let textSecondary  = Color(hex: "#8B929B")
+
+    // Gradientes
+    static let primaryGradient = LinearGradient(
+        colors: [accentLime, accentTeal], startPoint: .topLeading, endPoint: .bottomTrailing)
 }
 
 struct AppFonts {
-    static let title = Font.system(size: 22, weight: .bold)
-    static let subtitle = Font.system(size: 16, weight: .semibold)
-    static let body = Font.system(size: 15)
-    static let caption = Font.system(size: 13)
+    private static func space(_ size: CGFloat, _ w: String) -> Font { .custom("SpaceGrotesk-\(w)", size: size) }
+    private static func hanken(_ size: CGFloat, _ w: String) -> Font { .custom("HankenGrotesk-\(w)", size: size) }
+
+    // Space Grotesk → títulos / datos
+    static let title    = space(22, "Bold")
+    static let subtitle = space(16, "SemiBold")
+    // Hanken Grotesk → cuerpo / etiquetas
+    static let body     = hanken(15, "Regular")
+    static let caption  = hanken(13, "Regular")
+
+    // Extras útiles para el rediseño (números/métricas y títulos grandes)
+    static let largeTitle = space(34, "Bold")
+    static let title2     = space(28, "Bold")
+    static let metric     = space(26, "Bold")
+    static let bigMetric  = space(40, "Bold")
+    static let bodyMedium = hanken(15, "Medium")
+    static let label      = hanken(12, "SemiBold")
 }

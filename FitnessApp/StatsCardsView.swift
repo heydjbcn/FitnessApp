@@ -100,15 +100,15 @@ struct StatCard: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.caption)
+                        .font(AppFonts.label)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                    
+
                     Text(value)
-                        .font(.title2.bold())
+                        .font(AppFonts.metric)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
+
                     Text(subtitle)
-                        .font(.caption2)
+                        .font(AppFonts.caption)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

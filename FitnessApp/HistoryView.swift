@@ -69,7 +69,7 @@ struct HistoryView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             if routineDay.rawValue.lowercased() != selectedDayName.lowercased() {
                                 Text("Realizaste la rutina del \(routineDay.rawValue)")
-                                    .font(.headline).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)).padding(.horizontal)
+                                    .font(AppFonts.subtitle).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)).padding(.horizontal)
                             }
                             ForEach(workoutRecords) { workoutRecord in
                                 if let exercise = viewModel.getExercise(by: workoutRecord.exerciseId) {
@@ -95,7 +95,7 @@ struct HistoryView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 22, height: 22)
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(exercise.name.capitalized)
@@ -121,7 +121,7 @@ struct HistoryView: View {
                 Image(systemName: "scalemass")
                     .foregroundColor(AppColors.primary(themeManager: themeManager))
                 Text("Peso corporal (kg):")
-                    .font(.subheadline)
+                    .font(AppFonts.label)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 Spacer()
             }
@@ -136,29 +136,32 @@ struct HistoryView: View {
                         .focused($isWeightFocused)
                         .addFocusGlow(isFocused: isWeightFocused)
                     
-                    Button("Guardar") { 
+                    Button("Guardar") {
                         if let w = Double(bodyWeight), let selectedDate = selectedDate {
-                            viewModel.updateBodyWeight(for: selectedDate, weight: w) 
+                            viewModel.updateBodyWeight(for: selectedDate, weight: w)
                         }
                         isWeightFocused = false
-                        isEditingWeight = false 
+                        isEditingWeight = false
                     }
+                    .font(AppFonts.subtitle)
                     .buttonStyle(.borderedProminent)
+                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                     .tint(AppColors.primary(themeManager: themeManager))
                 }
             } else {
                 // Peso y botón editar en la misma línea
                 HStack {
                     Text(bodyWeight.isEmpty ? "No registrado" : "\(bodyWeight) kg")
-                        .font(.headline)
+                        .font(AppFonts.metric)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
+
                     Spacer()
-                    
-                    Button("Editar") { 
+
+                    Button("Editar") {
                         isEditingWeight = true
-                        isWeightFocused = true 
+                        isWeightFocused = true
                     }
+                    .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.primary(themeManager: themeManager))
                 }
             }
@@ -167,7 +170,7 @@ struct HistoryView: View {
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(12) 
     }
-    private var noDataView: some View { VStack { Spacer(); Text("Sin datos para esta fecha.").foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)); Spacer() }.frame(height: 200) }
+    private var noDataView: some View { VStack { Spacer(); Text("Sin datos para esta fecha.").font(AppFonts.body).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)); Spacer() }.frame(height: 200) }
     private func loadWeight() { 
         guard let selectedDate = selectedDate else { return }
         if let w = viewModel.bodyWeightForDate(selectedDate) { 

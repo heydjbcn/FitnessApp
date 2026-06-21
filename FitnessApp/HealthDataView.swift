@@ -69,7 +69,7 @@ struct HealthDataView: View {
             VStack(spacing: 12) {
                 Image(systemName: "heart.circle")
                     .font(.system(size: 30))
-                    .foregroundColor(.blue)
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                 
                 Text("Datos de demostración")
                     .font(AppFonts.subtitle)
@@ -423,12 +423,11 @@ struct ActivityMetricCard: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(AppFonts.metric)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
+
                 Text(subtitle)
-                    .font(.caption)
+                    .font(AppFonts.caption)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -455,27 +454,27 @@ struct WorkoutCard: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(workout.activityName)
-                    .font(.headline)
+                    .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
+
                 Text(formatWorkoutDate(workout.startDate))
-                    .font(.caption)
+                    .font(AppFonts.caption)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                
+
                 HStack(spacing: 16) {
                     Label(workout.formattedDuration, systemImage: "clock")
-                        .font(.caption)
+                        .font(AppFonts.caption)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                    
+
                     if let distance = workout.formattedDistance {
                         Label(distance, systemImage: "location")
-                            .font(.caption)
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
-                    
+
                     if let calories = workout.formattedCalories {
                         Label(calories, systemImage: "flame")
-                            .font(.caption)
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     }
                 }

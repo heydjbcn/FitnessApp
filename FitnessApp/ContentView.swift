@@ -53,16 +53,16 @@ struct ContentView: View {
                                     }) {
                                         HStack {
                                             Image(systemName: "play.circle.fill")
-                                                .foregroundColor(.white)
+                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                                 .font(.system(size: 20))
                                             Text("Empecemos con tu rutina")
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(.white)
+                                                .font(AppFonts.subtitle)
+                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                         }
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 16)
                                         .background(AppColors.primary(themeManager: themeManager))
-                                        .cornerRadius(12)
+                                        .cornerRadius(14)
                                         .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
                                     }
                                     .padding(.horizontal)

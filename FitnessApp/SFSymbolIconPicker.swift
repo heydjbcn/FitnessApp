@@ -86,7 +86,7 @@ struct ColorSelectorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Color del Icono")
-                .font(.headline)
+                .font(AppFonts.subtitle)
                 .foregroundColor(.white)
             
             ScrollView(.horizontal, showsIndicators: false) {
@@ -140,7 +140,7 @@ struct IconGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Iconos de Fitness")
-                .font(.headline)
+                .font(AppFonts.subtitle)
                 .foregroundColor(.white)
             
             LazyVGrid(columns: columns, spacing: 16) {
@@ -165,7 +165,7 @@ struct IconGridView: View {
                                 )
                             
                             Text(icon)
-                                .font(.caption2)
+                                .font(AppFonts.label)
                                 .foregroundColor(.gray)
                                 .lineLimit(1)
                                 .truncationMode(.tail)

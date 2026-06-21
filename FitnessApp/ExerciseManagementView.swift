@@ -42,14 +42,14 @@ struct ExerciseManagementView: View {
                     VStack(spacing: 20) {
                         Image(systemName: "dumbbell.fill")
                             .font(.system(size: 60))
-                            .foregroundColor(.green.opacity(0.6))
-                        
+                            .foregroundColor(AppColors.primary(themeManager: themeManager).opacity(0.6))
+
                         Text("No hay ejercicios añadidos")
-                            .font(.system(size: 18, weight: .medium))
+                            .font(AppFonts.bodyMedium)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        
+
                         Text("Añade ejercicios para empezar a entrenar")
-                            .font(.system(size: 14))
+                            .font(AppFonts.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             .multilineTextAlignment(.center)
                     }
@@ -108,11 +108,11 @@ struct ExerciseManagementView: View {
                 viewModel.resetAllData()
             }) {
                 Text("Resetear Todos los Datos")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .font(AppFonts.subtitle)
+                    .foregroundColor(.white) // sobre danger (rojo): blanco correcto
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.red)
+                    .background(AppColors.danger)
                     .cornerRadius(12)
             }
         }
@@ -130,14 +130,14 @@ struct ExerciseManagementView: View {
                 HStack {
                     Spacer()
                     Text("Ejercicios")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(AppFonts.title2)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     Spacer()
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
-                
+
                 // Navegación entre pestañas
                 HStack(spacing: 0) {
                     // Pestaña Ejercicios (activa)
@@ -147,15 +147,15 @@ struct ExerciseManagementView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "dumbbell.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                             Text("Ejercicios")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.green)
+                                .font(AppFonts.body)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                     }
-                    
+
                     // Pestaña Añadir Ejercicio (inactiva)
                     Button(action: {
                         selectedTab = 1
@@ -165,7 +165,7 @@ struct ExerciseManagementView: View {
                                 .font(.system(size: 20))
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             Text("Añadir")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(AppFonts.body)
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         }
                         .frame(maxWidth: .infinity)
@@ -175,7 +175,7 @@ struct ExerciseManagementView: View {
                 .background(AppColors.background(isDark: themeManager.isDarkMode))
             }
             .background(AppColors.background(isDark: themeManager.isDarkMode))
-            
+
             // CONTENIDO
             exercisesListView
         }
@@ -191,14 +191,14 @@ struct ExerciseManagementView: View {
                 HStack {
                     Spacer()
                     Text("Añadir Ejercicio")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(AppFonts.title2)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     Spacer()
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
-                
+
                 // Navegación entre pestañas
                 HStack(spacing: 0) {
                     // Pestaña Ejercicios (inactiva)
@@ -210,13 +210,13 @@ struct ExerciseManagementView: View {
                                 .font(.system(size: 20))
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             Text("Ejercicios")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(AppFonts.body)
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                     }
-                    
+
                     // Pestaña Añadir Ejercicio (activa)
                     Button(action: {
                         selectedTab = 1
@@ -224,10 +224,10 @@ struct ExerciseManagementView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                             Text("Añadir")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.green)
+                                .font(AppFonts.body)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
@@ -256,12 +256,12 @@ struct EditableExerciseCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(exercise.name)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppFonts.subtitle)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
+
                     if !exercise.info.isEmpty {
                         Text(exercise.info)
-                            .font(.system(size: 14))
+                            .font(AppFonts.body)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                             .lineLimit(2)
                     }
@@ -274,7 +274,7 @@ struct EditableExerciseCard: View {
                 }) {
                     Image(systemName: "pencil.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .background(Color.white)
                         .clipShape(Circle())
                 }
@@ -283,25 +283,25 @@ struct EditableExerciseCard: View {
             // Mostrar configuración del ejercicio
             VStack(alignment: .leading, spacing: 4) {
                 Text("Configuración:")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(AppFonts.bodyMedium)
                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                
+
                 HStack {
                     if exercise.repetitions > 0 {
                         Text("\(exercise.repetitions) reps")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     }
-                    
+
                     if exercise.weight > 0 {
                         Text("- \(exercise.weight, specifier: "%.1f") kg")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     }
-                    
+
                     if exercise.totalSets > 0 {
                         Text("- \(exercise.totalSets) series")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     }
                     
@@ -312,17 +312,17 @@ struct EditableExerciseCard: View {
                 if !getDaysForExercise(exercise.id).isEmpty {
                     HStack {
                         Text("Días:")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        
+
                         HStack(spacing: 4) {
                             ForEach(getDaysForExercise(exercise.id), id: \.self) { day in
                                 Text(dayShortName(day))
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .font(AppFonts.label)
+                                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Color.green)
+                                    .background(AppColors.primary(themeManager: themeManager))
                                     .cornerRadius(4)
                             }
                         }
@@ -398,10 +398,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "dumbbell.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Nombre del Ejercicio")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -413,10 +413,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "info.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Información")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -436,7 +436,7 @@ struct ExerciseEditView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.green, lineWidth: 2)
+                                            .stroke(AppColors.primary(themeManager: themeManager), lineWidth: 2)
                                     )
                             }
                             
@@ -447,14 +447,14 @@ struct ExerciseEditView: View {
                             ) {
                                 HStack {
                                     Image(systemName: "camera.fill")
-                                        .foregroundColor(.green)
+                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     Text(selectedImageData != nil || exercise.imageData != nil ? "Cambiar Foto" : "Añadir Foto")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(AppFonts.bodyMedium)
                                 }
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(Color.green.opacity(0.1))
+                                .background(AppColors.primary(themeManager: themeManager).opacity(0.1))
                                 .cornerRadius(8)
                             }
                         }
@@ -464,10 +464,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "repeat.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Repeticiones")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -480,10 +480,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "scalemass")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Peso (kg)")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -496,10 +496,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "list.number.rtl")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Total de Sets")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -512,10 +512,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "timer")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Segundos")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -528,10 +528,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "gauge")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("RIR (Reps en Reserva)")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -544,10 +544,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "timer.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Timer de Descanso")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                             .frame(height: 44)
@@ -558,7 +558,7 @@ struct ExerciseEditView: View {
                             // Minutos
                             VStack {
                                 Text("Minutos")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(AppFonts.caption)
                                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 
                                 Picker("Minutos", selection: $timerMinutes) {
@@ -574,7 +574,7 @@ struct ExerciseEditView: View {
                             // Segundos
                             VStack {
                                 Text("Segundos")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(AppFonts.caption)
                                     .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                 
                                 Picker("Segundos", selection: $timerSeconds) {
@@ -594,10 +594,10 @@ struct ExerciseEditView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "calendar.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 .font(.system(size: 18))
                             Text("Días de la Semana")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppFonts.subtitle)
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         }
                         
@@ -612,11 +612,11 @@ struct ExerciseEditView: View {
                                     }
                                 }) {
                                     Text(dayShortName(day))
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(selectedDays.contains(day) ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                        .font(AppFonts.caption)
+                                        .foregroundColor(selectedDays.contains(day) ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textPrimary(isDark: themeManager.isDarkMode))
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 8)
-                                        .background(selectedDays.contains(day) ? Color.green : AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                                        .background(selectedDays.contains(day) ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: themeManager.isDarkMode))
                                         .cornerRadius(8)
                                 }
                             }
@@ -626,8 +626,8 @@ struct ExerciseEditView: View {
                     // Botón de eliminar ejercicio
                     Button(action: deleteExercise) {
                         Text("Eliminar Ejercicio")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(.white) // sobre Color.red (peligro): blanco correcto
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(Color.red)
@@ -815,10 +815,10 @@ struct AddExerciseForm: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "calendar.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     Text("Días de la Semana *")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppFonts.subtitle)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
@@ -833,7 +833,7 @@ struct AddExerciseForm: View {
                             }
                         }) {
                             Text(dayShortName(day))
-                                .font(.system(size: 12, weight: .medium))
+                                .font(AppFonts.caption)
                                 .foregroundColor(selectedDays.contains(day) ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
@@ -848,10 +848,10 @@ struct AddExerciseForm: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "dumbbell.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     Text("Nombre del Ejercicio *")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppFonts.subtitle)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
@@ -866,10 +866,10 @@ struct AddExerciseForm: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "info.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     Text("Información")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppFonts.subtitle)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
@@ -885,10 +885,10 @@ struct AddExerciseForm: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "photo.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     Text("Icono y Foto")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppFonts.subtitle)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
@@ -903,7 +903,7 @@ struct AddExerciseForm: View {
                                 Image(systemName: "square.grid.3x3.fill")
                                     .foregroundColor(.orange)
                                 Text("Seleccionar Icono")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(AppFonts.bodyMedium)
                                     .foregroundColor(.orange)
                             }
                             .padding(.horizontal, 16)
@@ -918,11 +918,11 @@ struct AddExerciseForm: View {
                         }) {
                             HStack {
                                 Image(systemName: "camera.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
                                 Text(photoData != nil ? "Cambiar Foto" : "Añadir Foto")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(AppFonts.bodyMedium)
                             }
-                            .foregroundColor(.green)
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(Color.green.opacity(0.1))
@@ -937,7 +937,7 @@ struct AddExerciseForm: View {
                                 .font(.system(size: 40))
                                 .foregroundColor(colorFromString(iconColor))
                             Text("Icono seleccionado")
-                                .font(.caption)
+                                .font(AppFonts.caption)
                                 .foregroundColor(.gray)
                         }
                         .padding()
@@ -962,10 +962,10 @@ struct AddExerciseForm: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "timer.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     Text("Timer de Descanso")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppFonts.subtitle)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
@@ -973,7 +973,7 @@ struct AddExerciseForm: View {
                     // Minutos
                     VStack {
                         Text("Minutos")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         
                         Picker("Minutos", selection: $timerMinutes) {
@@ -989,7 +989,7 @@ struct AddExerciseForm: View {
                     // Segundos
                     VStack {
                         Text("Segundos")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(AppFonts.caption)
                             .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         
                         Picker("Segundos", selection: $timerSeconds) {
@@ -1010,7 +1010,7 @@ struct AddExerciseForm: View {
             VStack(spacing: 4) {
                 HStack {
                     Text("Campos Opcionales")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppFonts.bodyMedium)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     
                     Rectangle()
@@ -1030,17 +1030,17 @@ struct AddExerciseForm: View {
                         }
                     }) {
                         Image(systemName: includeRepetitions ? "checkmark.square.fill" : "square")
-                            .foregroundColor(includeRepetitions ? .green : .gray)
+                            .foregroundColor(includeRepetitions ? AppColors.primary(themeManager: themeManager) : .gray)
                             .font(.system(size: 18))
                     }
                     
                     Image(systemName: "repeat.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     
                     HStack(spacing: 4) {
                         Text("Repeticiones")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppFonts.subtitle)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             .opacity(includeRepetitions ? 1.0 : 0.6)
                         
@@ -1081,17 +1081,17 @@ struct AddExerciseForm: View {
                         }
                     }) {
                         Image(systemName: includeSegundos ? "checkmark.square.fill" : "square")
-                            .foregroundColor(includeSegundos ? .green : .gray)
+                            .foregroundColor(includeSegundos ? AppColors.primary(themeManager: themeManager) : .gray)
                             .font(.system(size: 18))
                     }
                     
                     Image(systemName: "stopwatch.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     
                     HStack(spacing: 4) {
                         Text("Segundos")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppFonts.subtitle)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             .opacity(includeSegundos ? 1.0 : 0.6)
                         
@@ -1126,17 +1126,17 @@ struct AddExerciseForm: View {
                         }
                     }) {
                         Image(systemName: includeWeight ? "checkmark.square.fill" : "square")
-                            .foregroundColor(includeWeight ? .green : .gray)
+                            .foregroundColor(includeWeight ? AppColors.primary(themeManager: themeManager) : .gray)
                             .font(.system(size: 18))
                     }
                     
                     Image(systemName: "scalemass")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     
                     HStack(spacing: 4) {
                         Text("Peso (kg)")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppFonts.subtitle)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             .opacity(includeWeight ? 1.0 : 0.6)
                         
@@ -1171,17 +1171,17 @@ struct AddExerciseForm: View {
                         }
                     }) {
                         Image(systemName: includeTotalSets ? "checkmark.square.fill" : "square")
-                            .foregroundColor(includeTotalSets ? .green : .gray)
+                            .foregroundColor(includeTotalSets ? AppColors.primary(themeManager: themeManager) : .gray)
                             .font(.system(size: 18))
                     }
                     
                     Image(systemName: "list.number.rtl")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     
                     HStack(spacing: 4) {
                         Text("Total de Series")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppFonts.subtitle)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             .opacity(includeTotalSets ? 1.0 : 0.6)
                         
@@ -1216,17 +1216,17 @@ struct AddExerciseForm: View {
                         }
                     }) {
                         Image(systemName: includeRIR ? "checkmark.square.fill" : "square")
-                            .foregroundColor(includeRIR ? .green : .gray)
+                            .foregroundColor(includeRIR ? AppColors.primary(themeManager: themeManager) : .gray)
                             .font(.system(size: 18))
                     }
                     
                     Image(systemName: "gauge.badge.plus")
-                        .foregroundColor(.green)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
                         .font(.system(size: 18))
                     
                     HStack(spacing: 4) {
                         Text("RIR (Reps in Reserve)")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppFonts.subtitle)
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             .opacity(includeRIR ? 1.0 : 0.6)
                         
@@ -1299,21 +1299,21 @@ struct AddExerciseForm: View {
             }) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.white)
+                        .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                         .font(.system(size: 18))
                     Text("Añadir Ejercicio")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(AppFonts.subtitle)
+                        .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(
-                    (name.isEmpty || selectedDays.isEmpty) ? 
-                    Color.gray.opacity(0.6) : Color.green
+                    (name.isEmpty || selectedDays.isEmpty) ?
+                    Color.gray.opacity(0.6) : AppColors.primary(themeManager: themeManager)
                 )
                 .cornerRadius(12)
-                .shadow(color: (name.isEmpty || selectedDays.isEmpty) ? 
-                       Color.clear : Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
+                .shadow(color: (name.isEmpty || selectedDays.isEmpty) ?
+                       Color.clear : AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
             }
             .disabled(name.isEmpty || selectedDays.isEmpty)
             .alert(alertMessage, isPresented: $showingAlert) {

@@ -32,7 +32,7 @@ struct FocusModeModifier: ViewModifier {
                                 }) {
                                     Image(systemName: "eye.fill")
                                         .font(.title2)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
                                         .padding()
                                         .background(AppColors.primary(themeManager: themeManager))
                                         .clipShape(Circle())

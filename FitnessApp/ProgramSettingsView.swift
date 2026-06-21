@@ -45,51 +45,47 @@ struct ProgramSettingsView: View {
                         
                         // Selector de Color de Acento
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Color de Acento")
-                                .font(AppFonts.subtitle)
-                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             
-                            HStack {
-                                Image(systemName: "paintbrush.fill")
+                            // Título con icono
+                            HStack(spacing: 8) {
+                                Image(systemName: "paintpalette.fill")
                                     .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     .font(.title2)
                                 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Color Personalizado")
-                                        .font(AppFonts.body)
-                                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                    
-                                    Text("Selecciona el color principal de la app")
-                                        .font(AppFonts.caption)
-                                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                }
-                                
-                                Spacer()
-                                
-                                // Paleta de colores
-                                HStack(spacing: 8) {
-                                    ForEach(AccentColor.allCases) { color in
-                                        Button(action: {
-                                            HapticManager.shared.buttonTapped()
-                                            themeManager.setAccentColor(color)
-                                        }) {
-                                            Circle()
-                                                .fill(color.color)
-                                                .frame(width: 24, height: 24)
-                                                .overlay(
-                                                    Circle()
-                                                        .stroke(Color.white, lineWidth: themeManager.selectedAccentColor == color ? 3 : 0)
-                                                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                                                )
-                                                .scaleEffect(themeManager.selectedAccentColor == color ? 1.2 : 1.0)
-                                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
-                                        }
+                                Text("Color Personalizado")
+                                    .font(AppFonts.subtitle)
+                                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            }
+                            
+                            // Descripción
+                            Text("Selecciona el color principal de la app")
+                                .font(AppFonts.caption)
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                .padding(.bottom, 8)
+                            
+                            // Paleta de colores (las bolitas) - Una sola fila horizontal
+                            HStack(spacing: 0) {
+                                ForEach(AccentColor.allCases) { color in
+                                    Button(action: {
+                                        HapticManager.shared.buttonTapped()
+                                        themeManager.setAccentColor(color)
+                                    }) {
+                                        Circle()
+                                            .fill(color.color)
+                                            .frame(width: 32, height: 32)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(themeManager.selectedAccentColor == color ? AppColors.textPrimary(isDark: themeManager.isDarkMode) : Color.clear, lineWidth: 2)
+                                            )
+                                            .scaleEffect(themeManager.selectedAccentColor == color ? 1.1 : 1.0)
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: themeManager.selectedAccentColor)
                                     }
+                                    .frame(maxWidth: .infinity)
                                 }
                             }
-                            .padding()
-                            .cardStyle(isDarkMode: themeManager.isDarkMode)
                         }
+                        .padding()
+                        .cardStyle(isDarkMode: themeManager.isDarkMode)
                         
                         // Timer de descanso
                         VStack(alignment: .leading, spacing: 12) {

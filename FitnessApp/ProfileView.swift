@@ -128,7 +128,7 @@ struct ProfileView: View {
                                         Image(systemName: "pencil")
                                         Text("Editar perfil")
                                     }
-                                    .font(AppFonts.caption)
+                                    .font(AppFonts.subtitle)
                                     .foregroundColor(AppColors.primary(themeManager: themeManager))
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
@@ -245,12 +245,12 @@ struct ProfileInfoCard: View {
                 .frame(height: 32)
             
             Text(title)
-                .font(.system(size: 12, weight: .medium))
+                .font(AppFonts.label)
                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 .lineLimit(1)
-            
+
             Text(value)
-                .font(.system(size: 14, weight: .bold))
+                .font(AppFonts.bodyMedium)
                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -277,18 +277,18 @@ struct ProfileProgressCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppFonts.bodyMedium)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    
+
                     Text(subtitle)
-                        .font(.system(size: 12))
+                        .font(AppFonts.caption)
                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                 }
-                
+
                 Spacer()
-                
+
                 Text(value)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(AppFonts.metric)
                     .foregroundColor(AppColors.primary(themeManager: themeManager))
             }
             

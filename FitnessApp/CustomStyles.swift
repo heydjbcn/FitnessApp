@@ -16,26 +16,33 @@ struct ModernTextFieldStyle: TextFieldStyle {
 
 struct CardStyle: ViewModifier {
     let isDarkMode: Bool
-    
+
     func body(content: Content) -> some View {
         content
-            .background(AppColors.cardBackground(isDark: isDarkMode))
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(isDarkMode ? 0.3 : 0.06), radius: 10, x: 0, y: 4)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(AppColors.cardBackground(isDark: isDarkMode))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(AppColors.hairline(isDark: isDarkMode), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(isDarkMode ? 0.25 : 0.05), radius: 12, x: 0, y: 6)
     }
 }
 
 struct PrimaryButtonStyle: ButtonStyle {
     let themeManager: ThemeManager
-    
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .font(AppFonts.subtitle)
+            .frame(maxWidth: .infinity, minHeight: 50)
             .background(AppColors.primary(themeManager: themeManager))
-            .foregroundColor(.white)
+            .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
             .cornerRadius(16)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.2), radius: 6, x: 0, y: 2)
+            .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.25), radius: 10, x: 0, y: 4)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
@@ -48,7 +55,7 @@ struct RestDurationButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.caption.weight(.semibold))
-            .foregroundColor(isSelected ? Color.white : AppColors.textPrimary(isDark: isDarkMode))
+            .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textPrimary(isDark: isDarkMode))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(

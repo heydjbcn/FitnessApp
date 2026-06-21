@@ -26,7 +26,7 @@ struct DailyProgressCard: View {
                     
                     Circle()
                         .trim(from: 0, to: CGFloat(dailyProgress))
-                        .stroke(AppColors.primary, lineWidth: 4)
+                        .stroke(AppColors.primary(themeManager: themeManager), lineWidth: 4)
                         .frame(width: 40, height: 40)
                         .rotationEffect(.degrees(-90))
                     
@@ -41,7 +41,7 @@ struct DailyProgressCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(AppColors.primary)
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                             .font(.caption)
                         Text("Series")
                             .font(AppFonts.caption)
@@ -56,7 +56,7 @@ struct DailyProgressCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "timer")
-                            .foregroundColor(AppColors.primary)
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
                             .font(.caption)
                         Text("Tiempo")
                             .font(AppFonts.caption)
@@ -72,8 +72,7 @@ struct DailyProgressCard: View {
             }
         }
         .padding(12)
-        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        .cornerRadius(12)
+        .cardStyle(isDarkMode: themeManager.isDarkMode)
     }
 }
 

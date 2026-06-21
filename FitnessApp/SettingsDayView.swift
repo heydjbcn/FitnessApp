@@ -107,8 +107,8 @@ struct SettingsDayView: View {
                     ForEach(WorkoutDay.allCases) { day in
                         Button(action: { toggleDaySelection(day) }) {
                             Text(day.rawValue.prefix(3).uppercased())
-                                .font(.caption.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 12)
-                                .foregroundColor(selectedDays.contains(day) ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                .font(AppFonts.label).frame(maxWidth: .infinity).padding(.vertical, 12)
+                                .foregroundColor(selectedDays.contains(day) ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textPrimary(isDark: themeManager.isDarkMode))
                                 .background(selectedDays.contains(day) ? AppColors.primary : AppColors.cardBackground(isDark: themeManager.isDarkMode))
                                 .cornerRadius(10).shadow(color: selectedDays.contains(day) ? AppColors.primary.opacity(0.6) : .clear, radius: 6, x: 0, y: 3)
                         }
@@ -118,7 +118,7 @@ struct SettingsDayView: View {
 
             Button(action: addExerciseToSelectedDays) {
                 Label("Añadir Ejercicio", systemImage: "plus.circle.fill")
-                    .font(.title2.weight(.semibold)).foregroundColor(.black).frame(maxWidth: .infinity)
+                    .font(AppFonts.subtitle).foregroundColor(AppColors.onPrimary(themeManager: themeManager)).frame(maxWidth: .infinity)
             }
             .buttonStyle(PrimaryButtonStyle(themeManager: themeManager)).padding(.top, 10).disabled(!isFormValid)
             .opacity(isFormValid ? 1.0 : 0.6).animation(.easeInOut, value: isFormValid)
