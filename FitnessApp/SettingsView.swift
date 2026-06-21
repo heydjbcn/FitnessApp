@@ -1,77 +1,50 @@
 import SwiftUI
 
-// --- COMPONENTE REUTILIZABLE PARA CADA FILA DE AJUSTES ---
-struct SettingsRowView<TrailingContent: View>: View {
-    let icon: String
-    let iconBackgroundColor: Color
-    let title: String
-    let subtitle: String
-    @ViewBuilder let trailingContent: TrailingContent
-    
-    @EnvironmentObject var themeManager: ThemeManager
-
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(iconBackgroundColor.opacity(0.1))
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(iconBackgroundColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(AppFonts.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(1)
-            
-            trailingContent
-        }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 20)
-        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        .cornerRadius(16)
-    }
-}
-
-// --- VISTA PRINCIPAL DE CONFIGURACIÓN ---
+// --- TU VISTA SETTINGSVIEW COMPLETA ---
 struct SettingsView: View {
+    let mainSelectedTab: Binding<Int>?
+    
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
-    
     @StateObject private var focusManager = FocusModeManager()
-    @StateObject private var spotifyManager = SpotifyManager()
+    
+    // CORREGIDO: Variable de estado para Spotify
+    @ObservedObject private var spotifyManager = SpotifyManager.shared
+    
+    @Environment(\.dismiss) private var dismiss
     
     @State private var showingNotifications = false
     @State private var showingProfileEdit = false
     
-    @Environment(\.dismiss) private var dismiss
-    
-    // Binding opcional para controlar el tab principal
-    var mainSelectedTab: Binding<Int>? = nil
-    
+    init(mainSelectedTab: Binding<Int>? = nil) {
+        self.mainSelectedTab = mainSelectedTab
+    }
+
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // --- HEADER ---
-                    SettingsHeaderView()
-                        .environmentObject(themeManager)
-                        .environmentObject(userManager)
+        ZStack {
+            AppColors.background(isDark: themeManager.isDarkMode)
+                .ignoresSafeArea()
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 16) {
                     
-                    // --- TARJETA DE TEMA ---
+                    // --- TARJETA DE PERFIL ---
+                    Button(action: { showingProfileEdit = true }) {
+                        SettingsRowView(
+                            icon: "person.fill",
+                            iconBackgroundColor: AppColors.primary(themeManager: themeManager),
+                            title: "Gestiona tu información personal",
+                            subtitle: "Nombre, edad, peso, altura"
+                        ) {
+                            Image(systemName: "chevron.right")
+                                .font(.caption.bold())
+                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    // --- TARJETA DE MODO OSCURO ---
                     SettingsRowView(
                         icon: themeManager.isDarkMode ? "moon.fill" : "sun.max.fill",
                         iconBackgroundColor: themeManager.isDarkMode ? .purple : .orange,
@@ -236,6 +209,40 @@ struct SettingsView: View {
                     .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
                     .cornerRadius(16)
                     
+                    // --- TARJETA DE RUTINA POR DEFECTO ---
+                    VStack(spacing: 12) {
+                        Text("Rutina de Entrenamiento")
+                            .font(.headline)
+                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Text("Carga una rutina de 3 días por semana (Lunes, Miércoles, Viernes) con ejercicios profesionales")
+                            .font(.caption)
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.bottom, 8)
+                        
+                        Button(action: {
+                            HapticManager.shared.buttonTapped()
+                            viewModel.resetToDefaultRoutine()
+                        }) {
+                            HStack {
+                                Image(systemName: "calendar.badge.plus")
+                                    .foregroundColor(.white)
+                                Text("Cargar Rutina por Defecto")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(AppColors.accentRed)
+                            .cornerRadius(12)
+                        }
+                    }
+                    .padding(20)
+                    .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+                    .cornerRadius(16)
+                    
                     // --- TARJETA DE NOTIFICACIONES ---
                     Button(action: { showingNotifications = true }) {
                         SettingsRowView(
@@ -246,38 +253,6 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "chevron.right")
                                 .font(.caption.bold())
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    
-                    // --- TARJETA DE CONFIGURACIÓN DE PROGRAMA ---
-                    NavigationLink(destination: ProgramSettingsView().environmentObject(viewModel).environmentObject(themeManager)) {
-                        SettingsRowView(
-                            icon: "calendar",
-                            iconBackgroundColor: .purple,
-                            title: "Configuración del programa",
-                            subtitle: "Días activos y rutina de entrenamiento"
-                        ) {
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    
-                    // --- TARJETA DE DATOS DE SALUD ---
-                    NavigationLink(destination: HealthDataView().environmentObject(viewModel).environmentObject(themeManager)) {
-                        SettingsRowView(
-                            icon: "heart.fill",
-                            iconBackgroundColor: .red,
-                            title: "Datos de salud",
-                            subtitle: "Integración con Apple Health"
-                        ) {
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .fontWeight(.semibold)
                                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                         }
                     }
@@ -314,28 +289,9 @@ struct SettingsView: View {
                     .padding(20)
                     .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
                     .cornerRadius(16)
-                    
-                    // --- BOTÓN DE RESETEAR DATOS ---
-                    Button(action: {
-                        print("🚨 ¡RESETEAR DATOS!")
-                        HapticManager.shared.warning()
-                        viewModel.resetAllData()
-                    }) {
-                        SettingsRowView(
-                            icon: "trash.fill",
-                            iconBackgroundColor: .red,
-                            title: "Resetear todos los datos",
-                            subtitle: "⚠️ Esta acción no se puede deshacer"
-                        ) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.vertical, 20)
             }
         }
         .sheet(isPresented: $showingNotifications) {
@@ -347,5 +303,56 @@ struct SettingsView: View {
                 .environmentObject(userManager)
                 .environmentObject(themeManager)
         }
+    }
+}
+import SwiftUI
+
+// --- COMPONENTE REUTILIZABLE PARA CADA FILA DE AJUSTES ---
+struct SettingsRowView<TrailingContent: View>: View {
+    let icon: String
+    let iconBackgroundColor: Color
+    let title: String
+    let subtitle: String
+    @ViewBuilder let trailingContent: TrailingContent
+    
+    @EnvironmentObject var themeManager: ThemeManager
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(iconBackgroundColor.opacity(0.1))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(iconBackgroundColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(AppFonts.body)
+                    .fontWeight(.medium)
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    .lineLimit(nil) // Permitir múltiples líneas si es necesario
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(nil) // Permitir múltiples líneas si es necesario
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
+            
+            trailingContent
+                .frame(width: 50) // Ancho fijo para el toggle/chevron
+        }
+        .padding(.vertical, 12) // Esta es la altura base de cada fila
+        .padding(.horizontal, 20)
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(16)
     }
 }

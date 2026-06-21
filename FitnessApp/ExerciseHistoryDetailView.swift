@@ -238,7 +238,6 @@ struct ExerciseHistoryDetailView: View {
         iconColor: "blue",
         segundos: 0,
         rir: 0,
-        personalRecordWeight: nil
     ))
     .environmentObject(WorkoutViewModel())
     .environmentObject(ThemeManager())

@@ -1,6 +1,6 @@
 import SwiftUI
 import Combine
-// import SpotifyiOS // Comentado temporalmente - para compilar sin SDK
+// // import SpotifyiOS // COMENTADO TEMPORALMENTE // Comentado temporalmente - para compilar sin SDK
 
 @MainActor
 class SpotifyManager: NSObject, ObservableObject {

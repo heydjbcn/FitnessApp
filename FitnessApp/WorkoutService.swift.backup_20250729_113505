@@ -1,0 +1,309 @@
+//
+//  WorkoutService.swift - VERSIÓN SIMPLIFICADA
+//  FitnessApp
+//
+
+import Foundation
+import CoreData
+import Combine
+
+@MainActor
+class WorkoutService: ObservableObject {
+    static let shared = WorkoutService()
+    
+    @Published var currentSession: WorkoutSession?
+    @Published var isWorkoutActive = false
+    @Published var exercises: [Exercise] = []
+    
+    private let coreDataManager = CoreDataManager.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        loadExercises()
+    }
+    
+    // MARK: - Exercise Management
+    
+    func loadExercises() {
+        Task {
+            do {
+                // Usar el contexto principal para cargar ejercicios
+                let context = coreDataManager.container.viewContext
+                let request: NSFetchRequest<Exercise> = Exercise.fetchRequest()
+                let fetchedExercises = try context.fetch(request)
+                
+                await MainActor.run {
+                    self.exercises = fetchedExercises
+                }
+            } catch {
+                print("Error cargando ejercicios: \(error)")
+            }
+        }
+    }
+    
+    func addExercise(name: String, category: String, info: String, imageData: Data?, sfSymbolIcon: String?, iconColor: String) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let exercise = Exercise(context: context)
+                
+                exercise.id = UUID()
+                exercise.name = name
+                exercise.category = category
+                exercise.info = info
+                exercise.imageData = imageData
+                exercise.sfSymbolIcon = sfSymbolIcon
+                exercise.iconColor = iconColor
+                exercise.createdAt = Date()
+                exercise.lastModified = Date()
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    self.exercises.append(exercise)
+                }
+            } catch {
+                print("Error agregando ejercicio: \(error)")
+            }
+        }
+    }
+    
+    func updateExercise(_ exercise: Exercise, name: String, category: String, info: String, imageData: Data?, sfSymbolIcon: String?, iconColor: String) {
+        Task {
+            do {
+                exercise.name = name
+                exercise.category = category
+                exercise.info = info
+                exercise.imageData = imageData
+                exercise.sfSymbolIcon = sfSymbolIcon
+                exercise.iconColor = iconColor
+                exercise.lastModified = Date()
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    self.loadExercises()
+                }
+            } catch {
+                print("Error actualizando ejercicio: \(error)")
+            }
+        }
+    }
+    
+    func deleteExercise(_ exercise: Exercise) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                context.delete(exercise)
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    if let index = self.exercises.firstIndex(of: exercise) {
+                        self.exercises.remove(at: index)
+                    }
+                }
+            } catch {
+                print("Error eliminando ejercicio: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Workout Session Management
+    
+    func startWorkoutSession(workoutDay: WorkoutDay) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let session = WorkoutSession(context: context)
+                
+                session.id = UUID()
+                session.startDate = Date()
+                session.workoutDay = workoutDay.rawValue
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    self.currentSession = session
+                    self.isWorkoutActive = true
+                }
+            } catch {
+                print("Error iniciando sesión: \(error)")
+            }
+        }
+    }
+    
+    func endWorkoutSession() {
+        guard let session = currentSession else { return }
+        
+        Task {
+            do {
+                session.endDate = Date()
+                session.duration = session.endDate!.timeIntervalSince(session.startDate ?? Date())
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    self.currentSession = nil
+                    self.isWorkoutActive = false
+                }
+            } catch {
+                print("Error terminando sesión: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Completed Exercise Management
+    
+    func addCompletedExercise(exercise: Exercise, session: WorkoutSession, weight: Double, reps: Int, sets: Int) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let completedExercise = CompletedExercise(context: context)
+                
+                completedExercise.id = UUID()
+                completedExercise.exerciseId = exercise.id?.uuidString ?? ""
+                completedExercise.sessionId = session.id?.uuidString ?? ""
+                completedExercise.weight = weight
+                completedExercise.reps = Int32(reps)
+                completedExercise.sets = Int32(sets)
+                completedExercise.completedAt = Date()
+                
+                await coreDataManager.saveContext()
+            } catch {
+                print("Error agregando ejercicio completado: \(error)")
+            }
+        }
+    }
+    
+    func removeCompletedExercise(exercise: Exercise, session: WorkoutSession) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let request: NSFetchRequest<CompletedExercise> = CompletedExercise.fetchRequest()
+                request.predicate = NSPredicate(format: "exerciseId == %@ AND sessionId == %@", 
+                                              exercise.id?.uuidString ?? "", 
+                                              session.id?.uuidString ?? "")
+                
+                let completedExercises = try context.fetch(request)
+                
+                if let completedExercise = completedExercises.first {
+                    context.delete(completedExercise)
+                    await coreDataManager.saveContext()
+                }
+            } catch {
+                print("Error eliminando ejercicio completado: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - User Profile Management
+    
+    func updateUserProfile(name: String, height: Double?, weight: Double?, age: Int?, gender: String?) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let request: NSFetchRequest<UserProfile> = UserProfile.fetchRequest()
+                
+                let profiles = try context.fetch(request)
+                let profile = profiles.first ?? UserProfile(context: context)
+                
+                if profile.id == nil {
+                    profile.id = UUID()
+                }
+                
+                profile.name = name
+                profile.height = height ?? 0
+                profile.weight = weight ?? 0
+                profile.age = Int32(age ?? 0)
+                profile.gender = gender
+                profile.lastUpdated = Date()
+                
+                await coreDataManager.saveContext()
+            } catch {
+                print("Error actualizando perfil: \(error)")
+            }
+        }
+    }
+    
+    func deleteUserProfile() {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let request: NSFetchRequest<UserProfile> = UserProfile.fetchRequest()
+                
+                let profiles = try context.fetch(request)
+                for profile in profiles {
+                    context.delete(profile)
+                }
+                
+                await coreDataManager.saveContext()
+            } catch {
+                print("Error eliminando perfil: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Data Management
+    
+    func clearAllData() {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                
+                // Eliminar todos los datos
+                let entityNames = ["Exercise", "WorkoutSession", "CompletedExercise", "UserProfile"]
+                
+                for entityName in entityNames {
+                    let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+                    let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
+                    try context.execute(deleteRequest)
+                }
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    self.exercises.removeAll()
+                    self.currentSession = nil
+                    self.isWorkoutActive = false
+                }
+            } catch {
+                print("Error limpiando datos: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Export/Import
+    
+    func exportWorkoutData() async -> Data? {
+        do {
+            let context = coreDataManager.container.viewContext
+            let request: NSFetchRequest<WorkoutSession> = WorkoutSession.fetchRequest()
+            let sessions = try context.fetch(request)
+            
+            let exportData = sessions.compactMap { session -> [String: Any]? in
+                guard let startDate = session.startDate,
+                      let workoutDay = session.workoutDay else {
+                    return nil
+                }
+                
+                return [
+                    "id": session.id?.uuidString ?? "",
+                    "startDate": startDate,
+                    "endDate": session.endDate ?? startDate,
+                    "workoutDay": workoutDay,
+                    "duration": session.duration
+                ]
+            }
+            
+            return try JSONSerialization.data(withJSONObject: exportData, options: .prettyPrinted)
+        } catch {
+            print("Error exportando datos: \(error)")
+            return nil
+        }
+    }
+    
+    func refreshData() {
+        loadExercises()
+    }
+}

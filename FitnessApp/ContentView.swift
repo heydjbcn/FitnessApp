@@ -18,88 +18,47 @@ struct ContentView: View {
                 // DASHBOARD
                 NavigationStack {
                     ZStack {
-                        AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
-                        VStack(spacing: 0) {
-                            // Header personalizado FIJO
-                            HeaderView(mainSelectedTab: $selectedTab)
-                                .environmentObject(themeManager)
-                                .environmentObject(userManager)
-                                .environmentObject(viewModel)
-                                .padding(.top, 10)
-                                .padding(.bottom, 10)
-                            
-                            // Contenido principal
-                            ScrollView(showsIndicators: false) {
+                        AppColors.backgroundPrimary.ignoresSafeArea()
+                        
+                        ScrollView(showsIndicators: false) {
+                            VStack(spacing: 0) {
+                                // Header con saludo (solo visible al scroll hacia arriba)
+                                ModernHeaderView()
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 10)
+                                
+                                // Contenido principal del dashboard
                                 VStack(spacing: 24) {
-                                    // Progreso semanal
-                                    WeeklyProgressView()
-                                        .environmentObject(viewModel)
-                                        .environmentObject(themeManager)
+                                    // Progreso semanal moderno
+                                    ModernWeeklyProgressView()
                                     
-                                    // Frase motivacional
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Motivación Diaria")
-                                            .font(AppFonts.subtitle)
-                                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                        Text(userManager.getMotivationalQuote())
-                                            .font(AppFonts.body)
-                                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                            .italic()
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding()
-                                    .cardStyle(isDarkMode: themeManager.isDarkMode)
+                                    // Información de la rutina por defecto
+                                    DefaultRoutineInfoCard()
                                     
-                                    // Botón para ir al calendario del día actual
-                                    Button(action: {
-                                        HapticManager.shared.buttonTapped()
-                                        selectedTab = 1
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "play.circle.fill")
-                                                .foregroundColor(.white)
-                                                .font(.system(size: 20))
-                                            Text("Empecemos con tu rutina")
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(.white)
-                                        }
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(AppColors.primary(themeManager: themeManager))
-                                        .cornerRadius(12)
-                                        .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
-                                    }
-                                    .padding(.horizontal)
+                                    // Motivación diaria
+                                    ModernMotivationView()
                                     
-                                    // Estadísticas en tarjetas
-                                    StatsCardsView(
-                                        onNavigateToBestDay: { bestDay in
-                                            selectedTab = 1
-                                        },
-                                        onNavigateToExercises: {
-                                            selectedTab = 2
-                                        }
-                                    )
-                                    .environmentObject(viewModel)
-                                    .environmentObject(themeManager)
+                                    // Botón principal "Empecemos con tu rutina"
+                                    ModernStartWorkoutButton(selectedTab: $selectedTab)
                                     
-                                    // Personal Records Card
-                                    PersonalRecordsCardView(workoutViewModel: viewModel)
+                                    // Tarjetas de estadísticas (4 tarjetas)
+                                    ModernStatsGrid()
                                     
-                                    // Lista de ejercicios semanales
-                                    WeeklyExercisesList()
-                                        .environmentObject(viewModel)
-                                        .environmentObject(themeManager)
+                                    // Récords personales
+                                    ModernPersonalRecordsView()
+                                    
+                                    // Tarjeta semanal con días de entrenamiento
+                                    ModernWeeklyScheduleView()
                                 }
-                                .padding(.bottom, spotifyManager.isConnected ? 160 : 100) // Espacio dinámico
+                                .padding(.horizontal, 20)
+                                .padding(.top, 20)
+                                .padding(.bottom, spotifyManager.isConnected ? 160 : 100)
                             }
-                            .padding(.horizontal)
                         }
                     }
                     .sheet(isPresented: $userManager.showingNameInput) {
                         NameInputView()
                             .environmentObject(userManager)
-                            .environmentObject(themeManager)
                             .interactiveDismissDisabled()
                     }
                 }
@@ -116,8 +75,8 @@ struct ContentView: View {
                         selectedTab = 2
                     }
                 )
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
+                    
+                    
                     .environmentObject(userManager)
                     .tabItem {
                         Image(systemName: "calendar")
@@ -126,9 +85,9 @@ struct ContentView: View {
                     .tag(1)
 
                 // EJERCICIOS
-                ExerciseManagementView(shouldShowAddExerciseTab: shouldShowAddExerciseTab)
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
+                ExerciseManagementView()
+                    
+                    
                     .tabItem {
                         Image(systemName: "dumbbell.fill")
                         Text("Ejercicios")
@@ -142,26 +101,28 @@ struct ContentView: View {
 
                 // HISTORIAL
                 HistoryView()
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
+                    
+                    
                     .tabItem {
                         Image(systemName: "clock.fill")
                         Text("Historial")
                     }
                     .tag(3)
 
-                // CONFIGURACIÓN - VERSIÓN SIMPLIFICADA PARA DIAGNÓSTICO
-                SettingsViewSimple(mainSelectedTab: $selectedTab)
-                    .environmentObject(themeManager)
+                // CONFIGURACIÓN
+                SettingsView()
+                    
                     .environmentObject(userManager)
-                    .environmentObject(viewModel)
+                    
+                    .environmentObject(focusModeManager)
                     .tabItem {
                         Image(systemName: "gearshape.fill")
                         Text("Configuración")
                     }
                     .tag(4)
+
             }
-            .accentColor(AppColors.primary(themeManager: themeManager))
+            .accentColor(AppColors.accentRed)
             .onAppear {
                 // Configurar TabBar appearance una sola vez
                 DispatchQueue.main.async {
@@ -178,10 +139,6 @@ struct ContentView: View {
                     shouldShowAddExerciseTab = false
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                // Comentar esta línea para no resetear a dashboard
-                // selectedTab = 0
-            }
             .onChange(of: selectedTab) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: "selectedTab") // Guardar pestaña seleccionada
             }
@@ -189,7 +146,7 @@ struct ContentView: View {
             // REPRODUCTOR DE SPOTIFY - POSICIONAMIENTO MEJORADO
             if spotifyManager.isConnected {
                 SpotifyPlayerView()
-                    .environmentObject(themeManager)
+                    
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(1000) // Asegurar que esté encima
                     .animation(.spring(response: 0.5, dampingFraction: 0.8), value: spotifyManager.isConnected)
@@ -197,7 +154,7 @@ struct ContentView: View {
             
             // Onboarding Overlay
             OnboardingOverlayView(onboardingManager: viewModel.onboardingManager)
-                .environmentObject(themeManager)
+                
         }
         .focusMode()
         .onAppear {
@@ -215,17 +172,17 @@ struct ContentView: View {
     private func updateTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        appearance.backgroundColor = UIColor(AppColors.backgroundCard)
         
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            .foregroundColor: UIColor(AppColors.textSecondary)
         ]
-        appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary)
         
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(AppColors.primary(themeManager: themeManager))
+            .foregroundColor: UIColor(AppColors.accentRed)
         ]
-        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.primary(themeManager: themeManager))
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.accentRed)
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance

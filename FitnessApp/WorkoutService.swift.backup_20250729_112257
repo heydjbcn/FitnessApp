@@ -1,0 +1,675 @@
+import Foundation
+import CoreData
+import Combine
+
+/// Service para operaciones específicas de entrenamiento en Core Data
+@MainActor
+class WorkoutService: ObservableObject {
+    static let shared = WorkoutService()
+    
+    private let coreDataManager = CoreDataManager.shared
+    
+    private init() {}
+    
+    var context: NSManagedObjectContext {
+        coreDataManager.context
+    }
+    
+    // MARK: - Exercise Operations
+    
+    /// Crea un nuevo ejercicio
+    func createExercise(name: String,
+                       repetitions: Int,
+                       weight: Double,
+                       totalSets: Int,
+                       info: String = "",
+                       imageData: Data? = nil,
+                       restDuration: Int,
+                       sfSymbolIcon: String? = nil,
+                       iconColor: String = "blue",
+                       segundos: Int = 0,
+                       rir: Int = 0) -> ExerciseEntity {
+        
+        let entity = ExerciseEntity(context: context)
+        entity.id = UUID()
+        entity.name = name
+        entity.defaultReps = Int32(repetitions)
+        entity.defaultWeight = weight
+        entity.defaultSets = Int32(totalSets)
+        entity.exerciseDescription = info
+        entity.sfSymbolIcon = sfSymbolIcon
+        entity.iconColor = iconColor
+        entity.createdAt = Date()
+        entity.updatedAt = Date()
+        
+        coreDataManager.save()
+        print("✅ Ejercicio creado: \(name)")
+        return entity
+    }
+    
+    /// Obtiene todos los ejercicios
+    func getAllExercises() -> [Exercise] {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ExerciseEntity.name, ascending: true)]
+        
+        do {
+            let entities = try context.fetch(request)
+            return entities.map { $0.toExercise() }
+        } catch {
+            print("❌ Error fetching exercises: \(error)")
+            return []
+        }
+    }
+    
+    /// Busca ejercicios por nombre
+    func searchExercises(name: String) -> [Exercise] {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "name CONTAINS[c] %@", name)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ExerciseEntity.name, ascending: true)]
+        
+        do {
+            let entities = try context.fetch(request)
+            return entities.map { $0.toExercise() }
+        } catch {
+            print("❌ Error searching exercises: \(error)")
+            return []
+        }
+    }
+    
+    /// Obtiene un ejercicio por ID
+    func getExercise(by id: UUID) -> Exercise? {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            if let entity = try context.fetch(request).first {
+                return entity.toExercise()
+            }
+            return nil
+        } catch {
+            print("❌ Error fetching exercise by ID: \(error)")
+            return nil
+        }
+    }
+    
+    /// Actualiza un ejercicio existente
+    func updateExercise(_ exercise: Exercise) {
+        // Find existing entity and update it
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            if let entity = try context.fetch(request).first {
+                entity.updateFrom(exercise)
+                coreDataManager.save()
+                print("✅ Ejercicio actualizado: \(exercise.name)")
+            } else {
+                // Create new if not found
+                _ = exercise.getExerciseEntity(in: context)
+                coreDataManager.save()
+                print("✅ Ejercicio creado: \(exercise.name)")
+            }
+        } catch {
+            print("❌ Error actualizando ejercicio: \(error)")
+        }
+    }
+    
+    /// Actualiza ejercicio con parámetros específicos (async)
+    func updateExercise(
+        id: UUID,
+        name: String,
+        repetitions: Int32,
+        weight: Double,
+        totalSets: Int32,
+        info: String,
+        imageData: Data?,
+        restDuration: Int32,
+        sfSymbolIcon: String?,
+        iconColor: String,
+        segundos: Int32,
+        rir: Int32
+    ) async throws {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            if let entity = try context.fetch(request).first {
+                entity.name = name
+                entity.defaultReps = repetitions
+                entity.defaultWeight = weight
+                entity.defaultSets = totalSets
+                entity.exerciseDescription = info
+                entity.sfSymbolIcon = sfSymbolIcon
+                entity.iconColor = iconColor
+                entity.updatedAt = Date()
+                
+                coreDataManager.save()
+                print("✅ Ejercicio actualizado: \(name)")
+            } else {
+                print("❌ Ejercicio no encontrado con ID: \(id)")
+            }
+        } catch {
+            print("❌ Error actualizando ejercicio: \(error)")
+            throw error
+        }
+    }
+    
+    /// Obtiene todos los ejercicios (async)
+    func fetchAllExercises() async throws -> [ExerciseEntity] {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ExerciseEntity.name, ascending: true)]
+        
+        return try context.fetch(request)
+    }
+    
+    /// Elimina un ejercicio
+    func deleteExercise(_ exercise: Exercise) {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+        
+        do {
+            let entities = try context.fetch(request)
+            for entity in entities {
+                context.delete(entity)
+            }
+            coreDataManager.save()
+            print("🗑️ Ejercicio eliminado: \(exercise.name)")
+        } catch {
+            print("❌ Error eliminando ejercicio: \(error)")
+        }
+    }
+    
+    /// Actualiza el personal record de un ejercicio
+    func updatePersonalRecord(for exercise: Exercise, newWeight: Double) {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            if let entity = try context.fetch(request).first {
+                if newWeight > entity.maxWeight {
+                    entity.maxWeight = newWeight
+                    entity.recordDate = Date()
+                    coreDataManager.save()
+                    print("🏆 Nuevo personal record para \(exercise.name): \(newWeight)kg")
+                }
+            }
+        } catch {
+            print("❌ Error actualizando personal record: \(error)")
+        }
+    }
+    
+    // MARK: - Workout Session Operations
+    
+    /// Inicia o obtiene una sesión de entrenamiento
+    func startWorkoutSession(date: Date, workoutDay: WorkoutDay) -> WorkoutSession {
+        // Verificar si ya existe sesión
+        if let existingSession = WorkoutSession.fetchSession(for: date, workoutDay: workoutDay, in: context) {
+            print("📋 Sesión existente encontrada para \(workoutDay.rawValue)")
+            return existingSession
+        }
+        
+        let session = WorkoutSession.create(in: context, date: date, workoutDay: workoutDay)
+        coreDataManager.save()
+        print("📋 Nueva sesión creada para \(workoutDay.rawValue)")
+        return session
+    }
+    
+    /// Completa una serie de un ejercicio en una sesión
+    func completeExerciseSet(exercise: Exercise, session: WorkoutSession) {
+        let completedExercise = CompletedExercise.findOrCreate(
+            exercise: exercise,
+            session: session,
+            context: context
+        )
+        
+        completedExercise.completeSet()
+        coreDataManager.save()
+        
+        print("✅ Serie completada: \(exercise.name)")
+    }
+    
+    /// Deshace la última serie completada
+    func undoLastSet(exercise: Exercise, session: WorkoutSession) {
+        guard let completedExercise = CompletedExercise.findExisting(
+            exercise: exercise,
+            session: session,
+            context: context
+        ) else {
+            print("⚠️ No se encontró ejercicio completado para deshacer")
+            return
+        }
+        
+        completedExercise.undoLastSet()
+        coreDataManager.save()
+        
+        print("↩️ Serie deshecha: \(exercise.name)")
+    }
+    
+    /// Finaliza una sesión de entrenamiento
+    func completeWorkoutSession(_ session: WorkoutSession) {
+        session.completedAt = Date()
+        session.duration = Int32(session.calculateDuration())
+        session.isCompleted = true
+        coreDataManager.save()
+        
+        print("🏁 Sesión completada: \(session.workoutDay ?? "desconocida")")
+    }
+    
+    /// Añade una nota a la sesión
+    func addNoteToSession(_ session: WorkoutSession, note: String) {
+        session.notes = note.isEmpty ? nil : note
+        coreDataManager.save()
+        print("📝 Nota añadida a la sesión")
+    }
+    
+    /// Actualiza el peso corporal en una sesión
+    func updateBodyWeight(in session: WorkoutSession, weight: Double) {
+        session.bodyWeight = weight
+        coreDataManager.save()
+        print("⚖️ Peso corporal actualizado: \(weight)kg")
+    }
+    
+    // MARK: - History Operations
+    
+    /// Obtiene el historial de entrenamientos en un rango de fechas
+    func getWorkoutHistory(from startDate: Date, to endDate: Date) -> [WorkoutSession] {
+        return WorkoutSession.fetchSessions(from: startDate, to: endDate, in: context)
+    }
+    
+    /// Obtiene las sesiones de un día específico
+    func getSessionsForDate(_ date: Date) -> [WorkoutSession] {
+        return WorkoutSession.fetchSessionsForDate(date, in: context)
+    }
+    
+    /// Obtiene el historial de un ejercicio específico
+    func getExerciseHistory(_ exercise: Exercise, from startDate: Date? = nil, to endDate: Date? = nil) -> [CompletedExercise] {
+        return exercise.getCompletedSessions(in: context, from: startDate, to: endDate)
+    }
+    
+    /// Verifica si hay entrenamientos en una fecha
+    func hasWorkoutForDate(_ date: Date) -> Bool {
+        let sessions = getSessionsForDate(date)
+        return sessions.contains { session in
+            let completedExercises = session.completedExercises as? Set<CompletedExercise> ?? []
+            return completedExercises.contains { $0.isCompleted }
+        }
+    }
+    
+    // MARK: - Statistics Operations
+    
+    /// Obtiene el total de entrenamientos
+    func getTotalWorkouts() -> Int {
+        let request: NSFetchRequest<WorkoutSession> = WorkoutSession.fetchRequest()
+        request.predicate = NSPredicate(format: "completedAt != nil")
+        return (try? context.count(for: request)) ?? 0
+    }
+    
+    /// Obtiene el total de series completadas
+    func getTotalCompletedSets() -> Int {
+        let request: NSFetchRequest<CompletedExercise> = CompletedExercise.fetchRequest()
+        let completed = try? context.fetch(request)
+        return completed?.count ?? 0 // Cada CompletedExercise representa una serie completada
+    }
+    
+    /// Obtiene el total de ejercicios únicos
+    func getTotalUniqueExercises() -> Int {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        return (try? context.count(for: request)) ?? 0
+    }
+    
+    /// Obtiene estadísticas de una semana específica
+    func getWeeklyStats(for date: Date) -> WeeklyStats {
+        let calendar = Calendar.current
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else {
+            return WeeklyStats()
+        }
+        
+        let sessions = getWorkoutHistory(from: weekInterval.start, to: weekInterval.end)
+        
+        var stats = WeeklyStats()
+        stats.totalSessions = sessions.count
+        
+        var totalSets = 0
+        var completedSets = 0
+        var totalDuration = 0
+        
+        for session in sessions {
+            let completedExercises = session.completedExercises as? Set<CompletedExercise> ?? []
+            
+            for completed in completedExercises {
+                totalSets += Int(completed.reps) // total possible sets
+                completedSets += 1 // Cada CompletedExercise es una serie completada
+            }
+            
+            if session.duration > 0 {
+                totalDuration += Int(session.duration)
+            }
+        }
+        
+        stats.totalSets = totalSets
+        stats.completedSets = completedSets
+        stats.progress = totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0.0
+        stats.totalDuration = totalDuration
+        
+        return stats
+    }
+    
+    /// Obtiene los personal records de todos los ejercicios
+    func getAllPersonalRecords() -> [PersonalRecord] {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "maxWeight > 0")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ExerciseEntity.maxWeight, ascending: false)]
+        
+        do {
+            let entities = try context.fetch(request)
+            return entities.compactMap { entity in
+                guard let name = entity.name, entity.maxWeight > 0 else { return nil }
+                
+                return PersonalRecord(
+                    exerciseName: name,
+                    maxWeight: entity.maxWeight,
+                    maxReps: Int(entity.maxReps),
+                    dateAchieved: entity.recordDate ?? entity.createdAt ?? Date()
+                )
+            }
+        } catch {
+            print("❌ Error obteniendo personal records: \(error)")
+            return []
+        }
+    }
+    
+    /// Obtiene estadísticas de progreso mensual
+    func getMonthlyProgress(for date: Date) -> MonthlyProgress {
+        let calendar = Calendar.current
+        guard let monthInterval = calendar.dateInterval(of: .month, for: date) else {
+            return MonthlyProgress()
+        }
+        
+        let sessions = getWorkoutHistory(from: monthInterval.start, to: monthInterval.end)
+        
+        var progress = MonthlyProgress()
+        progress.totalWorkouts = sessions.filter { $0.completedAt != nil }.count
+        
+        // Calcular días consecutivos
+        progress.consecutiveDays = calculateConsecutiveDays(sessions: sessions, endDate: Date())
+        
+        // Agrupar por semanas
+        var weeklyData: [Int] = []
+        let weeksInMonth = calendar.range(of: .weekOfYear, in: .month, for: date)?.count ?? 4
+        
+        for week in 0..<weeksInMonth {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: week, to: monthInterval.start),
+                  let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) else { continue }
+            
+            let weekSessions = sessions.filter { session in
+                guard let sessionDate = session.date else { return false }
+                return sessionDate >= weekStart && sessionDate < weekEnd
+            }
+            
+            weeklyData.append(weekSessions.count)
+        }
+        
+        progress.weeklyWorkouts = weeklyData
+        
+        return progress
+    }
+    
+    /// Calcula días consecutivos de entrenamiento
+    private func calculateConsecutiveDays(sessions: [WorkoutSession], endDate: Date) -> Int {
+        let calendar = Calendar.current
+        let sortedDates = sessions
+            .compactMap { $0.date }
+            .map { calendar.startOfDay(for: $0) }
+            .sorted(by: >)
+        
+        guard !sortedDates.isEmpty else { return 0 }
+        
+        var consecutiveDays = 0
+        var currentDate = calendar.startOfDay(for: endDate)
+        
+        for sessionDate in sortedDates {
+            if sessionDate == currentDate {
+                consecutiveDays += 1
+                currentDate = calendar.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+            } else if sessionDate < currentDate {
+                let daysDifference = calendar.dateComponents([.day], from: sessionDate, to: currentDate).day ?? 0
+                if daysDifference == 1 {
+                    consecutiveDays += 1
+                    currentDate = sessionDate
+                } else {
+                    break
+                }
+            }
+        }
+        
+        return consecutiveDays
+    }
+    
+    // MARK: - Body Weight Operations
+    
+    /// Registra peso corporal para una fecha
+    func recordBodyWeight(_ weight: Double, for date: Date) {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        
+        // Buscar sesión existente o crear una nueva
+        let sessions = getSessionsForDate(startOfDay)
+        
+        if let existingSession = sessions.first {
+            updateBodyWeight(in: existingSession, weight: weight)
+        } else {
+            let session = WorkoutSession.create(
+                in: context,
+                date: startOfDay,
+                workoutDay: .monday, // Día por defecto para registros de peso
+                bodyWeight: weight
+            )
+            session.notes = "Registro de peso corporal"
+            coreDataManager.save()
+        }
+        
+        print("⚖️ Peso registrado: \(weight)kg para \(startOfDay)")
+    }
+    
+    /// Obtiene el peso corporal para una fecha
+    func getBodyWeight(for date: Date) -> Double? {
+        let sessions = getSessionsForDate(date)
+        
+        for session in sessions {
+            if session.bodyWeight > 0 {
+                return session.bodyWeight
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Obtiene el historial de peso corporal en un rango
+    func getBodyWeightHistory(from startDate: Date, to endDate: Date) -> [(Date, Double)] {
+        let sessions = getWorkoutHistory(from: startDate, to: endDate)
+        
+        return sessions
+            .compactMap { session -> (Date, Double)? in
+                guard let date = session.date, session.bodyWeight > 0 else { return nil }
+                return (date, session.bodyWeight)
+            }
+            .sorted { $0.0 < $1.0 }
+    }
+    
+    // MARK: - Data Management
+    
+    /// Limpia datos antiguos (más de X días)
+    func cleanupOldData(olderThan days: Int) async {
+        let calendar = Calendar.current
+        guard let cutoffDate = calendar.date(byAdding: .day, value: -days, to: Date()) else { return }
+        
+        try? await coreDataManager.performBackgroundTask()
+        
+        let request: NSFetchRequest<WorkoutSession> = WorkoutSession.fetchRequest()
+        request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
+        
+        do {
+            let oldSessions = try context.fetch(request)
+            print("🧹 Limpiando \(oldSessions.count) sesiones antiguas...")
+            
+            for session in oldSessions {
+                context.delete(session)
+            }
+            
+            coreDataManager.save()
+            print("✅ Limpieza completada")
+            
+        } catch {
+            print("❌ Error durante limpieza: \(error)")
+        }
+    }
+    
+    /// Exporta datos para backup
+    func exportData() async -> WorkoutExportData? {
+        let exercises = Exercise.fetchAll(in: context)
+        let sessions = WorkoutSession.fetchSessions(
+            from: Date.distantPast,
+            to: Date(),
+            in: context
+        )
+        
+        return WorkoutExportData(
+            exercises: exercises,
+            sessions: sessions.compactMap { session in
+                guard let date = session.date,
+                      let workoutDayString = session.workoutDay,
+                      let workoutDay = WorkoutDay(rawValue: workoutDayString) else { return nil }
+                
+                let completedExercises = (session.completedExercises as? Set<CompletedExercise> ?? [])
+                    .compactMap { $0.toLegacyWorkoutExercise() }
+                
+                return ExportedSession(
+                    date: date,
+                    workoutDay: workoutDay,
+                    exercises: completedExercises,
+                    notes: session.notes,
+                    bodyWeight: session.bodyWeight > 0 ? session.bodyWeight : nil
+                )
+            },
+            exportDate: Date()
+        )
+    }
+    
+    /// Get workouts for specific date async
+    func getWorkoutsForDate(_ date: Date) async throws -> [WorkoutSession] {
+        return try await withCheckedThrowingContinuation { continuation in
+            let calendar = Calendar.current
+            let startOfDay = calendar.startOfDay(for: date)
+            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+            
+            let request: NSFetchRequest<WorkoutSession> = WorkoutSession.fetchRequest()
+            request.predicate = NSPredicate(format: "date >= %@ AND date < %@", startOfDay as NSDate, endOfDay as NSDate)
+            
+            do {
+                let sessions = try context.fetch(request)
+                continuation.resume(returning: sessions)
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+    
+    /// Create or update exercise async
+    func createOrUpdateExercise(_ exercise: Exercise) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            // Check if exercise already exists
+            let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+            
+            do {
+                let existingExercises = try context.fetch(request)
+                
+                let exerciseEntity: ExerciseEntity
+                if let existing = existingExercises.first {
+                    exerciseEntity = existing
+                } else {
+                    exerciseEntity = ExerciseEntity(context: context)
+                    exerciseEntity.id = exercise.id
+                    exerciseEntity.createdAt = Date()
+                }
+                
+                // Update properties
+                exerciseEntity.updateFrom(exercise)
+                
+                try context.save()
+                continuation.resume()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+    
+    /// Delete exercise by name async
+    func deleteExercise(withName name: String) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "name == %@", name)
+            
+            do {
+                let exercises = try context.fetch(request)
+                for exercise in exercises {
+                    context.delete(exercise)
+                }
+                try context.save()
+                continuation.resume()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+    
+    /// Initialize service
+    func initializeService() async {
+        // Perform any initialization tasks here
+        print("✅ WorkoutService initialized")
+    }
+}
+
+// MARK: - Supporting Types
+
+struct WeeklyStats {
+    var totalSessions: Int = 0
+    var totalSets: Int = 0
+    var completedSets: Int = 0
+    var progress: Double = 0.0
+    var totalDuration: Int = 0 // en segundos
+    
+    var averageSessionDuration: Int {
+        return totalSessions > 0 ? totalDuration / totalSessions : 0
+    }
+}
+
+struct MonthlyProgress {
+    var totalWorkouts: Int = 0
+    var consecutiveDays: Int = 0
+    var weeklyWorkouts: [Int] = []
+    
+    var averageWeeklyWorkouts: Double {
+        guard !weeklyWorkouts.isEmpty else { return 0.0 }
+        let total = weeklyWorkouts.reduce(0, +)
+        return Double(total) / Double(weeklyWorkouts.count)
+    }
+}
+
+struct WorkoutExportData: Codable {
+    let exercises: [Exercise]
+    let sessions: [ExportedSession]
+    let exportDate: Date
+}
+
+struct ExportedSession: Codable {
+    let date: Date
+    let workoutDay: WorkoutDay
+    let exercises: [WorkoutExercise]
+    let notes: String?
+    let bodyWeight: Double?
+}

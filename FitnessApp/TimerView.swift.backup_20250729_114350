@@ -1,0 +1,176 @@
+//
+//  TimerView.swift
+//  FitnessApp
+//
+//  Created by Jordi Mauri on 16/7/25.
+//
+
+import SwiftUI
+
+struct TimerView: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    @ObservedObject private var watchConnectivity = WatchConnectivityManager.instance
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Watch status indicator
+            if watchConnectivity.isWatchConnected {
+                HStack {
+                    Image(systemName: "applewatch")
+                        .foregroundColor(.green)
+                    Text("Sincronizado con Apple Watch")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+                .padding(.horizontal)
+            }
+            
+            HStack {
+                ZStack {
+                    Circle().stroke(AppColors.secondaryGray, lineWidth: 4)
+                    Circle()
+                        .trim(from: 0, to: CGFloat(viewModel.timeRemaining) / CGFloat(viewModel.currentTimerDuration))
+                        .stroke(AppColors.primary, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .frame(width: 60, height: 60)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear, value: viewModel.timeRemaining)
+                    Text(timeString)
+                        .font(AppFonts.caption)
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                }
+                .frame(width: 60, height: 60)
+                
+                Text("Descanso")
+                    .font(AppFonts.body.weight(.semibold))
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                
+                Spacer()
+                
+                Button("Parar") {
+                    HapticManager.shared.buttonTapped()
+                    viewModel.stopTimer()
+                    
+                    // Solo finalizar entrenamiento en Apple Watch en dispositivos reales
+                    #if !targetEnvironment(simulator)
+                    if watchConnectivity.isWatchConnected {
+                        watchConnectivity.endWorkoutOnWatch()
+                    }
+                    #endif
+                    
+                    // Entrenamiento completado
+                    print("✅ Entrenamiento completado")
+                }
+                .foregroundColor(AppColors.primary)
+            }
+            .padding()
+            
+            // Spotify Player Integration
+            SpotifyPlayerView()
+                .environmentObject(themeManager)
+                .padding(.horizontal)
+        }
+        .onAppear {
+            // Solo iniciar entrenamiento en Apple Watch en dispositivos reales
+            #if !targetEnvironment(simulator)
+            if watchConnectivity.isWatchConnected {
+                startWorkoutOnWatch()
+            }
+            #endif
+        }
+    }
+    
+    private var timeString: String {
+        let m = viewModel.timeRemaining / 60
+        let s = viewModel.timeRemaining % 60
+        return String(format: "%d:%02d", m, s)
+    }
+    
+    private func startWorkoutOnWatch() {
+        // Iniciar entrenamiento en Apple Watch (sin HealthKit)
+        watchConnectivity.startWorkoutOnWatch()
+    }
+}
+import SwiftUI
+import Combine
+
+@MainActor
+class SafeTimerManager: ObservableObject {
+    static let shared = SafeTimerManager()
+    
+    @Published var isTimerActive = false
+    @Published var timeRemaining = 0
+    @Published var totalTime = 0
+    @Published var progress: Double = 0.0
+    
+    private var timer: Timer?
+    
+    private init() {}
+    
+    var formattedTime: String {
+        let minutes = timeRemaining / 60
+        let seconds = timeRemaining % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    func startTimer(duration: Int) {
+        stopTimer() // Detener cualquier timer activo
+        
+        isTimerActive = true
+        timeRemaining = duration
+        totalTime = duration
+        updateProgress()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.timerTick()
+            }
+        }
+    }
+    
+    func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+        isTimerActive = false
+    }
+    
+    func pauseTimer() {
+        timer?.invalidate()
+        timer = nil
+        // isTimerActive permanece true para indicar que está pausado
+    }
+    
+    func resumeTimer() {
+        guard isTimerActive && timer == nil else { return }
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.timerTick()
+            }
+        }
+    }
+    
+    private func timerTick() {
+        guard isTimerActive else { return }
+        
+        if timeRemaining > 0 {
+            timeRemaining -= 1
+            updateProgress()
+        } else {
+            completeTimer()
+        }
+    }
+    
+    private func updateProgress() {
+        guard totalTime > 0 else {
+            progress = 0.0
+            return
+        }
+        progress = Double(totalTime - timeRemaining) / Double(totalTime)
+    }
+    
+    private func completeTimer() {
+        stopTimer()
+        HapticManager.shared.timerCompleted()
+    }
+}

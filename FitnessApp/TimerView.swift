@@ -1,8 +1,6 @@
 //
-//  TimerView.swift
+//  TimerView.swift - VERSIÓN CORREGIDA SIN ERRORES
 //  FitnessApp
-//
-//  Created by Jordi Mauri on 16/7/25.
 //
 
 import SwiftUI
@@ -10,28 +8,16 @@ import SwiftUI
 struct TimerView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
-    @ObservedObject private var watchConnectivity = WatchConnectivityManager.instance
 
     var body: some View {
         VStack(spacing: 16) {
-            // Watch status indicator
-            if watchConnectivity.isWatchConnected {
-                HStack {
-                    Image(systemName: "applewatch")
-                        .foregroundColor(.green)
-                    Text("Sincronizado con Apple Watch")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-                .padding(.horizontal)
-            }
-            
+            // Timer display section
             HStack {
                 ZStack {
                     Circle().stroke(AppColors.secondaryGray, lineWidth: 4)
                     Circle()
-                        .trim(from: 0, to: CGFloat(viewModel.timeRemaining) / CGFloat(viewModel.currentTimerDuration))
-                        .stroke(AppColors.primary, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .trim(from: 0, to: progressValue)
+                        .stroke(AppColors.primary(themeManager: themeManager), style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .frame(width: 60, height: 60)
                         .rotationEffect(.degrees(-90))
                         .animation(.linear, value: viewModel.timeRemaining)
@@ -48,46 +34,74 @@ struct TimerView: View {
                 Spacer()
                 
                 Button("Parar") {
-                    HapticManager.shared.buttonTapped()
                     viewModel.stopTimer()
-                    
-                    // Solo finalizar entrenamiento en Apple Watch en dispositivos reales
-                    #if !targetEnvironment(simulator)
-                    if watchConnectivity.isWatchConnected {
-                        watchConnectivity.endWorkoutOnWatch()
-                    }
-                    #endif
-                    
-                    // Entrenamiento completado
-                    print("✅ Entrenamiento completado")
                 }
-                .foregroundColor(AppColors.primary)
+                .foregroundColor(.red)
+                .font(AppFonts.caption.weight(.semibold))
             }
-            .padding()
+            .padding(.horizontal)
             
-            // Spotify Player Integration
-            SpotifyPlayerView()
-                .environmentObject(themeManager)
-                .padding(.horizontal)
-        }
-        .onAppear {
-            // Solo iniciar entrenamiento en Apple Watch en dispositivos reales
-            #if !targetEnvironment(simulator)
-            if watchConnectivity.isWatchConnected {
-                startWorkoutOnWatch()
+            // Timer controls
+            HStack(spacing: 20) {
+                Button(action: {
+                    if viewModel.isTimerRunning {
+                        viewModel.pauseTimer()
+                    } else {
+                        viewModel.resumeTimer()
+                    }
+                }) {
+                    Image(systemName: viewModel.isTimerRunning ? "pause.fill" : "play.fill")
+                        .font(.title2)
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                }
+                
+                Button(action: {
+                    viewModel.resetTimer()
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.title2)
+                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                }
+                
+                Button(action: {
+                    viewModel.addTime(30)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                        Text("30s")
+                    }
+                    .font(.caption)
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                }
             }
-            #endif
+            .padding(.horizontal)
         }
+        .padding()
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+    
+    // ✅ CORREGIDO: Cálculo del progreso
+    private var progressValue: CGFloat {
+        guard viewModel.currentTimerDuration > 0 else { return 0 }
+        return CGFloat(viewModel.timeRemaining) / CGFloat(viewModel.currentTimerDuration)
     }
     
     private var timeString: String {
-        let m = viewModel.timeRemaining / 60
-        let s = viewModel.timeRemaining % 60
-        return String(format: "%d:%02d", m, s)
+        let totalSeconds = Int(viewModel.timeRemaining)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
-    
-    private func startWorkoutOnWatch() {
-        // Iniciar entrenamiento en Apple Watch (sin HealthKit)
-        watchConnectivity.startWorkoutOnWatch()
+}
+
+// MARK: - Preview
+
+struct TimerView_Previews: PreviewProvider {
+    static var previews: some View {
+        TimerView()
+            .environmentObject(WorkoutViewModel())
+            .environmentObject(ThemeManager())
     }
 }

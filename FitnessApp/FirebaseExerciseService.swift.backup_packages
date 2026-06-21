@@ -1,0 +1,217 @@
+//
+//  FirebaseExerciseService.swift - VERSIÓN CORREGIDA
+//  FitnessApp
+//
+
+import Foundation
+import Firebase
+import FirebaseFirestore
+import Combine
+
+@MainActor
+class FirebaseExerciseService: ObservableObject {
+    static let shared = FirebaseExerciseService()
+    
+    private let db = Firestore.firestore()
+    @Published var exercises: [Exercise] = []
+    @Published var isLoading = false
+    @Published var error: String?
+    
+    private init() {
+        print("🔥 FirebaseExerciseService inicializado")
+    }
+    
+    // MARK: - Fetch Exercises from Firebase
+    
+    func fetchExercises() async -> [Exercise] {
+        print("🔥 Iniciando fetchExercises...")
+        
+        isLoading = true
+        error = nil
+        
+        do {
+            print("🔥 Obteniendo documentos de Firestore...")
+            let snapshot = try await db.collection("exercises").getDocuments()
+            
+            print("🔥 Documentos obtenidos: \(snapshot.documents.count)")
+            
+            var fetchedExercises: [Exercise] = []
+            
+            for document in snapshot.documents {
+                let data = document.data()
+                print("🔥 Procesando documento: \(document.documentID)")
+                print("🔥 Datos: \(data)")
+                
+                let exercise = Exercise(from: data)
+                fetchedExercises.append(exercise)
+            }
+            
+            print("🔥 Total ejercicios procesados: \(fetchedExercises.count)")
+            
+            await MainActor.run {
+                self.exercises = fetchedExercises
+                self.isLoading = false
+            }
+            
+            return fetchedExercises
+            
+        } catch {
+            print("❌ Error obteniendo ejercicios de Firebase: \(error)")
+            print("❌ Error detallado: \(error.localizedDescription)")
+            
+            await MainActor.run {
+                self.error = error.localizedDescription
+                self.isLoading = false
+                self.exercises = []
+            }
+            
+            return []
+        }
+    }
+    
+    // MARK: - Test Firebase Connection
+    
+    func testFirebaseConnection() async -> (success: Bool, message: String) {
+        print("🧪 Probando conexión a Firebase...")
+        
+        do {
+            // Intentar obtener un documento de prueba
+            let snapshot = try await db.collection("exercises").limit(to: 1).getDocuments()
+            
+            if snapshot.documents.isEmpty {
+                print("⚠️ Colección exercises está vacía")
+                return (false, "Colección 'exercises' vacía")
+            } else {
+                print("✅ Conexión a Firebase exitosa")
+                return (true, "Conexión exitosa - \(snapshot.documents.count) documentos encontrados")
+            }
+            
+        } catch {
+            print("❌ Error de conexión: \(error)")
+            return (false, "Error: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Populate Database (for testing)
+    
+    func addSampleExercises() async {
+        print("🔥 Añadiendo ejercicios de muestra...")
+        
+        let sampleExercises = [
+            [
+                "name": "Press Banca",
+                "targetMuscle": "Pecho",
+                "description": "Ejercicio fundamental para desarrollar fuerza en el pecho",
+                "instructions": "Acuéstate en el banco, baja la barra al pecho y empújala hacia arriba",
+                "defaultWeight": 60.0,
+                "defaultReps": 8,
+                "defaultSets": 3,
+                "restDuration": 120,
+                "category": "strength",
+                "isBodyWeight": false,
+                "sfSymbolIcon": "figure.strengthtraining.traditional",
+                "iconColor": "red"
+            ],
+            [
+                "name": "Sentadillas",
+                "targetMuscle": "Piernas",
+                "description": "Ejercicio básico para piernas y glúteos",
+                "instructions": "Baja como si fueras a sentarte, mantén la espalda recta",
+                "defaultWeight": 40.0,
+                "defaultReps": 12,
+                "defaultSets": 3,
+                "restDuration": 90,
+                "category": "strength",
+                "isBodyWeight": false,
+                "sfSymbolIcon": "figure.strengthtraining.traditional",
+                "iconColor": "blue"
+            ],
+            [
+                "name": "Peso Muerto",
+                "targetMuscle": "Espalda",
+                "description": "Ejercicio compuesto para espalda y piernas",
+                "instructions": "Levanta la barra manteniendo la espalda recta",
+                "defaultWeight": 80.0,
+                "defaultReps": 6,
+                "defaultSets": 3,
+                "restDuration": 180,
+                "category": "strength",
+                "isBodyWeight": false,
+                "sfSymbolIcon": "figure.strengthtraining.traditional",
+                "iconColor": "green"
+            ],
+            [
+                "name": "Flexiones",
+                "targetMuscle": "Pecho",
+                "description": "Ejercicio de peso corporal para pecho y brazos",
+                "instructions": "Mantén el cuerpo recto, baja hasta casi tocar el suelo",
+                "defaultWeight": 0.0,
+                "defaultReps": 15,
+                "defaultSets": 3,
+                "restDuration": 60,
+                "category": "strength",
+                "isBodyWeight": true,
+                "sfSymbolIcon": "figure.strengthtraining.traditional",
+                "iconColor": "orange"
+            ]
+        ]
+        
+        do {
+            for exerciseData in sampleExercises {
+                try await db.collection("exercises").addDocument(data: exerciseData)
+                print("✅ Ejercicio añadido: \(exerciseData["name"] ?? "Unknown")")
+            }
+            print("🎉 Todos los ejercicios de muestra añadidos exitosamente")
+        } catch {
+            print("❌ Error añadiendo ejercicios: \(error)")
+        }
+    }
+    
+    // MARK: - Clear Collection (for testing)
+    
+    func clearExercises() async {
+        print("🗑️ Limpiando colección exercises...")
+        
+        do {
+            let snapshot = try await db.collection("exercises").getDocuments()
+            
+            for document in snapshot.documents {
+                try await document.reference.delete()
+            }
+            
+            print("✅ Colección limpiada exitosamente")
+        } catch {
+            print("❌ Error limpiando colección: \(error)")
+        }
+    }
+    
+    // MARK: - Add Exercise
+    func saveExercise(_ exercise: Exercise) async {
+        print("💾 Guardando ejercicio: \(exercise.name)")
+        
+        do {
+            let exerciseData: [String: Any] = [
+                "id": exercise.id.uuidString,
+                "name": exercise.name,
+                "targetMuscle": exercise.targetMuscle,
+                "repetitions": exercise.repetitions,
+                "totalSets": exercise.totalSets,
+                "weight": exercise.weight,
+                "restDuration": exercise.restDuration,
+                "sfSymbolIcon": exercise.sfSymbolIcon ?? "dumbbell.fill",
+                "iconColor": exercise.iconColor ?? "",
+                "info": exercise.info,
+                "segundos": exercise.segundos,
+                "rir": exercise.rir,
+                "createdAt": Timestamp(date: Date()),
+                "isFromFirebase": true
+            ]
+            
+            try await db.collection("exercises").document(exercise.id.uuidString).setData(exerciseData)
+            print("✅ Ejercicio guardado exitosamente: \(exercise.name)")
+            
+        } catch {
+            print("❌ Error guardando ejercicio: \(error)")
+        }
+    }
+}

@@ -1,3 +1,0 @@
-// Configuration for HealthKit privacy descriptions
-INFOPLIST_KEY_NSHealthShareUsageDescription = Esta aplicación necesita acceso a tus datos de salud para mostrar estadísticas de ejercicio y actividad física
-INFOPLIST_KEY_NSHealthUpdateUsageDescription = Esta aplicación puede agregar datos de ejercicio a tu información de salud

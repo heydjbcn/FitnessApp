@@ -20,6 +20,37 @@ struct TimerActivityAttributes: ActivityAttributes {
 class LiveActivityManager: ObservableObject {
     @Published var currentActivity: Activity<TimerActivityAttributes>? = nil
     
+    func startTimerActivity(duration: Int, timeRemaining: Int) async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            print("Activities are not enabled")
+            return
+        }
+        
+        let attributes = TimerActivityAttributes(exerciseName: "Timer")
+        let contentState = TimerActivityAttributes.ContentState(
+            timeRemaining: timeRemaining,
+            totalTime: duration,
+            isActive: true
+        )
+        
+        do {
+            currentActivity = try Activity<TimerActivityAttributes>.request(
+                attributes: attributes,
+                content: ActivityContent(
+                    state: contentState,
+                    staleDate: Date().addingTimeInterval(60)
+                ),
+                pushType: nil
+            )
+        } catch {
+            print("Error starting activity: \(error)")
+        }
+    }
+    
+    func stopTimerActivity() async {
+        endTimerActivity()
+    }
+    
     func startTimerActivity(exerciseName: String, totalTime: Int) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             print("Activities are not enabled")

@@ -1,0 +1,151 @@
+//
+//  CoreDataExtensions.swift - VERSIÓN LIMPIA SIN CONFLICTOS
+//  FitnessApp
+//
+
+import CoreData
+import Foundation
+
+// MARK: - ExerciseEntity Extensions
+extension ExerciseEntity {
+    
+    /// Convertir ExerciseEntity a Exercise (usando nombre único para evitar conflictos)
+    func toExerciseModel() -> Exercise {
+        return Exercise(
+            id: self.id ?? UUID(),
+            name: self.name ?? "",
+            repetitions: Int(self.defaultReps),
+            weight: self.defaultWeight,
+            totalSets: Int(self.defaultSets),
+            info: self.exerciseDescription ?? "",
+            imageData: nil,
+            restDuration: Int(self.restDuration),
+            sfSymbolIcon: self.sfSymbolIcon,
+            iconColor: self.iconColor ?? "blue",
+            segundos: Int(self.segundos),
+            rir: Int(self.rir)
+        ).applying { exercise in
+            // Configurar propiedades adicionales usando las propiedades del modelo
+            exercise.targetMuscle = self.targetMuscle ?? ""
+            exercise.description = self.exerciseDescription ?? ""
+            exercise.instructions = self.instructions ?? ""
+            exercise.isBodyWeight = self.isBodyWeight
+            exercise.category = ExerciseCategory(rawValue: self.category ?? "") ?? .strength
+            exercise.personalRecordWeight = self.maxWeight > 0 ? self.maxWeight : nil
+            exercise.personalRecordReps = self.maxReps > 0 ? Int(self.maxReps) : nil
+            exercise.lastPerformed = self.recordDate
+            exercise.isFromFirebase = false // Los de Core Data son locales
+        }
+    }
+    
+    /// Actualizar desde Exercise (usando nombre único)
+    func updateFromExercise(_ exercise: Exercise) {
+        self.id = exercise.id
+        self.name = exercise.name
+        self.targetMuscle = exercise.targetMuscle
+        self.category = exercise.category.rawValue
+        self.defaultSets = Int32(exercise.totalSets)
+        self.defaultReps = Int32(exercise.repetitions)
+        self.defaultWeight = exercise.weight
+        self.restDuration = Int32(exercise.restDuration)
+        self.sfSymbolIcon = exercise.sfSymbolIcon
+        self.iconColor = exercise.iconColor
+        self.exerciseDescription = exercise.info
+        self.instructions = exercise.instructions
+        self.isBodyWeight = exercise.isBodyWeight
+        self.segundos = Int32(exercise.segundos)
+        self.rir = Int32(exercise.rir)
+        self.maxWeight = exercise.personalRecordWeight ?? 0.0
+        self.maxReps = Int32(exercise.personalRecordReps ?? 0)
+        self.recordDate = exercise.lastPerformed
+        self.updatedAt = Date()
+        
+        if self.createdAt == nil {
+            self.createdAt = Date()
+        }
+    }
+}
+
+// MARK: - Exercise Extension for Core Data
+extension Exercise {
+    
+    /// Obtener o crear ExerciseEntity en Core Data (usando nombre único)
+    func getOrCreateExerciseEntity(in context: NSManagedObjectContext) -> ExerciseEntity {
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", self.id as CVarArg)
+        
+        if let existing = try? context.fetch(request).first {
+            existing.updateFromExercise(self)
+            return existing
+        } else {
+            let entity = ExerciseEntity(context: context)
+            entity.updateFromExercise(self)
+            return entity
+        }
+    }
+}
+
+// MARK: - WorkoutSession Extensions
+extension WorkoutSession {
+    
+    /// Crear nueva sesión de entrenamiento (usando nombre único)
+    static func createWorkoutSession(in context: NSManagedObjectContext, workoutDay: WorkoutDay) -> WorkoutSession {
+        let session = WorkoutSession(context: context)
+        session.id = UUID()
+        session.date = Date()
+        session.workoutDay = workoutDay.rawValue
+        session.createdAt = Date()
+        session.isCompleted = false
+        return session
+    }
+    
+    /// Completar sesión de entrenamiento
+    func completeWorkout() {
+        self.isCompleted = true
+        self.completedAt = Date()
+        if let createdAt = self.createdAt {
+            self.duration = Int32(Date().timeIntervalSince(createdAt))
+        }
+    }
+}
+
+// MARK: - CompletedExercise Extensions
+extension CompletedExercise {
+    
+    /// Crear ejercicio completado (usando nombre único)
+    static func createCompletedExercise(in context: NSManagedObjectContext, from workoutExercise: WorkoutExercise, session: WorkoutSession) -> CompletedExercise {
+        let completed = CompletedExercise(context: context)
+        completed.id = UUID()
+        completed.weight = workoutExercise.weight
+        completed.reps = Int32(workoutExercise.repetitions)
+        completed.setNumber = Int32(workoutExercise.completedSets)
+        completed.completedAt = Date()
+        completed.isCompleted = workoutExercise.isCompleted
+        completed.workoutSession = session
+        
+        // Crear ExerciseEntity si no existe
+        let exerciseEntity = workoutExercise.toExercise().getOrCreateExerciseEntity(in: context)
+        completed.exercise = exerciseEntity
+        
+        return completed
+    }
+}
+
+// MARK: - UserProfile Extensions
+extension UserProfile {
+    
+    /// Obtener o crear perfil de usuario (usando nombre único)
+    static func getOrCreateUserProfile(in context: NSManagedObjectContext) -> UserProfile {
+        let request: NSFetchRequest<UserProfile> = UserProfile.fetchRequest()
+        request.fetchLimit = 1
+        
+        if let existing = try? context.fetch(request).first {
+            return existing
+        } else {
+            let profile = UserProfile(context: context)
+            profile.id = UUID()
+            profile.createdAt = Date()
+            return profile
+        }
+    }
+}

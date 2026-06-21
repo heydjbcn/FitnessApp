@@ -1,0 +1,243 @@
+//
+//  DebugManager.swift
+//  FitnessApp
+//
+//  Sistema consolidado de debug y testing - OPTIMIZADO
+//
+
+import Foundation
+import CoreData
+import SwiftUI
+
+class DebugManager {
+    static let shared = DebugManager()
+    private var firebaseService: FirebaseExerciseService { FirebaseExerciseService.shared }
+    private var coreDataManager: CoreDataManager { CoreDataManager.shared }
+    
+    private init() {}
+    
+    // MARK: - Debug Principal
+    func fullDiagnostic(for viewModel: WorkoutViewModel) {
+        print("🚨 === DIAGNÓSTICO COMPLETO OPTIMIZADO ===")
+        
+        // 1. Estado actual
+        print("📊 ESTADO ACTUAL:")
+        print("   - currentExercises: \(viewModel.currentExercises.count)")
+        print("   - availableExercises: \(viewModel.availableExercises.count)")
+        print("   - firebaseExercises: \(viewModel.firebaseExercises.count)")
+        
+        // 2. Core Data
+        print("\n🗄️ CORE DATA:")
+        Task {
+            await checkCoreDataState()
+        }
+        
+        // 3. Firebase
+        print("\n🔥 FIREBASE:")
+        Task {
+            await testFirebaseConnection()
+        }
+    }
+    
+    // MARK: - Core Data Debug
+    private func checkCoreDataState() async {
+        let context = coreDataManager.persistentContainer.viewContext
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        
+        do {
+            let entities = try context.fetch(request)
+            await MainActor.run {
+                print("   - Entidades en Core Data: \(entities.count)")
+                for (i, entity) in entities.prefix(5).enumerated() {
+                    print("   \(i+1). \(entity.name ?? "Sin nombre")")
+                }
+            }
+        } catch {
+            print("   ❌ Error: \(error)")
+        }
+    }
+    
+    // MARK: - Firebase Debug
+    func testFirebaseConnection() async {
+        do {
+            let exercises = await firebaseService.fetchExercises()
+            await MainActor.run {
+                print("   ✅ Conexión exitosa")
+                print("   - Ejercicios obtenidos: \(exercises.count)")
+                for (i, exercise) in exercises.prefix(3).enumerated() {
+                    print("   \(i+1). \(exercise.name) - \(exercise.targetMuscle)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Forzar carga Firebase
+    func forceFirebaseLoad(for viewModel: WorkoutViewModel) {
+        print("🚀 FORZANDO CARGA FIREBASE...")
+        
+        Task {
+            // Limpiar estado actual
+            await MainActor.run {
+                viewModel.currentExercises = []
+                viewModel.firebaseExercises = []
+            }
+            
+            // Cargar desde Firebase
+            await viewModel.loadExercisesFromFirebase()
+            
+            await MainActor.run {
+                print("✅ Carga completada:")
+                print("   - Ejercicios cargados: \(viewModel.currentExercises.count)")
+            }
+        }
+    }
+    
+    // MARK: - Limpiar Core Data
+    func cleanCoreData() async {
+        let context = coreDataManager.persistentContainer.viewContext
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        
+        do {
+            let entities = try context.fetch(request)
+            for entity in entities {
+                context.delete(entity)
+            }
+            try context.save()
+            print("🧹 Core Data limpiado - \(entities.count) entidades eliminadas")
+        } catch {
+            print("❌ Error limpiando Core Data: \(error)")
+        }
+    }
+}
+
+// MARK: - Vista de Debug Consolidada
+struct DebugView: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    @State private var isLoading = false
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // Header
+            VStack(spacing: 8) {
+                Text("🛠️ Debug Panel")
+                    .font(.title2.bold())
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                
+                Text("Ejercicios: \(viewModel.currentExercises.count)")
+                    .font(.headline)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            
+            // Botones de acción
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                DebugButton(title: "🔍 Diagnóstico", icon: "magnifyingglass") {
+                    DebugManager.shared.fullDiagnostic(for: viewModel)
+                }
+                
+                DebugButton(title: "🔥 Firebase", icon: "flame") {
+                    DebugManager.shared.forceFirebaseLoad(for: viewModel)
+                }
+                
+                DebugButton(title: "🧹 Limpiar", icon: "trash") {
+                    Task {
+                        await DebugManager.shared.cleanCoreData()
+                    }
+                }
+                
+                DebugButton(title: "📊 Estados", icon: "chart.bar") {
+                    printCurrentStates()
+                }
+            }
+            
+            // Lista de ejercicios
+            if viewModel.currentExercises.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "dumbbell")
+                        .font(.system(size: 40))
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("No hay ejercicios")
+                        .font(.headline)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(viewModel.currentExercises) { exercise in
+                        HStack {
+                            Image(systemName: exercise.sfSymbolIcon ?? "dumbbell.fill")
+                                .foregroundColor(AppColors.accentRed)
+                                .frame(width: 24)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(exercise.name)
+                                    .font(.subheadline.bold())
+                                
+                                Text("\(exercise.repetitions) reps • \(exercise.totalSets) sets")
+                                    .font(.caption)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Text(exercise.isFromFirebase ? "🔥" : "📱")
+                                .font(.caption)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .listStyle(PlainListStyle())
+            }
+        }
+        .padding()
+        .background(AppColors.backgroundPrimary)
+    }
+    
+    private func printCurrentStates() {
+        print("📊 === ESTADOS ACTUALES ===")
+        print("currentExercises: \(viewModel.currentExercises.count)")
+        print("availableExercises: \(viewModel.availableExercises.count)")
+        print("firebaseExercises: \(viewModel.firebaseExercises.count)")
+        print("isLoading: \(viewModel.isLoading)")
+        print("=============================")
+    }
+}
+
+// MARK: - Botón de Debug Reutilizable
+struct DebugButton: View {
+    let title: String
+    let icon: String
+    let action: () -> Void
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.title3)
+                
+                Text(title)
+                    .font(.caption.bold())
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(AppColors.backgroundCard)
+            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+            .cornerRadius(8)
+        }
+    }
+}
+
+// MARK: - Extension para WorkoutViewModel
+extension WorkoutViewModel {
+    func runFullDiagnostic() {
+        DebugManager.shared.fullDiagnostic(for: self)
+    }
+    
+    func testFirebase() {
+        Task {
+            await DebugManager.shared.testFirebaseConnection()
+        }
+    }
+}

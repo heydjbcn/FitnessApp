@@ -1,0 +1,43 @@
+//
+//  EnhancedTimerView.swift
+//  FitnessApp
+//
+//  Created by Jordi Mauri on 28/7/25.
+//
+
+import SwiftUI
+
+struct EnhancedTimerView: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            if viewModel.timerActive {
+                VStack(spacing: 16) {
+                    Text("Descanso")
+                        .font(.title2.bold())
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    
+                    Text("\(viewModel.timeRemaining)")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                    
+                    Button("Parar Timer") {
+                        viewModel.stopTimer()
+                    }
+                    .padding()
+                    .background(AppColors.primary(themeManager: themeManager))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+            } else {
+                Text("Timer inactivo")
+                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(16)
+    }
+}

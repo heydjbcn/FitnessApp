@@ -1,0 +1,189 @@
+//
+//  ExerciseManagementViewNew.swift
+//  FitnessApp
+//
+//  Vista renovada de gestión de ejercicios con pestañas
+//
+
+import SwiftUI
+
+struct ExerciseManagementViewNew: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    @State private var selectedTab: ExerciseTab = .exercises
+    @State private var showingAddExercise = false
+    @State private var searchText = ""
+    
+    enum ExerciseTab: CaseIterable {
+        case exercises
+        case addExercise
+        
+        var title: String {
+            switch self {
+            case .exercises: return "Ejercicios"
+            case .addExercise: return "Añadir"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .exercises: return "list.bullet"
+            case .addExercise: return "plus.circle"
+            }
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Custom Tab Picker
+            customTabPicker
+            
+            // Content
+            TabView(selection: $selectedTab) {
+                exercisesListView
+                    .tag(ExerciseTab.exercises)
+                
+                addExerciseView
+                    .tag(ExerciseTab.addExercise)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+        }
+        .background(AppColors.backgroundPrimary)
+    }
+    
+    private var customTabPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(ExerciseTab.allCases, id: \.self) { tab in
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        selectedTab = tab
+                    }
+                }) {
+                    VStack(spacing: 8) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 20, weight: .medium))
+                        
+                        Text(tab.title)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(selectedTab == tab ? 
+                                   AppColors.primary(themeManager: themeManager) : 
+                                   AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(selectedTab == tab ? 
+                                 AppColors.primary(themeManager: themeManager).opacity(0.1) : 
+                                 Color.clear)
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(16)
+        .padding(.horizontal)
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+    
+    private var exercisesListView: some View {
+        // 🔥 USAR LA NUEVA VISTA DE BIBLIOTECA
+        ExerciseLibraryView()
+            .environmentObject(viewModel)
+            .environmentObject(themeManager)
+    }
+    
+    private var addExerciseView: some View {
+        ExerciseFormView()
+    }
+    
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("Buscar ejercicios...", text: $searchText)
+                .textFieldStyle(PlainTextFieldStyle())
+            
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(10)
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "dumbbell")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 8) {
+                Text("No hay ejercicios")
+                    .font(.headline)
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                
+                Text("Añade tu primer ejercicio o carga ejercicios desde Firebase")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            VStack(spacing: 12) {
+                Button("Añadir Ejercicio") {
+                    selectedTab = .addExercise
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppColors.primary(themeManager: themeManager))
+                
+                Button("Cargar desde Firebase") {
+                    viewModel.refreshExercisesFromFirebase()
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Cargar Ejercicios por Defecto") {
+                    loadDefaultExercises()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+    
+    private var filteredExercises: [Exercise] {
+        if searchText.isEmpty {
+            return viewModel.availableExercises
+        } else {
+            return viewModel.availableExercises.filter { exercise in
+                exercise.name.localizedCaseInsensitiveContains(searchText) ||
+                exercise.targetMuscle.localizedCaseInsensitiveContains(searchText) ||
+                exercise.info.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    private func loadDefaultExercises() {
+        // ✅ CORREGIDO: Ya no hay ejercicios por defecto
+        // Solo se cargarán ejercicios de Firebase o creados por el usuario
+        viewModel.loadFirebaseExercises()
+    }
+}
+
+#Preview {
+    ExerciseManagementViewNew()
+        .environmentObject(WorkoutViewModel())
+        .environmentObject(ThemeManager())
+}

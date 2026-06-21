@@ -1,0 +1,396 @@
+//
+//  WorkoutViewModel.swift - VERSIÓN CORREGIDA CON PROPIEDADES FALTANTES
+//  FitnessApp
+//
+
+import SwiftUI
+import Combine
+import CoreData
+import Foundation
+
+@MainActor
+class WorkoutViewModel: ObservableObject {
+    // MARK: - Properties Esenciales
+    @Published var currentExercises: [Exercise] = []
+    @Published var activeWorkoutSession: WorkoutSession?
+    @Published var isWorkoutActive = false
+    @Published var restTime: TimeInterval = 120
+    @Published var timerActive = false
+    @Published var workoutDays: [WorkoutDay] = []
+    @Published var selectedDay: WorkoutDay = .monday
+    @Published var exerciseRecords: [UUID: WorkoutExercise] = [:]
+    @Published var dailyWorkoutRecords: [WorkoutDay: [WorkoutExercise]] = [:]
+    @Published var availableExercises: [Exercise] = []
+    @Published var firebaseExercises: [Exercise] = []
+    @Published var isLoading = false
+    
+    // ✅ PROPIEDAD FALTANTE AGREGADA
+    @Published var isLoadingFirebaseExercises = false
+    
+    // MARK: - Timer Properties
+    @Published var timeRemaining: TimeInterval = 0
+    @Published var currentTimerDuration: TimeInterval = 120
+    @Published var isTimerRunning = false
+    @Published var isTimerEnabled = true
+    
+    // MARK: - Managers (públicos)
+    let coreDataManager = CoreDataManager.shared
+    let firebaseService = FirebaseExerciseService.shared
+    let onboardingManager = OnboardingManager()
+    
+    // MARK: - Private Properties
+    private var cancellables = Set<AnyCancellable>()
+    private var restTimer: Timer?
+    
+    // MARK: - Initialization
+    init() {
+        setupObservers()
+        loadExercises()
+    }
+    
+    deinit {
+        restTimer?.invalidate()
+    }
+    
+    // MARK: - Setup
+    private func setupObservers() {
+        // Observar cambios en Core Data si es necesario
+    }
+    
+    // MARK: - Exercise Loading
+    func loadExercises() {
+        Task { @MainActor in
+            isLoading = true
+            
+            // Cargar ejercicios locales primero
+            await loadLocalExercises()
+            
+            // Luego cargar desde Firebase
+            await loadFirebaseExercises()
+            
+            // Combinar ambos
+            updateAvailableExercises()
+            
+            // Cargar rutina por defecto si es necesario
+            loadDefaultRoutineIfNeeded()
+            
+            isLoading = false
+        }
+    }
+    
+    func loadLocalExercises() async {
+        let context = coreDataManager.persistentContainer.viewContext
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        
+        do {
+            let entities = try context.fetch(request)
+            let exercises = entities.compactMap { entity in entity.toExerciseModel() }
+            
+            await MainActor.run {
+                self.currentExercises = exercises
+            }
+        } catch {
+            print("❌ Error cargando ejercicios locales: \(error)")
+        }
+    }
+    
+    func loadFirebaseExercises() async {
+        await MainActor.run {
+            isLoadingFirebaseExercises = true
+        }
+        
+        do {
+            let exercises = await firebaseService.fetchExercises()
+            await MainActor.run {
+                self.firebaseExercises = exercises
+                self.isLoadingFirebaseExercises = false
+                updateAvailableExercises()
+            }
+        } catch {
+            print("❌ Error cargando ejercicios de Firebase: \(error)")
+            await MainActor.run {
+                self.isLoadingFirebaseExercises = false
+            }
+        }
+    }
+    
+    private func updateAvailableExercises() {
+        availableExercises = firebaseExercises + currentExercises
+    }
+    
+    // MARK: - Exercise Management
+    func addExercise(_ exercise: Exercise) async {
+        // Guardar en Core Data
+        await saveExerciseToDatabase(exercise)
+        
+        // Actualizar UI
+        await MainActor.run {
+            if !currentExercises.contains(where: { $0.id == exercise.id }) {
+                currentExercises.append(exercise)
+                updateAvailableExercises()
+            }
+        }
+    }
+    
+    func deleteExercise(_ exercise: Exercise) async {
+        // Eliminar de Core Data
+        let context = coreDataManager.persistentContainer.viewContext
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+        
+        do {
+            let entities = try context.fetch(request)
+            entities.forEach { context.delete($0) }
+            try context.save()
+            
+            // Actualizar UI
+            await MainActor.run {
+                currentExercises.removeAll { $0.id == exercise.id }
+                updateAvailableExercises()
+            }
+        } catch {
+            print("❌ Error eliminando ejercicio: \(error)")
+        }
+    }
+    
+    private func saveExerciseToDatabase(_ exercise: Exercise) async {
+        let context = coreDataManager.persistentContainer.viewContext
+        
+        // Verificar si ya existe
+        let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+        
+        do {
+            let existingEntities = try context.fetch(request)
+            if existingEntities.isEmpty {
+                // Crear nueva entidad
+                let entity = ExerciseEntity(context: context)
+                entity.updateFromExercise(exercise)
+                try context.save()
+            }
+        } catch {
+            print("❌ Error guardando ejercicio: \(error)")
+        }
+    }
+    
+    // MARK: - Workout Session
+    func startWorkout() {
+        activeWorkoutSession = WorkoutSession()
+        isWorkoutActive = true
+    }
+    
+    func endWorkout() {
+        activeWorkoutSession = nil
+        isWorkoutActive = false
+        restTimer?.invalidate()
+    }
+    
+    // MARK: - Timer
+    func startRestTimer() {
+        stopRestTimer()
+        
+        timeRemaining = restTime
+        currentTimerDuration = restTime
+        isTimerRunning = true
+        
+        restTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                if self.timeRemaining > 0 {
+                    self.timeRemaining -= 1
+                } else {
+                    self.stopRestTimer()
+                }
+            }
+        }
+    }
+    
+    func stopRestTimer() {
+        restTimer?.invalidate()
+        restTimer = nil
+        isTimerRunning = false
+        timeRemaining = 0
+    }
+    
+    func pauseTimer() {
+        restTimer?.invalidate()
+        isTimerRunning = false
+    }
+    
+    func resumeTimer() {
+        if timeRemaining > 0 {
+            isTimerRunning = true
+            restTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                
+                Task { @MainActor in
+                    if self.timeRemaining > 0 {
+                        self.timeRemaining -= 1
+                    } else {
+                        self.stopRestTimer()
+                    }
+                }
+            }
+        }
+    }
+    
+    func resetTimer() {
+        stopRestTimer()
+        timeRemaining = restTime
+        currentTimerDuration = restTime
+    }
+    
+    func addTime(_ seconds: TimeInterval) {
+        timeRemaining += seconds
+        currentTimerDuration += seconds
+    }
+    
+    // MARK: - Timer Legacy Support
+    func stopTimer() {
+        stopRestTimer()
+    }
+    
+    // MARK: - Helper Methods
+    func getExercise(by id: UUID) -> Exercise? {
+        return availableExercises.first { $0.id == id }
+    }
+    
+    func removeExercise(recordId: UUID, from day: WorkoutDay) {
+        dailyWorkoutRecords[day]?.removeAll { $0.id == recordId }
+        if dailyWorkoutRecords[day]?.isEmpty == true {
+            dailyWorkoutRecords[day] = nil
+        }
+    }
+    
+    func getExerciseStats() -> (firebase: Int, local: Int, total: Int) {
+        return (
+            firebase: firebaseExercises.count,
+            local: currentExercises.count,
+            total: availableExercises.count
+        )
+    }
+    
+    // MARK: - Firebase Integration
+    func forceFirebaseReload() {
+        Task { @MainActor in
+            await MainActor.run {
+                isLoading = true
+                isLoadingFirebaseExercises = true
+                firebaseExercises = []
+            }
+            
+            await loadFirebaseExercises()
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
+    }
+    
+    func syncExerciseWithFirebase(_ exercise: Exercise) async {
+        do {
+            await firebaseService.saveExercise(exercise)
+            print("✅ Ejercicio sincronizado con Firebase: \(exercise.name)")
+        } catch {
+            print("❌ Error sincronizando con Firebase: \(error)")
+        }
+    }
+    
+    func getFirebaseExercisesByMuscle(_ muscle: String) -> [Exercise] {
+        return firebaseExercises.filter { $0.targetMuscle.lowercased() == muscle.lowercased() }
+    }
+    
+    func testFirebaseConnection() async -> (success: Bool, message: String) {
+        return await firebaseService.testFirebaseConnection()
+    }
+    
+    func createTestExerciseInFirebase() async {
+        let testExercise = Exercise(
+            name: "Test Exercise \(Date().timeIntervalSince1970)",
+            targetMuscle: "Test",
+            repetitions: 10,
+            totalSets: 3,
+            weight: 20,
+            sfSymbolIcon: "dumbbell.fill",
+            isFromFirebase: true
+        )
+        
+        await syncExerciseWithFirebase(testExercise)
+        await loadFirebaseExercises()
+    }
+    
+    func refreshExercisesFromFirebase() {
+        Task { @MainActor in
+            await loadFirebaseExercises()
+        }
+    }
+    
+    func quickDebug() {
+        print("🔍 === QUICK DEBUG ===")
+        print("Local: \(currentExercises.count)")
+        print("Firebase: \(firebaseExercises.count)")
+        print("Available: \(availableExercises.count)")
+        print("Loading: \(isLoading)")
+        print("Loading Firebase: \(isLoadingFirebaseExercises)")
+        print("====================")
+    }
+    
+    // MARK: - Legacy Compatibility
+    func loadDefaultRoutineIfNeeded() {
+        // Implementar lógica de rutina por defecto si es necesario
+    }
+    
+    func activateCoreDataWithFirebase() async {
+        await loadExercises()
+    }
+    
+    func loadExercisesFromFirebase() async {
+        await loadFirebaseExercises()
+    }
+    
+    func loadDefaultExercises() {
+        Task { @MainActor in
+            await loadLocalExercises()
+        }
+    }
+    
+    func createDefaultExercises() async {
+        print("ℹ️ Los ejercicios por defecto ahora vienen de Firebase")
+    }
+    
+    // MARK: - Computed Properties
+    var exercisesForDate: [Exercise] {
+        return availableExercises
+    }
+    
+    // MARK: - Bulk Operations
+    func addExerciseBulk(_ exercise: Exercise, toDays days: [WorkoutDay]) {
+        for day in days {
+            let workoutExercise = WorkoutExercise(from: exercise)
+            
+            if dailyWorkoutRecords[day] == nil {
+                dailyWorkoutRecords[day] = []
+            }
+            dailyWorkoutRecords[day]?.append(workoutExercise)
+        }
+        
+        // También agregar a la lista general
+        Task { @MainActor in
+            await self.addExercise(exercise)
+        }
+    }
+    
+    func updateExercise(_ exercise: Exercise) {
+        // Actualizar ejercicio existente
+        if let index = currentExercises.firstIndex(where: { $0.id == exercise.id }) {
+            currentExercises[index] = exercise
+            updateAvailableExercises()
+        }
+        
+        // Actualizar en Core Data
+        Task { @MainActor in
+            await saveExerciseToDatabase(exercise)
+        }
+    }
+}

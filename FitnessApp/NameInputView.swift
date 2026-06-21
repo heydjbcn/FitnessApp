@@ -22,11 +22,11 @@ struct NameInputView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 80))
-                            .foregroundColor(AppColors.primary)
+                            .foregroundColor(AppColors.accentRed)
                         
                         Text("¡Bienvenido a ChamaFit!")
                             .font(.title.bold())
-                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                            .foregroundColor(AppColors.textPrimary)
                             .multilineTextAlignment(.center)
                         
                         Text("Para personalizar tu experiencia, cuéntanos tu nombre")
@@ -53,7 +53,7 @@ struct NameInputView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
-                                       AppColors.textSecondary(isDark: themeManager.isDarkMode) : AppColors.primary)
+                                       AppColors.textSecondary(isDark: themeManager.isDarkMode) : AppColors.primary(themeManager: themeManager))
                             .cornerRadius(12)
                         }
                         .disabled(nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

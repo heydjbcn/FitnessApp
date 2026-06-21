@@ -2,19 +2,20 @@ import SwiftUI
 
 struct PersonalRecordsCardView: View {
     @ObservedObject var workoutViewModel: WorkoutViewModel
-    
+    @EnvironmentObject var themeManager: ThemeManager
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
             HStack {
                 HStack(spacing: 8) {
                     Image(systemName: "trophy.fill")
                         .foregroundColor(.yellow)
                         .font(.title2)
                     
-                    Text("Personal Records")
+                    Text("Récords Personales")
                         .font(.headline)
                         .fontWeight(.bold)
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                 }
                 
                 Spacer()
@@ -22,36 +23,18 @@ struct PersonalRecordsCardView: View {
                 Text("TOP 5")
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(8)
             }
             
-            // Personal Records List
-            if workoutViewModel.getTopPersonalRecords(limit: 5).isEmpty {
-                // Estado vacío
-                VStack(spacing: 8) {
-                    Image(systemName: "trophy")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray)
-                    
-                    Text("Sin récords aún")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text("¡Completa ejercicios para establecer tus primeros Personal Records!")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
+            if getTopPersonalRecordDisplays().isEmpty {
+                emptyState
             } else {
-                // Lista de récords
                 VStack(spacing: 8) {
-                    ForEach(Array(workoutViewModel.getTopPersonalRecords(limit: 5).enumerated()), id: \.offset) { index, record in
+                    ForEach(Array(getTopPersonalRecordDisplays().enumerated()), id: \.offset) { index, record in
                         PersonalRecordRow(
                             rank: index + 1,
                             exerciseName: record.exerciseName,
@@ -62,75 +45,103 @@ struct PersonalRecordsCardView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemGray6))
-        )
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
+    
+    // MARK: - Helper Functions
+    private func getTopPersonalRecordDisplays() -> [PersonalRecordDisplay] {
+        var recordsMap: [UUID: PersonalRecordDisplay] = [:]
+        
+        // Recorrer todos los días y ejercicios para encontrar récords
+        for day in WorkoutDay.allCases {
+            if let records = workoutViewModel.dailyWorkoutRecords[day] {
+                for record in records {
+                    if let exercise = workoutViewModel.getExercise(by: record.exerciseId) {
+                        let bestWeight = record.weight
+                        
+                        if bestWeight > 0 {
+                            let existingRecord: PersonalRecordDisplay? = recordsMap[record.exerciseId]
+                            if existingRecord == nil || bestWeight > existingRecord!.weight {
+                                recordsMap[record.exerciseId] = PersonalRecordDisplay(
+                                    exerciseId: record.exerciseId,
+                                    exerciseName: exercise.name,
+                                    weight: bestWeight
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Retornar los top 5 ordenados por peso
+        return Array(recordsMap.values)
+            .sorted { $0.weight > $1.weight }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "trophy")
+                .font(.largeTitle)
+                .foregroundColor(.gray)
+            
+            Text("Sin récords aún")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Text("¡Completa ejercicios para establecer tus primeros Récords Personales!")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+    }
+}
+
+// MARK: - Personal Record Model
+struct PersonalRecordDisplay {
+    let exerciseId: UUID
+    let exerciseName: String
+    let weight: Double
 }
 
 struct PersonalRecordRow: View {
     let rank: Int
     let exerciseName: String
     let weight: Double
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Rank badge
-            ZStack {
-                Circle()
-                    .fill(rankColor)
-                    .frame(width: 24, height: 24)
-                
-                Text("\(rank)")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-            }
-            
-            // Exercise name
-            Text(exerciseName)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .lineLimit(1)
-            
-            Spacer()
-            
-            // Weight with trophy icon
-            HStack(spacing: 4) {
-                Text("\(weight, specifier: "%.1f") kg")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                
-                Image(systemName: "trophy.fill")
-                    .font(.caption)
-                    .foregroundColor(.yellow)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(.systemBackground))
-        )
-    }
+    @EnvironmentObject var themeManager: ThemeManager
     
     private var rankColor: Color {
         switch rank {
-        case 1:
-            return .yellow  // Oro
-        case 2:
-            return .gray    // Plata
-        case 3:
-            return .orange  // Bronce
-        default:
-            return .blue    // Otros
+        case 1: return .yellow
+        case 2: return .gray
+        case 3: return .orange
+        default: return AppColors.primary(themeManager: themeManager)
         }
     }
-}
 
-#Preview {
-    PersonalRecordsCardView(workoutViewModel: WorkoutViewModel())
-        .padding()
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(rankColor).frame(width: 24, height: 24)
+                Text("\(rank)").font(.caption).fontWeight(.bold).foregroundColor(.white)
+            }
+            
+            Text(exerciseName).font(.subheadline).fontWeight(.medium).lineLimit(1)
+            Spacer()
+            
+            HStack(spacing: 4) {
+                Text("\(weight, specifier: "%.1f") kg").font(.subheadline).fontWeight(.semibold)
+                Image(systemName: "trophy.fill").font(.caption).foregroundColor(.yellow)
+            }
+        }
+        .padding(8)
+        .background(AppColors.background(isDark: themeManager.isDarkMode))
+        .cornerRadius(8)
+    }
 }

@@ -17,66 +17,49 @@ struct ExerciseCardView: View {
     @State private var showInfo = false
 
     var body: some View {
-        let _ = print("🔥🔥🔥 EXERCISECARDVIEW SE ESTÁ EJECUTANDO PARA: \(exercise.name)")
-        
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "dumbbell.fill").foregroundColor(AppColors.primary(themeManager: themeManager))
-                Text(exercise.name.uppercased()).font(.headline.weight(.bold)).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                Image(systemName: "dumbbell.fill")
+                    .foregroundColor(AppColors.accentRed)
+                Text(exercise.name.uppercased())
+                    .font(.headline.weight(.bold))
+                    .foregroundColor(AppColors.textPrimary)
                 Spacer()
-                Button { showInfo = true } label: { Image(systemName: "info.circle.fill").foregroundColor(AppColors.accentCyan) }
+                Button { showInfo = true } label: {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(AppColors.accentBlue)
+                }
                 Button {
                     withAnimation { 
                         viewModel.removeExercise(recordId: workoutRecord.id, from: day)
                     }
-                } label: { Image(systemName: "trash.circle.fill").foregroundColor(AppColors.danger) }
+                } label: {
+                    Image(systemName: "trash.circle.fill")
+                        .foregroundColor(AppColors.danger)
+                }
             }
 
             HStack(spacing: 24) {
-                let _ = print("🔥 EJERCICIO: \(exercise.name) - SEGUNDOS: \(exercise.segundos) - REPS: \(exercise.repetitions)")
-                
                 // MOSTRAR SEGUNDOS si > 0
                 if exercise.segundos > 0 {
-                    let _ = print("🔥 MOSTRANDO SEGUNDOS: \(exercise.segundos)")
                     infoItem(icon: "timer", text: "\(exercise.segundos)s")
                 }
                 
                 // MOSTRAR REPETICIONES solo si > 0
                 if exercise.repetitions > 0 {
-                    let _ = print("🔥 MOSTRANDO REPETICIONES: \(exercise.repetitions)")
                     infoItem(icon: "repeat", text: "\(exercise.repetitions) reps")
                 }
-                
-                // SIEMPRE mostrar un texto de debug
-                infoItem(icon: "questionmark", text: "DEBUG")
                 
                 // Mostrar peso solo si es mayor a 0
                 if exercise.weight > 0 {
                     infoItem(icon: "scalemass", text: String(format: "%.1f kg", exercise.weight))
                 }
                 
-                infoItem(icon: "number", text: "\(workoutRecord.completedSets)/\(exercise.totalSets) series", color: workoutRecord.completedSets >= exercise.totalSets ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode))
-            }
-            
-            // Segunda fila con información adicional si está disponible
-            let currentPR = viewModel.getPersonalRecord(for: exercise.id)
-            
-            if exercise.rir > 0 || currentPR != nil {
-                HStack(spacing: 24) {
-                    if exercise.rir > 0 {
-                        infoItem(icon: "gauge", text: "RIR: \(exercise.rir)")
-                    }
-                    
-                    if let personalRecord = currentPR, personalRecord > 0 {
-                        infoItem(
-                            icon: "trophy", 
-                            text: "PR: \(String(format: "%.1f", personalRecord)) kg",
-                            color: exercise.weight > personalRecord ? AppColors.success : AppColors.accentCyan
-                        )
-                    }
-                    
-                    Spacer() // Para alinear a la izquierda
-                }
+                infoItem(
+                    icon: "number", 
+                    text: "\(workoutRecord.completedSets)/\(exercise.totalSets) series",
+                    color: workoutRecord.completedSets >= exercise.totalSets ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode)
+                )
             }
 
             HStack(spacing: 0) {
@@ -109,18 +92,25 @@ struct ExerciseCardView: View {
                 }
             }
         }
-        .padding().background(AppColors.cardBackground(isDark: themeManager.isDarkMode)).cornerRadius(12).opacity(workoutRecord.completedSets >= exercise.totalSets ? 0.7 : 1.0)
+        .padding()
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(12)
+        .opacity(workoutRecord.completedSets >= exercise.totalSets ? 0.7 : 1.0)
         .sheet(isPresented: $showInfo) {
             ExerciseInfoSheet(exercise: exercise)
         }
     }
 
     private func infoItem(icon: String, text: String, color: Color? = nil) -> some View {
-        let finalColor = color ?? AppColors.textPrimary(isDark: themeManager.isDarkMode)
+        let finalColor = color ?? AppColors.textPrimary
         
         return HStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 14)).foregroundColor(AppColors.accentCyan)
-            Text(text).font(.caption.weight(.semibold)).foregroundColor(finalColor)
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(AppColors.accentBlue)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(finalColor)
         }
     }
 }
@@ -135,10 +125,15 @@ struct ExerciseInfoSheet: View {
         NavigationStack {
             ZStack {
                 AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
+                
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
                         if let imageData = exercise.imageData, let uiImage = UIImage(data: imageData) {
-                            Image(uiImage: uiImage).resizable().scaledToFit().cornerRadius(12).padding(.horizontal)
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFit()
+                                .cornerRadius(12)
+                                .padding(.horizontal)
                         }
                         
                         Text(exercise.info.isEmpty ? "No hay descripción para este ejercicio." : exercise.info)
@@ -153,22 +148,26 @@ struct ExerciseInfoSheet: View {
                                 .padding(.horizontal)
                             
                             VStack(spacing: 8) {
-                                HStack {
-                                    Image(systemName: "repeat")
-                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                                    Text("Repeticiones:")
-                                    Spacer()
-                                    Text("\(exercise.repetitions)")
-                                        .fontWeight(.semibold)
+                                if exercise.repetitions > 0 {
+                                    HStack {
+                                        Image(systemName: "repeat")
+                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                        Text("Repeticiones:")
+                                        Spacer()
+                                        Text("\(exercise.repetitions)")
+                                            .fontWeight(.semibold)
+                                    }
                                 }
                                 
-                                HStack {
-                                    Image(systemName: "scalemass")
-                                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                                    Text("Peso:")
-                                    Spacer()
-                                    Text(String(format: "%.1f kg", exercise.weight))
-                                        .fontWeight(.semibold)
+                                if exercise.weight > 0 {
+                                    HStack {
+                                        Image(systemName: "scalemass")
+                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                        Text("Peso:")
+                                        Spacer()
+                                        Text(String(format: "%.1f kg", exercise.weight))
+                                            .fontWeight(.semibold)
+                                    }
                                 }
                                 
                                 HStack {
@@ -191,17 +190,6 @@ struct ExerciseInfoSheet: View {
                                     }
                                 }
                                 
-                                if exercise.rir > 0 {
-                                    HStack {
-                                        Image(systemName: "gauge.high")
-                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
-                                        Text("RIR (Reps en Reserva):")
-                                        Spacer()
-                                        Text("\(exercise.rir)")
-                                            .fontWeight(.semibold)
-                                    }
-                                }
-                                
                                 HStack {
                                     Image(systemName: "timer.circle")
                                         .foregroundColor(AppColors.primary(themeManager: themeManager))
@@ -209,19 +197,6 @@ struct ExerciseInfoSheet: View {
                                     Spacer()
                                     Text("\(exercise.restDuration / 60):\(String(format: "%02d", exercise.restDuration % 60))")
                                         .fontWeight(.semibold)
-                                }
-                                
-                                // Personal Record
-                                if let personalRecord = viewModel.getPersonalRecord(for: exercise.id), personalRecord > 0 {
-                                    HStack {
-                                        Image(systemName: "trophy.fill")
-                                            .foregroundColor(.yellow)
-                                        Text("Personal Record:")
-                                        Spacer()
-                                        Text("\(String(format: "%.1f", personalRecord)) kg")
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(exercise.weight > personalRecord ? AppColors.success : AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                    }
                                 }
                             }
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
@@ -235,8 +210,11 @@ struct ExerciseInfoSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { dismiss() } label: { Image(systemName: "xmark").font(.title3.weight(.bold)) }
-                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.title3.weight(.bold))
+                            .foregroundColor(AppColors.accentRed)
+                    }
                 }
             }
         }

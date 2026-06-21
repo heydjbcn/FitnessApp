@@ -1,0 +1,106 @@
+// Fichero: HistoryView.swift
+
+import SwiftUI
+
+struct HistoryView: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    @State private var selectedDate: Date = Date()
+    @State private var bodyWeight: String = ""
+    @State private var isEditingWeight = false
+    @FocusState private var isWeightFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 20) {
+                        CustomCalendarView(selectedDate: .constant(selectedDate))
+                            .modernCardStyle(isDarkMode: themeManager.isDarkMode)
+
+                        weightInputView
+                            .modernCardStyle(isDarkMode: themeManager.isDarkMode)
+                        
+                        historyListView
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle("Historial")
+            .onAppear(perform: loadWeightForCurrentDate)
+            .onChange(of: selectedDate) { _, _ in loadWeightForCurrentDate() }
+        }
+    }
+    
+    private var weightInputView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "scalemass")
+                Text("Peso corporal (kg):")
+            }
+            .foregroundColor(AppColors.primary(themeManager: themeManager))
+            
+            if isEditingWeight {
+                HStack {
+                    TextField("75.5", text: $bodyWeight)
+                        .textFieldStyle(ModernTextFieldStyle(isDarkMode: themeManager.isDarkMode))
+                        .keyboardType(.decimalPad)
+                        .focused($isWeightFocused)
+                    
+                    Button("Guardar") {
+                        if let weightValue = Double(bodyWeight) {
+                            viewModel.updateBodyWeight(for: selectedDate, weight: weightValue)
+                        }
+                        isEditingWeight = false
+                        isWeightFocused = false
+                    }
+                    .buttonStyle(.borderedProminent).tint(AppColors.primary(themeManager: themeManager))
+                }
+            } else {
+                HStack {
+                    Text(bodyWeight.isEmpty ? "No registrado" : "\(bodyWeight) kg")
+                        .font(.headline)
+                    Spacer()
+                    Button("Editar") {
+                        isEditingWeight = true
+                        isWeightFocused = true
+                    }
+                    .tint(AppColors.primary(themeManager: themeManager))
+                }
+            }
+        }
+        .padding()
+    }
+    
+    @ViewBuilder
+    private var historyListView: some View {
+        if let historyForDate = viewModel.exercisesForDate(selectedDate), !historyForDate.isEmpty {
+            VStack(alignment: .leading) {
+                Text("Entrenamientos del Día").font(.headline).padding(.bottom, 5)
+                ForEach(historyForDate.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { day in
+                    if let records = historyForDate[day] {
+                        ForEach(records) { record in
+                            if let exercise = viewModel.getExercise(by: record.exerciseId) {
+                                Text("\(exercise.name): \(record.completedSets) / \(exercise.totalSets) series")
+                            }
+                        }
+                    }
+                }
+            }
+            .padding().modernCardStyle(isDarkMode: themeManager.isDarkMode)
+        } else {
+            Text("Sin datos para esta fecha.").padding()
+        }
+    }
+
+    private func loadWeightForCurrentDate() {
+        if let weight = viewModel.bodyWeightForDate(selectedDate) {
+            bodyWeight = String(format: "%.1f", weight)
+            isEditingWeight = false
+        } else {
+            bodyWeight = ""
+            isEditingWeight = true
+        }
+    }
+}

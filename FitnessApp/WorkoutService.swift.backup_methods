@@ -1,0 +1,164 @@
+//
+//  WorkoutService.swift - VERSIÓN CORREGIDA
+//  FitnessApp
+//
+
+import Foundation
+import CoreData
+import Combine
+
+@MainActor
+class WorkoutService: ObservableObject {
+    static let shared = WorkoutService()
+    
+    @Published var currentSession: WorkoutSession?
+    @Published var isWorkoutActive = false
+    @Published var exercises: [Exercise] = []
+    
+    private let coreDataManager = CoreDataManager.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        loadExercises()
+    }
+    
+    // MARK: - Exercise Management
+    
+    func loadExercises() {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            do {
+                let context = coreDataManager.persistentContainer.viewContext
+                let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+                let fetchedExerciseEntities = try context.fetch(request)
+                
+                // Convertir ExerciseEntity a Exercise
+                let exercises = fetchedExerciseEntities.map { $0.toExercise() }
+                
+                await MainActor.run {
+                    self.exercises = exercises
+                }
+            } catch {
+                print("Error cargando ejercicios: \(error)")
+                // ✅ CORREGIDO: Ya no hay ejercicios por defecto
+                // Solo ejercicios de Firebase o del usuario
+                await MainActor.run {
+                    self.exercises = []
+                }
+            }
+        }
+    }
+    
+    func addExercise(name: String, category: String, info: String, imageData: Data?, sfSymbolIcon: String?, iconColor: String) {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            
+            let context = coreDataManager.persistentContainer.viewContext
+            
+            let exerciseEntity = ExerciseEntity(context: context)
+            
+            exerciseEntity.id = UUID()
+            exerciseEntity.name = name
+            exerciseEntity.category = category
+            exerciseEntity.exerciseDescription = info
+            exerciseEntity.sfSymbolIcon = sfSymbolIcon
+            exerciseEntity.iconColor = iconColor
+            exerciseEntity.createdAt = Date()
+            exerciseEntity.updatedAt = Date()
+            
+            exerciseEntity.defaultReps = 8
+            exerciseEntity.defaultSets = 3
+            exerciseEntity.defaultWeight = 0.0
+            exerciseEntity.restDuration = 120
+            
+            await coreDataManager.saveContext()
+            
+            await MainActor.run {
+                self.loadExercises()
+            }
+        }
+    }
+    
+    func updateExercise(_ exercise: Exercise) {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            
+            let context = coreDataManager.persistentContainer.viewContext
+            let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+            
+            do {
+                if let existingEntity = try context.fetch(request).first {
+                    existingEntity.updateFrom(exercise)
+                    await coreDataManager.saveContext()
+                    
+                    await MainActor.run {
+                        self.loadExercises()
+                    }
+                }
+            } catch {
+                print("Error actualizando ejercicio: \(error)")
+            }
+        }
+    }
+    
+    func deleteExercise(_ exercise: Exercise) {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            
+            let context = coreDataManager.persistentContainer.viewContext
+            let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", exercise.id as CVarArg)
+            
+            do {
+                if let existingEntity = try context.fetch(request).first {
+                    context.delete(existingEntity)
+                    await coreDataManager.saveContext()
+                    
+                    await MainActor.run {
+                        self.loadExercises()
+                    }
+                }
+            } catch {
+                print("Error eliminando ejercicio: \(error)")
+            }
+        }
+    }
+    
+    func refreshData() {
+        loadExercises()
+    }
+    
+    // MARK: - Workout Session Management
+    
+    func startWorkoutSession(for day: WorkoutDay) {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            
+            let context = coreDataManager.persistentContainer.viewContext
+            let session = WorkoutSession.create(in: context, workoutDay: day)
+            
+            await coreDataManager.saveContext()
+            
+            await MainActor.run {
+                self.currentSession = session
+                self.isWorkoutActive = true
+            }
+        }
+    }
+    
+    func endWorkoutSession() {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            guard let session = currentSession else { return }
+            
+            session.complete()
+            await coreDataManager.saveContext()
+            
+            await MainActor.run {
+                self.currentSession = nil
+                self.isWorkoutActive = false
+            }
+        }
+    }
+}

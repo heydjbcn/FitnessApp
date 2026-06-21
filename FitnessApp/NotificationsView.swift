@@ -218,7 +218,7 @@ struct NotificationRow: View {
             // Indicador de no leída
             if !notification.isRead {
                 Circle()
-                    .fill(AppColors.primary)
+                    .fill(AppColors.primary(themeManager: themeManager))
                     .frame(width: 8, height: 8)
             }
         }
@@ -227,12 +227,12 @@ struct NotificationRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(notification.isRead ?
                      AppColors.cardBackground(isDark: themeManager.isDarkMode) :
-                     AppColors.primary.opacity(0.05))
+                     AppColors.primary(themeManager: themeManager).opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(notification.isRead ?
                                Color.clear :
-                               AppColors.primary.opacity(0.2), lineWidth: 1)
+                               AppColors.primary(themeManager: themeManager).opacity(0.2), lineWidth: 1)
                 )
         )
     }

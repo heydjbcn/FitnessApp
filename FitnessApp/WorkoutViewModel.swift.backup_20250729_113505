@@ -1,0 +1,252 @@
+//
+//  WorkoutViewModel.swift - VERSIÓN SIMPLIFICADA FUNCIONAL
+//  FitnessApp
+//
+
+import SwiftUI
+import Combine
+import CoreData
+import Foundation
+
+@MainActor
+class WorkoutViewModel: ObservableObject {
+    @Published var currentExercises: [Exercise] = []
+    @Published var activeWorkoutSession: WorkoutSession?
+    @Published var isWorkoutActive = false
+    @Published var restTime: TimeInterval = 120
+    @Published var timerActive = false
+    @Published var restTimerCount: Int = 0
+    @Published var workoutDays: [WorkoutDay] = []
+    @Published var selectedDay: WorkoutDay = .monday
+    @Published var exerciseRecords: [UUID: WorkoutExercise] = [:]
+    @Published var timeRemaining: TimeInterval = 0
+    
+    private var coreDataManager = CoreDataManager.shared
+    private var cancellables = Set<AnyCancellable>()
+    private var restTimer: Timer?
+    private var workoutTimer: Timer?
+    
+    init() {
+        setupObservers()
+        loadDefaultExercises()
+    }
+    
+    deinit {
+        restTimer?.invalidate()
+        workoutTimer?.invalidate()
+    }
+    
+    private func setupObservers() {
+        // Observer básico
+    }
+    
+    private func performOptimizedSave() {
+        Task {
+            await coreDataManager.saveContext()
+        }
+    }
+    
+    func loadDefaultExercises() {
+        Task {
+            let context = coreDataManager.container.viewContext
+            let request: NSFetchRequest<Exercise> = Exercise.fetchRequest()
+            
+            do {
+                let exercises = try context.fetch(request)
+                await MainActor.run {
+                    self.currentExercises = exercises
+                }
+            } catch {
+                print("Error cargando ejercicios: \(error)")
+            }
+        }
+    }
+    
+    func addExerciseToWorkout(_ exercise: Exercise) {
+        let workoutExercise = WorkoutExercise(
+            exerciseId: exercise.id ?? UUID(),
+            exerciseName: exercise.name ?? "Ejercicio",
+            repetitions: 10,
+            weight: 0,
+            totalSets: 3,
+            info: exercise.info ?? "",
+            imageData: exercise.imageData,
+            restDuration: Int(restTime),
+            sfSymbolIcon: exercise.sfSymbolIcon,
+            iconColor: exercise.iconColor ?? "blue",
+            segundos: 0,
+            rir: 0
+        )
+        
+        exerciseRecords[exercise.id ?? UUID()] = workoutExercise
+    }
+    
+    func updateRestDuration(_ duration: Int) {
+        restTime = TimeInterval(duration)
+        
+        for (key, var exercise) in exerciseRecords {
+            exercise.restDuration = duration
+            exerciseRecords[key] = exercise
+        }
+    }
+    
+    func updateExerciseRecord(for exerciseId: UUID, weight: Double, reps: Int) {
+        guard var record = exerciseRecords[exerciseId] else { return }
+        
+        record.weight = weight
+        record.repetitions = reps
+        
+        exerciseRecords[exerciseId] = record
+        
+        Task {
+            await performOptimizedSave()
+        }
+    }
+    
+    func removeExerciseRecord(for exerciseId: UUID, weight: Double, reps: Int) {
+        guard var record = exerciseRecords[exerciseId] else { return }
+        
+        if record.completedSets > 0 {
+            record.completedSets -= 1
+        }
+        
+        exerciseRecords[exerciseId] = record
+        
+        Task {
+            await performOptimizedSave()
+        }
+    }
+    
+    func removeExercise(recordId: UUID, from day: WorkoutDay) {
+        exerciseRecords.removeValue(forKey: recordId)
+        
+        Task {
+            await performOptimizedSave()
+        }
+    }
+    
+    func startRestTimer() {
+        timerActive = true
+        restTimerCount = Int(restTime)
+        timeRemaining = restTime
+        
+        restTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self, self.timerActive else {
+                    return
+                }
+                
+                if self.restTimerCount > 0 {
+                    self.restTimerCount -= 1
+                    self.timeRemaining = TimeInterval(self.restTimerCount)
+                } else {
+                    self.stopRestTimer()
+                }
+            }
+        }
+    }
+    
+    func stopRestTimer() {
+        timerActive = false
+        restTimer?.invalidate()
+        restTimer = nil
+        timeRemaining = 0
+    }
+    
+    func startWorkout() {
+        isWorkoutActive = true
+        
+        Task {
+            let context = coreDataManager.container.viewContext
+            let session = WorkoutSession(context: context)
+            
+            session.id = UUID()
+            session.startDate = Date()
+            session.workoutDay = selectedDay.rawValue
+            
+            await coreDataManager.saveContext()
+            
+            await MainActor.run {
+                self.activeWorkoutSession = session
+            }
+        }
+    }
+    
+    func endWorkout() {
+        guard let session = activeWorkoutSession else { return }
+        
+        Task {
+            session.endDate = Date()
+            session.duration = session.endDate!.timeIntervalSince(session.startDate ?? Date())
+            
+            await coreDataManager.saveContext()
+            
+            await MainActor.run {
+                self.isWorkoutActive = false
+                self.activeWorkoutSession = nil
+                self.exerciseRecords.removeAll()
+            }
+        }
+        
+        stopRestTimer()
+        workoutTimer?.invalidate()
+        workoutTimer = nil
+    }
+    
+    func exportWorkouts() async -> Data? {
+        do {
+            let context = coreDataManager.container.viewContext
+            let request: NSFetchRequest<WorkoutSession> = WorkoutSession.fetchRequest()
+            let sessions = try context.fetch(request)
+            
+            let exportData = sessions.compactMap { session -> [String: Any]? in
+                guard let startDate = session.startDate,
+                      let workoutDay = session.workoutDay else {
+                    return nil
+                }
+                
+                return [
+                    "date": startDate,
+                    "workoutDay": workoutDay,
+                    "duration": session.duration,
+                    "exercises": []
+                ]
+            }
+            
+            return try JSONSerialization.data(withJSONObject: exportData)
+        } catch {
+            print("Error exportando workouts: \(error)")
+            return nil
+        }
+    }
+    
+    func clearAllData() {
+        Task {
+            let context = coreDataManager.container.viewContext
+            
+            let entityNames = ["Exercise", "WorkoutSession", "CompletedExercise", "UserProfile"]
+            
+            for entityName in entityNames {
+                let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+                let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
+                try? context.execute(deleteRequest)
+            }
+            
+            await coreDataManager.saveContext()
+            
+            await MainActor.run {
+                self.currentExercises.removeAll()
+                self.exerciseRecords.removeAll()
+                self.isWorkoutActive = false
+                self.activeWorkoutSession = nil
+            }
+        }
+    }
+    
+    func activateCoreData() async {
+        // CoreDataManager se inicializa automáticamente
+        
+        // Cargar datos por defecto
+        loadDefaultExercises()
+    }
+}

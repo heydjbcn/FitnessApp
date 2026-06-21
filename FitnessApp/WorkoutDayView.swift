@@ -17,7 +17,17 @@ struct WorkoutDayView: View {
     @ObservedObject private var spotifyManager = SpotifyManager.shared
 
     private var exercisesForDay: [WorkoutExercise] { viewModel.dailyWorkoutRecords[day] ?? [] }
-    private var progress: Double { viewModel.progressForDay(day) }
+    private var progress: Double { 
+        let records = exercisesForDay
+        if records.isEmpty { return 0 }
+        
+        let completedSets = records.reduce(0) { $0 + $1.completedSets }
+        let totalSets = records.compactMap { record in
+            viewModel.getExercise(by: record.exerciseId)?.totalSets
+        }.reduce(0, +)
+        
+        return totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,7 +38,7 @@ struct WorkoutDayView: View {
                 // Contenido principal
                 VStack(spacing: 0) {
                     // Header reutilizable
-                    HeaderView()
+                    ModernHeaderView()
                         .environmentObject(themeManager)
                         .environmentObject(userManager)
                         .environmentObject(viewModel)
@@ -88,8 +98,8 @@ struct WorkoutDayView: View {
     private var progressCard: some View {
         HStack(spacing: 16) {
             ZStack {
-                Circle().stroke(AppColors.secondaryGray, lineWidth: 8)
-                Circle().trim(from: 0, to: progress).stroke(AppColors.primary(themeManager: themeManager), style: StrokeStyle(lineWidth: 8, lineCap: .round)).rotationEffect(.degrees(-90)).animation(.easeInOut, value: progress)
+                Circle().stroke(AppColors.backgroundCard, lineWidth: 8)
+                Circle().trim(from: 0, to: progress).stroke(AppColors.accentRed, style: StrokeStyle(lineWidth: 8, lineCap: .round)).rotationEffect(.degrees(-90)).animation(.easeInOut, value: progress)
                 Text("\(Int(progress * 100))%").font(.caption.weight(.bold))
             }
             .frame(width: 60, height: 60)
@@ -115,9 +125,9 @@ struct EmptyStateView: View {
     @EnvironmentObject var themeManager: ThemeManager
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "dumbbell").font(.system(size: 50)).foregroundColor(AppColors.primary(themeManager: themeManager).opacity(0.7))
-            Text("No hay ejercicios").font(.headline).foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-            Text("Añade ejercicios desde el menú de Configuración.").font(.subheadline).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)).multilineTextAlignment(.center)
+            Image(systemName: "dumbbell").font(.system(size: 50)).foregroundColor(AppColors.accentRed.opacity(0.7))
+            Text("No hay ejercicios").font(.headline).foregroundColor(AppColors.textPrimary)
+            Text("Añade ejercicios desde el menú de Configuración.").font(.subheadline).foregroundColor(AppColors.textSecondary).multilineTextAlignment(.center)
         }.padding()
     }
 }

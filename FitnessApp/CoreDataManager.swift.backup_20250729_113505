@@ -1,0 +1,243 @@
+//
+//  CoreDataManager.swift - CORRECCIONES CRÍTICAS
+//  FitnessApp
+//
+
+import CoreData
+import Foundation
+import CloudKit
+import Combine
+
+/// Maneja todas las operaciones de Core Data con soporte para CloudKit - OPTIMIZADO
+@MainActor
+class CoreDataManager: ObservableObject {
+    static let shared = CoreDataManager()
+    
+    @Published var isReady = false
+    @Published var migrationProgress: Double = 0.0
+    @Published var migrationStatus: String = ""
+    
+    // CRÍTICO: Container con CloudKit OPTIMIZADO
+    lazy var persistentContainer: NSPersistentCloudKitContainer = {
+        let container = NSPersistentCloudKitContainer(name: "FitnessApp")
+        
+        // Configurar CloudKit
+        guard let storeDescription = container.persistentStoreDescriptions.first else {
+            fatalError("No store description found")
+        }
+        
+        // 🔧 OPTIMIZACIÓN 1: Configuración de rendimiento
+        storeDescription.setOption(true as NSNumber,
+                                 forKey: NSPersistentHistoryTrackingKey)
+        storeDescription.setOption(true as NSNumber,
+                                 forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        
+        // 🚀 NUEVO: Optimizaciones de rendimiento
+        storeDescription.setOption(true as NSNumber,
+                                 forKey: NSPersistentStoreFileProtectionKey)
+        storeDescription.setValue("DELETE" as NSString,
+                                forKey: "journal_mode")
+        storeDescription.setValue(1000 as NSNumber,
+                                forKey: "cache_size")
+        
+        container.loadPersistentStores { storeDescription, error in
+            if let error = error {
+                print("❌ Core Data error: \(error)")
+                self.handleCoreDataError(error, storeDescription: storeDescription)
+            } else {
+                print("✅ Core Data container loaded successfully")
+                Task { @MainActor in
+                    self.isReady = true
+                }
+            }
+        }
+        
+        // 🔧 OPTIMIZACIÓN 2: Configurar contexto principal
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        // 🚀 NUEVO: Configuración anti-hang
+        container.viewContext.stalenessInterval = 0.0
+        container.viewContext.shouldDeleteInaccessibleFaults = true
+        
+        return container
+    }()
+    
+    // 🔧 CRITICAL FIX: Contexto para operaciones pesadas
+    private lazy var backgroundContext: NSManagedObjectContext = {
+        let context = persistentContainer.newBackgroundContext()
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.automaticallyMergesChangesFromParent = true
+        return context
+    }()
+    
+    var context: NSManagedObjectContext {
+        return persistentContainer.viewContext
+    }
+    
+    // Estado de sincronización
+    @Published var isSyncing = false
+    @Published var lastSyncDate: Date?
+    @Published var syncError: Error?
+    
+    private init() {
+        setupCloudKitObservers()
+    }
+    
+    // MARK: - 🚀 NUEVOS MÉTODOS OPTIMIZADOS
+    
+    /// Ejecuta operación de escritura en background thread
+    func performBackgroundTask<T>(_ block: @escaping (NSManagedObjectContext) throws -> T) async throws -> T {
+        return try await withCheckedThrowingContinuation { continuation in
+            backgroundContext.perform {
+                do {
+                    let result = try block(self.backgroundContext)
+                    
+                    // Guardar cambios en background
+                    if self.backgroundContext.hasChanges {
+                        try self.backgroundContext.save()
+                    }
+                    
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    /// Guarda contexto principal de forma segura
+    @MainActor
+    func saveContext() async {
+        guard context.hasChanges else { return }
+        
+        do {
+            try context.save()
+            print("✅ Context saved successfully")
+        } catch {
+            print("❌ Failed to save context: \(error)")
+            // 🔧 ROLLBACK en caso de error
+            context.rollback()
+        }
+    }
+    
+    /// 🚀 NUEVO: Batch operations para operaciones masivas
+    func performBatchOperation<T>(_ operation: @escaping () throws -> T) async throws -> T {
+        return try await withCheckedThrowingContinuation { continuation in
+            backgroundContext.perform {
+                do {
+                    let result = try operation()
+                    
+                    // Save in batch
+                    if self.backgroundContext.hasChanges {
+                        try self.backgroundContext.save()
+                    }
+                    
+                    continuation.resume(returning: result)
+                } catch {
+                    self.backgroundContext.rollback()
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    /// 🚀 NUEVO: Esperar hasta que Core Data esté listo
+    func waitForReady() async {
+        while !isReady {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        }
+    }
+    
+    // MARK: - Error Handling
+    private func handleCoreDataError(_ error: Error, storeDescription: NSPersistentStoreDescription) {
+        print("🔧 Attempting Core Data recovery...")
+        
+        if let ckError = error as? CKError {
+            handleCloudKitError(ckError)
+            return
+        }
+        
+        if (error as NSError).code == NSPersistentStoreIncompatibleVersionHashError {
+            print("🔄 Model incompatibility detected")
+            attemptModelMigration(storeDescription: storeDescription)
+            return
+        }
+        
+        // Último recurso - recrear store local
+        print("⚠️ ÚLTIMO RECURSO: Recreando store local...")
+        recreateLocalStore(storeDescription: storeDescription)
+    }
+    
+    private func handleCloudKitError(_ error: CKError) {
+        switch error.code {
+        case .accountTemporarilyUnavailable:
+            print("☁️ iCloud temporalmente no disponible")
+        case .notAuthenticated:
+            print("🔐 Usuario no autenticado en iCloud")
+        default:
+            print("☁️ CloudKit error: \(error.localizedDescription)")
+        }
+    }
+    
+    private func attemptModelMigration(storeDescription: NSPersistentStoreDescription) {
+        // Implementar migración automática aquí
+        print("🔄 Attempting automatic migration...")
+    }
+    
+    private func recreateLocalStore(storeDescription: NSPersistentStoreDescription) {
+        // Último recurso: recrear store
+        print("🔄 Recreating local store...")
+    }
+    
+    private func setupCloudKitObservers() {
+        // Configurar observadores de CloudKit
+        NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleRemoteChange()
+        }
+    }
+    
+    private func setupCloudKitNotifications() {
+        print("📡 Setting up CloudKit notifications...")
+    }
+    
+    private func handleRemoteChange() {
+        print("📡 Remote change detected")
+        lastSyncDate = Date()
+    }
+}
+
+// MARK: - 🔧 EXTENSIÓN PARA WORKOUT OPERATIONS
+extension CoreDataManager {
+    
+    /// Guarda workout de forma optimizada
+    func saveWorkout(_ workout: [String: Any]) async throws {
+        try await performBackgroundTask { context in
+            // Crear workout entity en background
+            let workoutEntity = NSEntityDescription.entity(forEntityName: "WorkoutEntity", in: context)!
+            let workoutObject = NSManagedObject(entity: workoutEntity, insertInto: context)
+            
+            // Asignar valores
+            for (key, value) in workout {
+                workoutObject.setValue(value, forKey: key)
+            }
+            
+            return workoutObject
+        }
+    }
+    
+    /// Fetch workouts de forma optimizada
+    func fetchWorkouts() async throws -> [NSManagedObject] {
+        return try await performBackgroundTask { context in
+            let request = NSFetchRequest<NSManagedObject>(entityName: "WorkoutEntity")
+            request.fetchLimit = 100  // Limitar resultados
+            request.returnsObjectsAsFaults = false  // Pre-fetch datos
+            
+            return try context.fetch(request)
+        }
+    }
+}

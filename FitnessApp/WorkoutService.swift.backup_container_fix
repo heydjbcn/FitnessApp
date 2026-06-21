@@ -1,0 +1,83 @@
+//
+//  WorkoutService.swift - VERSIÓN CORREGIDA
+//  FitnessApp
+//
+
+import Foundation
+import CoreData
+import Combine
+
+@MainActor
+class WorkoutService: ObservableObject {
+    static let shared = WorkoutService()
+    
+    @Published var currentSession: WorkoutSession?
+    @Published var isWorkoutActive = false
+    @Published var exercises: [Exercise] = [] // Mantenemos Exercise como struct para la UI
+    
+    private let coreDataManager = CoreDataManager.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        loadExercises()
+    }
+    
+    // MARK: - Exercise Management
+    
+    func loadExercises() {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                let request: NSFetchRequest<ExerciseEntity> = ExerciseEntity.fetchRequest() // ✅ CORREGIDO
+                let fetchedExerciseEntities = try context.fetch(request)
+                
+                // ✅ NUEVO: Convertir ExerciseEntity a Exercise
+                let exercises = fetchedExerciseEntities.map { $0.toExercise() }
+                
+                await MainActor.run {
+                    self.exercises = exercises
+                }
+            } catch {
+                print("Error cargando ejercicios: \(error)")
+            }
+        }
+    }
+    
+    func addExercise(name: String, category: String, info: String, imageData: Data?, sfSymbolIcon: String?, iconColor: String) {
+        Task {
+            do {
+                let context = coreDataManager.container.viewContext
+                
+                // ✅ CORREGIDO: Crear ExerciseEntity en lugar de Exercise
+                let exerciseEntity = ExerciseEntity(context: context)
+                
+                exerciseEntity.id = UUID()
+                exerciseEntity.name = name
+                exerciseEntity.category = category
+                exerciseEntity.exerciseDescription = info
+                exerciseEntity.sfSymbolIcon = sfSymbolIcon
+                exerciseEntity.iconColor = iconColor
+                exerciseEntity.createdAt = Date()
+                exerciseEntity.updatedAt = Date()
+                
+                // ✅ NUEVO: Valores por defecto
+                exerciseEntity.defaultReps = 8
+                exerciseEntity.defaultSets = 3
+                exerciseEntity.defaultWeight = 0.0
+                exerciseEntity.restDuration = 120
+                
+                await coreDataManager.saveContext()
+                
+                await MainActor.run {
+                    self.loadExercises()
+                }
+            } catch {
+                print("Error agregando ejercicio: \(error)")
+            }
+        }
+    }
+    
+    func refreshData() {
+        loadExercises()
+    }
+}
