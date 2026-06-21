@@ -4,6 +4,7 @@ struct ProgramSettingsView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
     @EnvironmentObject var viewModel: WorkoutViewModel
+    @Environment(\.dismiss) private var dismiss
     @State private var showingProfileEdit = false
     
     var body: some View {
@@ -160,8 +161,10 @@ struct ProgramSettingsView: View {
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                             
                             Button(action: {
-                                viewModel.onboardingManager.resetOnboarding()
-                                viewModel.onboardingManager.startOnboarding()
+                                dismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                    viewModel.showTutorial()
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "questionmark.circle.fill")

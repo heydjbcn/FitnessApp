@@ -177,6 +177,9 @@ struct ContentView: View {
                 updateTabBarAppearance()
                 PhoneConnectivity.shared.viewModel = viewModel
                 PhoneConnectivity.shared.sendTodayContext()
+                if viewModel.needsWelcome {
+                    viewModel.showWelcome = true
+                }
             }
             .onChange(of: themeManager.isDarkMode) { _, _ in
                 updateTabBarAppearance()
@@ -198,20 +201,6 @@ struct ContentView: View {
                 selectedTab = 0
             }
             
-            // Onboarding Overlay
-            OnboardingOverlayView(onboardingManager: viewModel.onboardingManager)
-                .environmentObject(themeManager)
-                .onAppear {
-                    // Configurar callbacks del onboarding
-                    viewModel.onboardingManager.onNavigateToExercises = {
-                        shouldShowAddExerciseTab = true
-                        selectedTab = 2
-                    }
-                    viewModel.onboardingManager.onNavigateToCalendar = {
-                        selectedTab = 1
-                    }
-                }
-
             // Celebración de récord personal (Fase 4)
             if let pr = viewModel.prCelebration {
                 VStack {
@@ -236,6 +225,12 @@ struct ContentView: View {
             }
         }
         .focusMode() // Aplicar modificador de modo de enfoque
+        .fullScreenCover(isPresented: $viewModel.showWelcome) {
+            OnboardingCarouselView(onFinish: {
+                viewModel.markWelcomeSeen()
+            })
+            .environmentObject(themeManager)
+        }
     }
     
     private func updateTabBarAppearance() {

@@ -162,9 +162,10 @@ struct SettingsView: View {
                             .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                         
                         Button(action: {
-                            viewModel.onboardingManager.resetOnboarding()
-                            viewModel.onboardingManager.startOnboarding()
                             dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                viewModel.showTutorial()
+                            }
                         }) {
                             HStack {
                                 Image(systemName: "questionmark.circle")

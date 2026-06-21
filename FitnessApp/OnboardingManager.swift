@@ -10,30 +10,28 @@ import Combine
 
 class OnboardingManager: ObservableObject {
     @Published var isFirstExercise = false
-    @Published var showingOnboarding = false
+    @Published var showingOnboarding = false   // overlay antiguo (neutralizado)
     @Published var onboardingStep = 0
-    
+
     // Callbacks para navegación
     var onNavigateToExercises: (() -> Void)?
     var onNavigateToCalendar: (() -> Void)?
-    
+
     private let userDefaults = UserDefaults.standard
-    
+
     init() {
         // Verificar si es el primer ejercicio
         checkIfFirstExercise()
     }
-    
+
     func checkIfFirstExercise() {
         let hasAddedExercise = userDefaults.bool(forKey: "HasAddedFirstExercise")
         isFirstExercise = !hasAddedExercise
     }
-    
+
     func startOnboarding() {
-        guard isFirstExercise else { return }
-        showingOnboarding = true
-        onboardingStep = 0
-        HapticManager.shared.buttonTapped()
+        // Overlay antiguo desactivado: el onboarding ahora es el carrusel de bienvenida.
+        // Se conserva el método para compatibilidad, sin activar el overlay roto.
     }
     
     func nextStep() {

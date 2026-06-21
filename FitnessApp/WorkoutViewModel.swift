@@ -273,6 +273,23 @@ class WorkoutViewModel: ObservableObject {
     /// Mensaje de celebración cuando se bate un récord (lo observa la UI).
     @Published var prCelebration: String? = nil
 
+    // MARK: - Onboarding de bienvenida (carrusel)
+    /// Controla la presentación del carrusel de bienvenida.
+    @Published var showWelcome = false
+    private let welcomeKey = "hasSeenWelcomeV2"
+    /// True si nunca se ha visto el carrusel.
+    var needsWelcome: Bool { !UserDefaults.standard.bool(forKey: welcomeKey) }
+    /// Marca el carrusel como visto (no vuelve a salir solo).
+    func markWelcomeSeen() {
+        UserDefaults.standard.set(true, forKey: welcomeKey)
+        showWelcome = false
+    }
+    /// Muestra el carrusel (desde Ajustes ▸ "Ver tutorial").
+    func showTutorial() {
+        showWelcome = true
+        HapticManager.shared.buttonTapped()
+    }
+
     /// Mejor peso registrado de un ejercicio, opcionalmente excluyendo una serie.
     func bestWeight(for exerciseId: UUID, excluding logId: UUID? = nil) -> Double {
         allSetLogs(for: exerciseId).filter { logId == nil || $0.id != logId }.map { $0.weight }.max() ?? 0
