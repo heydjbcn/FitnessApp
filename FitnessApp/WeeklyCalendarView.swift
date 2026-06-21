@@ -97,6 +97,25 @@ struct WeeklyCalendarView: View {
                                 }
                                 .padding(.horizontal)
                                 .padding(.top, 4)
+
+                                // Duplicar la rutina de este día a otro
+                                Menu {
+                                    ForEach(daysWithExercises.filter { $0 != selectedDay }, id: \.self) { d in
+                                        Button("Copiar a \(d.rawValue)") {
+                                            viewModel.duplicateRoutine(from: selectedDay, to: d)
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "doc.on.doc")
+                                        Text("Duplicar día a…")
+                                    }
+                                    .font(AppFonts.caption)
+                                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                }
+                                .padding(.horizontal)
                             } else {
                                 // Vista vacía
                                 VStack(spacing: 16) {

@@ -238,6 +238,23 @@ struct ProfileView: View {
                         // Gráfica de evolución del peso corporal
                         BodyWeightChart()
                             .padding(.horizontal)
+
+                        // Exportar datos (CSV)
+                        ShareLink(item: workoutViewModel.exportCSV()) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Exportar datos (CSV)")
+                            }
+                            .font(AppFonts.subtitle)
+                            .foregroundColor(AppColors.primary(themeManager: themeManager))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(AppColors.primary(themeManager: themeManager), lineWidth: 1.5)
+                            )
+                        }
+                        .padding(.horizontal)
                     }
                     .padding(.bottom, 40)
                 }

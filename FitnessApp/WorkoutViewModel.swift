@@ -339,6 +339,32 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Extras (Fase 13): export CSV + duplicar rutina
+
+    /// Exporta el historial de entrenamientos a CSV.
+    func exportCSV() -> String {
+        var rows = ["fecha,dia,ejercicio,series_completadas,series_totales,peso_kg,reps"]
+        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+        for (date, byDay) in workoutHistory.sorted(by: { $0.key < $1.key }) {
+            for (day, recs) in byDay {
+                for r in recs {
+                    let ex = getExercise(by: r.exerciseId)
+                    let name = (ex?.name ?? "?").replacingOccurrences(of: "\"", with: "'")
+                    rows.append("\(df.string(from: date)),\(day.rawValue),\"\(name)\",\(r.completedSets),\(ex?.totalSets ?? 0),\(ex?.weight ?? 0),\(ex?.repetitions ?? 0)")
+                }
+            }
+        }
+        return rows.joined(separator: "\n")
+    }
+
+    /// Duplica los ejercicios de un día a otro (sin progreso).
+    func duplicateRoutine(from src: WorkoutDay, to dst: WorkoutDay) {
+        let copies = (dailyWorkoutRecords[src] ?? []).map { WorkoutExercise(exerciseId: $0.exerciseId, supersetGroup: $0.supersetGroup) }
+        dailyWorkoutRecords[dst, default: []].append(contentsOf: copies)
+        saveData()
+        HapticManager.shared.success()
+    }
+
     /// Asigna (o quita) el grupo de superserie a un ejercicio del día.
     func setSupersetGroup(_ group: Int?, for workoutExerciseId: UUID, in day: WorkoutDay) {
         guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
