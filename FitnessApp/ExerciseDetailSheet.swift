@@ -94,6 +94,26 @@ struct ExerciseDetailSheet: View {
                         .padding(16)
                         .cardStyle(isDarkMode: isDark)
 
+                        // Récord personal
+                        if let pr = viewModel.personalRecord(for: exerciseId), pr.weight > 0 {
+                            HStack(spacing: 12) {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("RÉCORD PERSONAL")
+                                        .font(AppFonts.label).tracking(1.0)
+                                        .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                                    Text("\(fmt(pr.weight)) kg · 1RM est. \(fmt(pr.oneRepMax)) kg")
+                                        .font(AppFonts.bodyMedium)
+                                        .foregroundColor(AppColors.textPrimary(isDark: isDark))
+                                }
+                                Spacer()
+                            }
+                            .padding(16)
+                            .cardStyle(isDarkMode: isDark)
+                        }
+
                         // Gráfica de progreso del ejercicio
                         ExerciseProgressChart(exerciseId: exerciseId)
 

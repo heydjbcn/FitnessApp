@@ -209,6 +209,29 @@ struct ContentView: View {
                         selectedTab = 1
                     }
                 }
+
+            // Celebración de récord personal (Fase 4)
+            if let pr = viewModel.prCelebration {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Image(systemName: "trophy.fill")
+                        Text(pr).font(AppFonts.subtitle)
+                    }
+                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .background(Capsule().fill(AppColors.primary(themeManager: themeManager)))
+                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 4)
+                    .padding(.bottom, 110)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        withAnimation { viewModel.prCelebration = nil }
+                    }
+                }
+            }
         }
         .focusMode() // Aplicar modificador de modo de enfoque
     }

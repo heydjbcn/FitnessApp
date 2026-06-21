@@ -182,6 +182,7 @@ class WorkoutViewModel: ObservableObject {
             record.lastSetCompletedAt = Date()
             dailyWorkoutRecords[day]![recordIndex] = record
             recordHistory(for: day)
+            checkRecord(weight: log.weight, exerciseId: baseExercise.id, excluding: log.id, name: baseExercise.name)
 
             // Haptic feedback para completar serie
             HapticManager.shared.setCompleted()
@@ -268,6 +269,24 @@ class WorkoutViewModel: ObservableObject {
 
     // MARK: - Registro por serie / rendimiento (Fase 1)
 
+    /// Mensaje de celebración cuando se bate un récord (lo observa la UI).
+    @Published var prCelebration: String? = nil
+
+    /// Mejor peso registrado de un ejercicio, opcionalmente excluyendo una serie.
+    func bestWeight(for exerciseId: UUID, excluding logId: UUID? = nil) -> Double {
+        allSetLogs(for: exerciseId).filter { logId == nil || $0.id != logId }.map { $0.weight }.max() ?? 0
+    }
+
+    /// Comprueba si un peso supera el récord previo y dispara la celebración.
+    private func checkRecord(weight: Double, exerciseId: UUID, excluding logId: UUID?, name: String) {
+        guard weight > 0 else { return }
+        let previous = bestWeight(for: exerciseId, excluding: logId)
+        if weight > previous && previous > 0 {
+            prCelebration = "¡Nuevo récord en \(name)! \(String(format: "%g", weight)) kg"
+            HapticManager.shared.goalAchieved()
+        }
+    }
+
     /// Última serie registrada de un ejercicio (la más reciente entre hoy y el historial).
     func lastPerformance(for exerciseId: UUID) -> SetLog? {
         allSetLogs(for: exerciseId).max(by: { $0.date < $1.date })
@@ -314,6 +333,9 @@ class WorkoutViewModel: ObservableObject {
         guard let logIdx = dailyWorkoutRecords[day]![idx].setLogs.firstIndex(where: { $0.id == updated.id }) else { return }
         dailyWorkoutRecords[day]![idx].setLogs[logIdx] = updated
         recordHistory(for: day)
+        if let ex = getExercise(by: dailyWorkoutRecords[day]![idx].exerciseId) {
+            checkRecord(weight: updated.weight, exerciseId: ex.id, excluding: updated.id, name: ex.name)
+        }
     }
 
     // MARK: - Series temporales para gráficas (Fase 3)
