@@ -17,6 +17,19 @@ struct ProfileView: View {
         let bmi = weight / (heightInMeters * heightInMeters)
         return String(format: "%.1f", bmi)
     }
+
+    private func bmiCategory() -> (name: String, color: Color)? {
+        guard !userManager.userWeight.isEmpty, !userManager.userHeight.isEmpty,
+              let weight = Double(userManager.userWeight),
+              let height = Double(userManager.userHeight), height > 0 else { return nil }
+        let bmi = weight / pow(height / 100, 2)
+        switch bmi {
+        case ..<18.5:   return ("Bajo", AppColors.accentBlue)
+        case 18.5..<25: return ("Normal", AppColors.success)
+        case 25..<30:   return ("Sobrepeso", AppColors.accentOrange)
+        default:        return ("Obesidad", AppColors.accentRed)
+        }
+    }
     
     private func getWeeklyCompletedWorkouts() -> Int {
         let calendar = Calendar.current
@@ -182,7 +195,9 @@ struct ProfileView: View {
                                 ProfileInfoCard(
                                     icon: "heart.text.square",
                                     title: "IMC",
-                                    value: calculateBMI()
+                                    value: calculateBMI(),
+                                    note: bmiCategory()?.name,
+                                    accent: bmiCategory()?.color
                                 )
                                 .environmentObject(themeManager)
                             }
@@ -242,8 +257,10 @@ struct ProfileInfoCard: View {
     let icon: String
     let title: String
     let value: String
+    var note: String? = nil          // p.ej. categoría de IMC
+    var accent: Color? = nil         // color del badge de la nota
     @EnvironmentObject var themeManager: ThemeManager
-    
+
     var body: some View {
         HStack(spacing: 14) {
             // Icono + etiqueta a la izquierda
@@ -261,13 +278,22 @@ struct ProfileInfoCard: View {
 
             Spacer()
 
-            // Valor a la derecha
-            Text(value)
-                .font(AppFonts.bodyMedium)
-                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                .multilineTextAlignment(.trailing)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            // Valor (+ nota/categoría opcional) a la derecha
+            HStack(spacing: 8) {
+                if let note = note, let accent = accent {
+                    Text(note.uppercased())
+                        .font(AppFonts.label)
+                        .foregroundColor(accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(accent.opacity(0.15)))
+                }
+                Text(value)
+                    .font(AppFonts.bodyMedium)
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 56)
         .padding(.horizontal, 16)
