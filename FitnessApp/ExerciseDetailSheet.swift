@@ -61,9 +61,22 @@ struct ExerciseDetailSheet: View {
                         // Series de hoy (si se abrió desde un día concreto)
                         if let rec = todayRecord {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("SERIES DE HOY")
-                                    .font(AppFonts.label).tracking(1.0)
-                                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                                HStack {
+                                    Text("SERIES DE HOY")
+                                        .font(AppFonts.label).tracking(1.0)
+                                        .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                                    Spacer()
+                                    Menu {
+                                        Button("Sin superserie") { setSuperset(nil) }
+                                        ForEach(0..<4, id: \.self) { g in
+                                            Button("Superserie \(Self.ssLetter(g))") { setSuperset(g) }
+                                        }
+                                    } label: {
+                                        Text(rec.supersetGroup.map { "Superserie \(Self.ssLetter($0))" } ?? "+ Superserie")
+                                            .font(AppFonts.caption)
+                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                    }
+                                }
 
                                 if rec.setLogs.isEmpty {
                                     Text("Aún no has registrado series hoy. Marca una serie en el calendario para empezar.")
@@ -227,6 +240,14 @@ struct ExerciseDetailSheet: View {
     }
 
     private func fmt(_ v: Double) -> String { String(format: "%g", v) }
+
+    static func ssLetter(_ g: Int) -> String { String(UnicodeScalar(UInt8(65 + max(0, g)))) }
+
+    private func setSuperset(_ g: Int?) {
+        if let wid = workoutExerciseId, let d = day {
+            viewModel.setSupersetGroup(g, for: wid, in: d)
+        }
+    }
 
     private func saveTemplate(_ ex: Exercise) {
         var updated = ex

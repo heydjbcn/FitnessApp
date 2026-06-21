@@ -339,6 +339,13 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    /// Asigna (o quita) el grupo de superserie a un ejercicio del día.
+    func setSupersetGroup(_ group: Int?, for workoutExerciseId: UUID, in day: WorkoutDay) {
+        guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
+        dailyWorkoutRecords[day]![idx].supersetGroup = group
+        recordHistory(for: day)
+    }
+
     // MARK: - Series temporales para gráficas (Fase 3)
 
     /// Peso máximo por día de un ejercicio (ordenado por fecha).

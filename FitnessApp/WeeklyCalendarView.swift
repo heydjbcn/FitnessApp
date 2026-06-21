@@ -278,9 +278,18 @@ struct CalendarExerciseCard: View {
                         .foregroundColor(AppColors.primary(themeManager: themeManager))
                 }
                 .buttonStyle(PlainButtonStyle())
-                
+
+                if let g = workoutRecord.supersetGroup {
+                    Text("SS \(String(UnicodeScalar(UInt8(65 + max(0, g)))))")
+                        .font(AppFonts.label)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(AppColors.accentPurple))
+                }
+
                 Spacer()
-                
+
                 if exercise.weight > 0 {
                     Text("\(Int(exercise.weight)) kg")
                         .font(AppFonts.caption)
