@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDBClNxMo_KcCmE1RLcX9AX28GNsSUUTaQ</string>
+	<key>GCM_SENDER_ID</key>
+	<string>74415865556</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>Mauri.FitnessApp</string>
+	<key>PROJECT_ID</key>
+	<string>base-de-datos-fitnessapp</string>
+	<key>STORAGE_BUCKET</key>
+	<string>base-de-datos-fitnessapp.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:74415865556:ios:d1d1ee9d19aa1381e78541</string>
+</dict>
+</plist>

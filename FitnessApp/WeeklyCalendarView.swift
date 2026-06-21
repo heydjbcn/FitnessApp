@@ -28,20 +28,18 @@ struct WeeklyCalendarView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
-                
-                // TODO EL CONTENIDO HACE SCROLL AHORA
-                ScrollView(.vertical, showsIndicators: false) {
+        ZStack {
+            AppColors.backgroundPrimary.ignoresSafeArea()
+            
+            ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        // Progreso del día seleccionado (ahora hace scroll)
+                        // Progreso del día seleccionado
                         DailyProgressContainer(day: selectedDay)
                             .padding(.horizontal, 16)
                             .padding(.top, 16)
                             .padding(.bottom, 8)
                         
-                        // Selector de días (ahora hace scroll)
+                        // Selector de días
                         HStack(spacing: 8) {
                             ForEach(daysWithExercises, id: \.self) { day in
                                 DayCard(
@@ -67,20 +65,17 @@ struct WeeklyCalendarView: View {
                                             CalendarExerciseCard(
                                                 exercise: exercise,
                                                 workoutRecord: workoutRecord,
-                                                themeManager: themeManager,
                                                 onTimerStart: { duration in
-                                                    viewModel.startTimer(duration: duration, isEnabled: themeManager.isTimerEnabled)
+                                                    if viewModel.isTimerEnabled {
+                                                        viewModel.restTime = TimeInterval(duration)
+                                                        viewModel.startRestTimer()
+                                                    }
                                                 }
                                             )
                                         }
                                     }
                                 }
                                 .padding(.horizontal)
-                                .onboardingHighlight(
-                                    isHighlighted: viewModel.onboardingManager.showingOnboarding &&
-                                                 viewModel.onboardingManager.onboardingStep == 4 &&
-                                                 OnboardingManager.onboardingSteps[4].highlightArea == .calendar
-                                )
                             } else {
                                 // Vista vacía
                                 VStack(spacing: 16) {
@@ -88,86 +83,220 @@ struct WeeklyCalendarView: View {
                                         .font(.system(size: 60))
                                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                     
-                                    Text("¡Añade tu primer ejercicio!")
-                                        .font(AppFonts.subtitle)
+                                    Text("No hay entrenamientos")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
                                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                                     
-                                    Text("Ve a la pestaña de Añadir Ejercicios para comenzar")
-                                        .font(AppFonts.caption)
+                                    Text("Agrega ejercicios para comenzar tu rutina")
+                                        .font(.body)
                                         .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
                                         .multilineTextAlignment(.center)
                                     
-                                    // Botón para navegar a añadir ejercicios
                                     Button(action: {
-                                        HapticManager.shared.buttonTapped()
                                         onNavigateToAddExercise?()
                                     }) {
                                         HStack {
                                             Image(systemName: "plus.circle.fill")
-                                                .foregroundColor(.white)
-                                                .font(.system(size: 16))
-                                            Text("Añadir Ejercicio")
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(.white)
+                                            Text("Agregar Ejercicio")
                                         }
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 12)
-                                        .background(AppColors.primary(themeManager: themeManager))
+                                        .foregroundColor(.white)
+                                        .padding()
+                                        .background(AppColors.accentRed)
                                         .cornerRadius(12)
-                                        .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
                                     }
-                                    .padding(.horizontal, 40)
-                                    .padding(.top, 8)
                                 }
-                                .padding(.top, 60)
+                                .padding(.horizontal, 40)
+                                .padding(.vertical, 60)
                             }
                         }
-                        .padding(.bottom, 100) // Espacio para la TabBar
-                    }
-                }
-                
-                // Timer compacto overlay
-                if viewModel.timerActive {
-                    ZStack {
-                        // Fondo semi-transparente
-                        Color.black.opacity(0.5)
-                            .ignoresSafeArea()
-                            .onTapGesture {
-                                viewModel.stopTimer()
-                            }
-                        
-                        VStack {
-                            Spacer()
-                            CompactTimerView(
-                                onStop: {
-                                    viewModel.stopTimer()
-                                }
-                            )
-                            .environmentObject(themeManager)
-                            .environmentObject(viewModel)
-                            .padding(.bottom, 100) // Encima de la barra de tabs
-                            Spacer()
-                        }
+                        .padding(.bottom, 100)
                     }
                 }
             }
-            .navigationTitle("Calendario Semanal")
-            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
-                // Sincronizar el estado del timer con ThemeManager
-                viewModel.updateTimerEnabledState(themeManager.isTimerEnabled)
+                viewModel.selectedDay = selectedDay
             }
         }
     }
+
+struct CalendarExerciseCard: View {
+    let exercise: Exercise
+    let workoutRecord: WorkoutExercise
+    let onTimerStart: (Int) -> Void
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    @State private var showingTooltip = false
+    @State private var showingExerciseDetail = false
+    @State private var showingExerciseEdit = false
     
-    private func dayFullName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lunes"
-        case .tuesday: return "Martes"
-        case .wednesday: return "Miércoles"
-        case .thursday: return "Jueves"
-        case .friday: return "Viernes"
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(exercise.name)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                    
+                    if !exercise.info.isEmpty {
+                        Text(exercise.info)
+                            .font(.caption)
+                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .lineLimit(2)
+                    }
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    showingExerciseDetail = true
+                }) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(AppColors.accentBlue)
+                        .font(.title2)
+                }
+            }
+            
+            // Información del ejercicio
+            HStack(spacing: 16) {
+                if exercise.repetitions > 0 {
+                    InfoPill(icon: "repeat", text: "\(exercise.repetitions) reps")
+                }
+                
+                if exercise.weight > 0 {
+                    InfoPill(icon: "scalemass", text: String(format: "%.1f kg", exercise.weight))
+                }
+                
+                if exercise.segundos > 0 {
+                    InfoPill(icon: "timer", text: "\(exercise.segundos)s")
+                }
+                
+                InfoPill(
+                    icon: "number",
+                    text: "\(workoutRecord.completedSets)/\(exercise.totalSets)",
+                    color: workoutRecord.isCompleted ? AppColors.success : AppColors.textSecondary(isDark: themeManager.isDarkMode)
+                )
+            }
+            
+            // Progreso de series
+            HStack(spacing: 0) {
+                ForEach(0..<exercise.totalSets, id: \.self) { index in
+                    ZStack {
+                        Circle()
+                            .fill(index < workoutRecord.completedSets ? AppColors.primary(themeManager: themeManager) : AppColors.primary(themeManager: themeManager).opacity(0.3))
+                            .frame(width: 32, height: 32)
+                        
+                        if index < workoutRecord.completedSets {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                        } else {
+                            Text("\(index + 1)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .onTapGesture {
+                        if index < workoutRecord.completedSets && index == workoutRecord.completedSets - 1 {
+                            // Deshacer última serie
+                            viewModel.undoLastSet(for: workoutRecord.id, in: viewModel.selectedDay)
+                        } else if index == workoutRecord.completedSets {
+                            // Completar siguiente serie
+                            viewModel.completeSet(for: workoutRecord.id, in: viewModel.selectedDay)
+                            
+                            // Iniciar timer si está habilitado
+                            if viewModel.isTimerEnabled && exercise.restDuration > 0 {
+                                onTimerStart(exercise.restDuration)
+                            }
+                        }
+                    }
+                    
+                    if index < exercise.totalSets - 1 {
+                        Spacer(minLength: 4)
+                    }
+                }
+            }
         }
+        .padding()
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(12)
+        .opacity(workoutRecord.isCompleted ? 0.7 : 1.0)
+        .sheet(isPresented: $showingExerciseDetail) {
+            ExerciseDetailView(exercise: exercise)
+        }
+    }
+}
+
+struct InfoPill: View {
+    let icon: String
+    let text: String
+    var color: Color = AppColors.accentBlue
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundColor(color)
+            
+            Text(text)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
+struct DailyProgressContainer: View {
+    let day: WorkoutDay
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Progreso de \(day.displayName)")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                
+                Spacer()
+                
+                Text("\(completedExercises)/\(totalExercises)")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+            }
+            
+            ProgressView(value: progressValue)
+                .progressViewStyle(LinearProgressViewStyle(tint: AppColors.primary(themeManager: themeManager)))
+                .scaleEffect(x: 1, y: 2, anchor: .center)
+        }
+        .padding()
+        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
+        .cornerRadius(12)
+    }
+    
+    private var workoutRecords: [WorkoutExercise] {
+        viewModel.dailyWorkoutRecords[day] ?? []
+    }
+    
+    private var completedExercises: Int {
+        workoutRecords.filter { $0.isCompleted }.count
+    }
+    
+    private var totalExercises: Int {
+        workoutRecords.count
+    }
+    
+    private var progressValue: Double {
+        guard totalExercises > 0 else { return 0.0 }
+        return Double(completedExercises) / Double(totalExercises)
     }
 }
 
@@ -180,495 +309,365 @@ struct DayCard: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: dayIcon(for: day))
+            VStack(spacing: 6) {
+                Text(day.shortName)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(isSelected ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                
+                Text("\(exerciseCount)")
                     .font(.title2)
-                    .foregroundColor(isSelected ? .white : AppColors.primary(themeManager: themeManager))
-                
-                Text(dayShortName(for: day))
-                    .font(AppFonts.caption)
+                    .fontWeight(.bold)
                     .foregroundColor(isSelected ? .white : AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    .fontWeight(.semibold)
                 
-                if exerciseCount > 0 {
-                    Text("\(exerciseCount)")
-                        .font(.caption2)
-                        .foregroundColor(isSelected ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.3) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
-                        .cornerRadius(8)
-                }
+                Circle()
+                    .fill(exerciseCount > 0 ? AppColors.success : Color.gray.opacity(0.3))
+                    .frame(width: 6, height: 6)
             }
-            .frame(maxWidth: .infinity, minHeight: 80)
-            .padding(.vertical, 8)
-            .background(isSelected ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: themeManager.isDarkMode))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? AppColors.primary(themeManager: themeManager) : Color.clear, lineWidth: 2)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                isSelected ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: themeManager.isDarkMode)
             )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func dayIcon(for day: WorkoutDay) -> String {
-        return "calendar" // Todos los días usan el mismo icono
-    }
-    
-    private func dayShortName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lun"
-        case .tuesday: return "Mar"
-        case .wednesday: return "Mié"
-        case .thursday: return "Jue"
-        case .friday: return "Vie"
+            .cornerRadius(12)
         }
     }
 }
 
-struct CalendarExerciseCard: View {
+struct ExerciseDetailView: View {
     let exercise: Exercise
-    let workoutRecord: WorkoutExercise
-    let themeManager: ThemeManager
-    let onTimerStart: (Int) -> Void
-    @EnvironmentObject var viewModel: WorkoutViewModel
-    @State private var showingTooltip = false
-    @State private var showingExerciseDetail = false
-    @State private var showingExerciseEdit = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header con nombre, info y editar
-            HStack {
-                Text(exercise.name)
-                    .font(AppFonts.subtitle)
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    .fontWeight(.semibold)
-                
-                // Botón de información para tooltip
-                Button(action: {
-                    showingExerciseDetail = true
-                }) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                // NUEVO: Botón de editar ejercicio
-                Button(action: {
-                    showingExerciseEdit = true
-                }) {
-                    Image(systemName: "pencil.circle")
-                        .font(.system(size: 16))
-                        .foregroundColor(AppColors.accentCyan)
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                if exercise.weight > 0 {
-                    Text("\(Int(exercise.weight)) kg")
-                        .font(AppFonts.caption)
-                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(AppColors.primary(themeManager: themeManager).opacity(0.1))
-                        .cornerRadius(8)
-                }
-            }
-            
-            // Info de repeticiones/segundos y series
-            HStack {
-                // Mostrar segundos si están configurados (> 0), sino mostrar repeticiones
-                if exercise.segundos > 0 {
-                    Label("\(exercise.segundos)s", systemImage: "timer")
-                        .font(AppFonts.caption)
-                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                } else if exercise.repetitions > 0 {
-                    Label("\(exercise.repetitions) reps", systemImage: "repeat")
-                        .font(AppFonts.caption)
-                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                }
-                
-                Spacer()
-                
-                Text("\(exercise.totalSets) series")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-            }
-            
-            // Indicadores de series (bolitas clicables más grandes)
-            HStack(spacing: 12) {
-                ForEach(0..<exercise.totalSets, id: \.self) { setIndex in
-                    Button(action: {
-                        toggleSetCompletion(setIndex: setIndex)
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(setIndex < workoutRecord.completedSets ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
-                                .frame(width: 32, height: 32)
-                                .scaleEffect(setIndex < workoutRecord.completedSets ? 1.1 : 1.0)
-                                .animation(.spring(response: 0.4, dampingFraction: 0.6, blendDuration: 0), value: workoutRecord.completedSets)
-                            
-                            if setIndex < workoutRecord.completedSets {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .scaleEffect(setIndex < workoutRecord.completedSets ? 1.0 : 0.1)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.1), value: workoutRecord.completedSets)
-                            } else {
-                                Text("\(setIndex + 1)")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                            }
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-                .onboardingHighlight(
-                    isHighlighted: viewModel.onboardingManager.showingOnboarding &&
-                                 viewModel.onboardingManager.onboardingStep == 5 &&
-                                 OnboardingManager.onboardingSteps[5].highlightArea == .setButtons
-                )
-                
-                Spacer()
-                
-                // Botón de timer
-                Button(action: {
-                    HapticManager.shared.buttonTapped()
-                    if themeManager.isTimerEnabled {
-                        onTimerStart(exercise.restDuration)
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "timer")
-                        Text("\(exercise.restDuration)s")
-                    }
-                    .font(AppFonts.caption)
-                    .foregroundColor(themeManager.isTimerEnabled ? .white : AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(themeManager.isTimerEnabled ? AppColors.primary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3))
-                    .cornerRadius(16)
-                }
-                .disabled(!themeManager.isTimerEnabled)
-            }
-        }
-        .padding()
-        .cardStyle(isDarkMode: themeManager.isDarkMode)
-        .sheet(isPresented: $showingExerciseDetail) {
-            ExerciseDetailSheet(exercise: exercise)
-                .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $showingExerciseEdit) {
-            NavigationView {
-                AddExerciseForm(exerciseToEdit: exercise)
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
-                    .navigationTitle("Editar Ejercicio")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Cancelar") {
-                                showingExerciseEdit = false
-                            }
-                        }
-                    }
-            }
-        }
-    }
-    
-    private func toggleSetCompletion(setIndex: Int) {
-        // Necesitamos encontrar el día para este ejercicio
-        if let day = findDayForWorkoutRecord() {
-            if setIndex == workoutRecord.completedSets {
-                viewModel.completeSet(for: workoutRecord.id, in: day)
-                if themeManager.isTimerEnabled {
-                    onTimerStart(exercise.restDuration)
-                }
-            } else if setIndex == workoutRecord.completedSets - 1 {
-                viewModel.undoLastSet(for: workoutRecord.id, in: day)
-            }
-        }
-    }
-    
-    private func findDayForWorkoutRecord() -> WorkoutDay? {
-        for day in WorkoutDay.allCases {
-            if let records = viewModel.dailyWorkoutRecords[day] {
-                if records.contains(where: { $0.id == workoutRecord.id }) {
-                    return day
-                }
-            }
-        }
-        return nil
-    }
-}
-
-struct CompactTimerView: View {
-    let onStop: () -> Void
+    @Environment(\.dismiss) var dismiss
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var viewModel: WorkoutViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Círculo de progreso más grande
-            ZStack {
-                Circle()
-                    .stroke(AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.3), lineWidth: 8)
-                    .frame(width: 120, height: 120)
-                
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(AppColors.primary(themeManager: themeManager), style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: viewModel.timeRemaining)
-                
-                VStack(spacing: 4) {
-                    Text("\(viewModel.timeRemaining)")
-                        .font(.system(size: 32, weight: .bold))
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let imageData = exercise.imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .cornerRadius(12)
+                    }
+                    
+                    Text(exercise.info.isEmpty ? "No hay descripción disponible." : exercise.info)
+                        .font(.body)
                         .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     
-                    Text("segundos")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Detalles")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        
+                        if exercise.repetitions > 0 {
+                            DetailRow(icon: "repeat", title: "Repeticiones", value: "\(exercise.repetitions)")
+                        }
+                        
+                        if exercise.weight > 0 {
+                            DetailRow(icon: "scalemass", title: "Peso", value: String(format: "%.1f kg", exercise.weight))
+                        }
+                        
+                        if exercise.segundos > 0 {
+                            DetailRow(icon: "timer", title: "Duración", value: "\(exercise.segundos)s")
+                        }
+                        
+                        DetailRow(icon: "list.number", title: "Series", value: "\(exercise.totalSets)")
+                        DetailRow(icon: "timer.circle", title: "Descanso", value: "\(exercise.restDuration / 60):\(String(format: "%02d", exercise.restDuration % 60))")
+                    }
+                }
+                .padding()
+            }
+            .background(AppColors.backgroundPrimary)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
                 }
             }
-            
-            VStack(spacing: 12) {
-                Text("Descanso")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
-                Button("Parar Timer") {
-                    viewModel.stopTimer()
-                    onStop()
-                }
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 12)
-                .background(AppColors.primary(themeManager: themeManager))
-                .cornerRadius(25)
-            }
-        }
-        .padding(32)
-        .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        .cornerRadius(24)
-        .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 6)
-        .padding(.horizontal, 32)
-    }
-    
-    private var progress: CGFloat {
-        guard viewModel.currentTimerDuration > 0 else { return 0 }
-        return CGFloat(viewModel.currentTimerDuration - viewModel.timeRemaining) / CGFloat(viewModel.currentTimerDuration)
-    }
-}
-
-struct DailyProgressContainer: View {
-    let day: WorkoutDay
-    @EnvironmentObject var viewModel: WorkoutViewModel
-    @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var userManager: UserManager
-    
-    private var dayExercises: [WorkoutExercise] {
-        viewModel.dailyWorkoutRecords[day] ?? []
-    }
-    
-    private var totalSets: Int {
-        dayExercises.compactMap { record in
-            viewModel.getExercise(by: record.exerciseId)?.totalSets
-        }.reduce(0, +)
-    }
-    
-    private var completedSets: Int {
-        dayExercises.map { $0.completedSets }.reduce(0, +)
-    }
-    
-    private var totalWeight: Double {
-        dayExercises.compactMap { record in
-            if let exercise = viewModel.getExercise(by: record.exerciseId) {
-                return exercise.weight * Double(record.completedSets)
-            }
-            return 0
-        }.reduce(0, +)
-    }
-    
-    private var totalReps: Int {
-        dayExercises.compactMap { record in
-            if let exercise = viewModel.getExercise(by: record.exerciseId) {
-                return exercise.repetitions * record.completedSets
-            }
-            return 0
-        }.reduce(0, +)
-    }
-    
-    private var estimatedMinutes: Int {
-        return totalSets * 3 // 3 minutos por serie estimado
-    }
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // Título
-            Text("Progreso \(dayDisplayName(for: day))")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-            
-            // Anillos de progreso (mismo diseño que progreso semanal)
-            HStack(spacing: 25) {
-                // Repeticiones (azul)
-                ProgressRing(
-                    value: Double(totalReps),
-                    maxValue: Double(totalSets * 25), // Estimado 25 reps por serie
-                    color: .blue,
-                    title: "Reps",
-                    subtitle: "\(totalReps)"
-                )
-                
-                // Peso total (rojo) - Ahora en toneladas
-                ProgressRing(
-                    value: totalWeight / 1000, // Convertir kg a toneladas
-                    maxValue: Double(totalSets * 100) / 1000, // Estimado 100kg por serie en toneladas
-                    color: .red,
-                    title: "Tonelaje",
-                    subtitle: String(format: "%.2ft", totalWeight / 1000) // Mostrar en toneladas con 2 decimales
-                )
-                
-                // Series (color dinámico)
-                ProgressRing(
-                    value: Double(completedSets),
-                    maxValue: Double(totalSets > 0 ? totalSets : 1),
-                    color: AppColors.primary(themeManager: themeManager),
-                    title: "Series",
-                    subtitle: "\(completedSets)"
-                )
-                
-                // Tiempo (morado)
-                ProgressRing(
-                    value: Double(estimatedMinutes),
-                    maxValue: Double(totalSets * 5), // Máximo 5 min por serie
-                    color: .purple,
-                    title: "Tiempo",
-                    subtitle: "\(estimatedMinutes)min"
-                )
-            }
-        }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        )
-    }
-    
-    private func dayDisplayName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lunes"
-        case .tuesday: return "Martes"
-        case .wednesday: return "Miércoles"
-        case .thursday: return "Jueves"
-        case .friday: return "Viernes"
         }
     }
 }
 
-// Componente ProgressRing (corregido sin dependencia de themeManager)
-struct ProgressRing: View {
-    let value: Double
-    let maxValue: Double
-    let color: Color
+struct DetailRow: View {
+    let icon: String
     let title: String
-    let subtitle: String
+    let value: String
     @EnvironmentObject var themeManager: ThemeManager
     
-    private var progress: Double {
-        guard maxValue > 0 else { return 0 }
-        return min(value / maxValue, 1.0)
-    }
-    
     var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .stroke(color.opacity(0.3), lineWidth: 6)
-                    .frame(width: 70, height: 70)
-                
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .frame(width: 70, height: 70)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 1), value: progress)
-                
-                Text(subtitle)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-            }
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(AppColors.primary(themeManager: themeManager))
+                .frame(width: 20)
             
             Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+            
+            Spacer()
+            
+            Text(value)
+                .fontWeight(.semibold)
                 .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
         }
     }
 }
 
-struct ExerciseDetailSheet: View {
-    let exercise: Exercise
+#Preview {
+    WeeklyCalendarView()
+        .environmentObject(WorkoutViewModel())
+        .environmentObject(ThemeManager())
+        .environmentObject(UserManager())
+}
+
+// MARK: - Botón de Serie Moderno
+struct ModernSetButton: View {
+    let setNumber: Int
+    let isCompleted: Bool
+    let isCurrent: Bool
+    let canUndo: Bool
+    let action: () -> Void
     
     var body: some View {
-        NavigationView {
-            VStack(alignment: .leading, spacing: 20) {
-                if let imageData = exercise.imageData, let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 200)
-                        .cornerRadius(12)
-                }
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(backgroundColor)
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Circle()
+                            .stroke(borderColor, lineWidth: 2)
+                    )
                 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(exercise.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    if !exercise.info.isEmpty {
-                        Text(exercise.info)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Label("Series", systemImage: "repeat")
-                        Spacer()
-                        Text("\(exercise.totalSets)")
-                            .fontWeight(.medium)
-                    }
-                    
-                    HStack {
-                        Label("Repeticiones", systemImage: "number")
-                        Spacer()
-                        Text("\(exercise.repetitions)")
-                            .fontWeight(.medium)
-                    }
-                    
-                    HStack {
-                        Label("Peso", systemImage: "scalemass")
-                        Spacer()
-                        Text("\(exercise.weight, specifier: "%.1f") kg")
-                            .fontWeight(.medium)
-                    }
+                if isCompleted {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                } else {
+                    Text("\(setNumber)")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(textColor)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                
-                Spacer()
             }
-            .padding()
-            .navigationTitle("Detalle del Ejercicio")
-            .navigationBarTitleDisplayMode(.inline)
         }
+        .disabled(!isCurrent && !canUndo)
+        .scaleEffect(isCurrent ? 1.1 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isCurrent)
+    }
+    
+    private var backgroundColor: Color {
+        if isCompleted {
+            return AppColors.success
+        } else if isCurrent {
+            return AppColors.accentRed
+        } else {
+            return AppColors.backgroundPrimary
+        }
+    }
+    
+    private var borderColor: Color {
+        if isCompleted {
+            return AppColors.success
+        } else if isCurrent {
+            return AppColors.accentRed
+        } else {
+            return AppColors.textTertiary.opacity(0.3)
+        }
+    }
+    
+    private var textColor: Color {
+        if isCurrent {
+            return .white
+        } else {
+            return AppColors.textSecondary
+        }
+    }
+}
+
+// MARK: - Pill de Información Moderno
+struct ModernInfoPill: View {
+    let icon: String
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(color)
+            
+            Text(text)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(AppColors.textPrimary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Vista de Día Vacío Moderno
+struct ModernEmptyDayView: View {
+    let selectedDay: WorkoutDay
+    let onAddExercise: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "calendar.badge.plus")
+                .font(.system(size: 64, weight: .light))
+                .foregroundColor(AppColors.textTertiary)
+            
+            VStack(spacing: 8) {
+                Text("Sin entrenamientos")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text("No tienes rutinas programadas para \(selectedDay.displayName.lowercased())")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: {
+                HapticManager.shared.buttonTapped()
+                onAddExercise()
+            }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                    
+                    Text("Agregar Ejercicios")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(colors: [AppColors.accentRed, AppColors.accentRed.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                )
+                .cornerRadius(16)
+                .shadow(color: AppColors.accentRed.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+        }
+        .padding(.vertical, 60)
+    }
+}
+
+// MARK: - Vista de Detalle de Ejercicio Moderna
+struct ModernExerciseDetailView: View {
+    let exercise: Exercise
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Imagen del ejercicio si existe
+                    if let imageData = exercise.imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                    } else {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(AppColors.backgroundCard)
+                            .frame(height: 200)
+                            .overlay(
+                                VStack {
+                                    Image(systemName: exercise.sfSymbolIcon ?? "dumbbell.fill")
+                                        .font(.system(size: 48, weight: .light))
+                                        .foregroundColor(AppColors.textTertiary)
+                                    
+                                    Text("Sin imagen")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(AppColors.textTertiary)
+                                }
+                            )
+                    }
+                    
+                    // Información del ejercicio
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Descripción")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        Text(exercise.info.isEmpty ? "No hay descripción disponible." : exercise.info)
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(AppColors.textSecondary)
+                            .lineSpacing(4)
+                    }
+                    
+                    // Detalles técnicos
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Detalles")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        VStack(spacing: 12) {
+                            if exercise.repetitions > 0 {
+                                ModernDetailRow(icon: "repeat", title: "Repeticiones", value: "\(exercise.repetitions)")
+                            }
+                            
+                            if exercise.weight > 0 {
+                                ModernDetailRow(icon: "scalemass", title: "Peso", value: "\(Int(exercise.weight)) kg")
+                            }
+                            
+                            if exercise.segundos > 0 {
+                                ModernDetailRow(icon: "timer", title: "Duración", value: "\(exercise.segundos) segundos")
+                            }
+                            
+                            ModernDetailRow(icon: "list.number", title: "Series", value: "\(exercise.totalSets)")
+                            ModernDetailRow(icon: "timer.circle", title: "Descanso", value: "\(exercise.restDuration / 60):\(String(format: "%02d", exercise.restDuration % 60))")
+                            
+                            if !exercise.targetMuscle.isEmpty {
+                                ModernDetailRow(icon: "figure.strengthtraining.traditional", title: "Músculo objetivo", value: exercise.targetMuscle)
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(AppColors.backgroundPrimary)
+            .navigationTitle(exercise.name)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                    .foregroundColor(AppColors.accentRed)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Fila de Detalle Moderna
+struct ModernDetailRow: View {
+    let icon: String
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(AppColors.accentRed)
+                .frame(width: 24)
+            
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(AppColors.textPrimary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(AppColors.textSecondary)
+        }
+        .padding(.vertical, 8)
     }
 }
 

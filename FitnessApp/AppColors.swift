@@ -1,92 +1,97 @@
-import SwiftUI
-import Combine
+//
+//  AppColors.swift
+//  FitnessApp
+//
+//  Sistema de colores moderno inspirado en el diseño
+//
 
-// Enum para el tema
-enum AppTheme: String, CaseIterable {
-    case light = "light"
-    case dark = "dark"
-}
+import SwiftUI
 
 struct AppColors {
-    // Color primario dinámico que cambia según el tema seleccionado
-    @MainActor
+    // MARK: - Colores principales del tema oscuro moderno
+    
+    static let backgroundPrimary = Color(red: 0.08, green: 0.08, blue: 0.08) // #141414
+    static let backgroundSecondary = Color(red: 0.12, green: 0.12, blue: 0.12) // #1E1E1E
+    static let backgroundCard = Color(red: 0.15, green: 0.15, blue: 0.15) // #262626
+    
+    // Colores de acento principales
+    static let accentRed = Color(red: 1.0, green: 0.23, blue: 0.19) // #FF3B30 (rojo vibrante)
+    static let accentOrange = Color(red: 1.0, green: 0.58, blue: 0.0) // #FF9500
+    static let accentBlue = Color(red: 0.0, green: 0.48, blue: 1.0) // #007AFF
+    static let accentGreen = Color(red: 0.20, green: 0.78, blue: 0.35) // #34C759
+    static let accentPurple = Color(red: 0.69, green: 0.32, blue: 0.87) // #AF52DE
+    
+    // Colores de texto
+    static let textPrimary = Color.white
+    static let textSecondary = Color(red: 0.68, green: 0.68, blue: 0.70) // #AEAEB2
+    static let textTertiary = Color(red: 0.48, green: 0.48, blue: 0.50) // #7C7C80
+    
+    // Colores de estado
+    static let success = accentGreen
+    static let warning = accentOrange
+    static let error = accentRed
+    static let danger = accentRed
+    static let info = accentBlue
+    
+    // Colores adicionales
+    static let secondaryGray = Color(red: 0.44, green: 0.44, blue: 0.46) // #707074
+    
+    // MARK: - Funciones de compatibilidad con el código existente
+    
     static func primary(themeManager: ThemeManager) -> Color {
-        themeManager.selectedAccentColor.color
-    }
-    
-    // Función para obtener el color primario dinámico desde ThemeManager (mantener para compatibilidad)
-    @MainActor
-    static func primaryDynamic(themeManager: ThemeManager) -> Color {
-        themeManager.selectedAccentColor.color
-    }
-    
-    // Color primario estático (fallback) - CAMBIADO A AZUL
-    static let primary = Color.blue
-    
-    // Colores dinámicos que cambian según el tema - CORREGIDOS PARA MODO CLARO
-    static func background(isDark: Bool) -> Color {
-        isDark ? Color(red: 0.1, green: 0.1, blue: 0.1) : Color.white
+        return accentRed
     }
     
     static func cardBackground(isDark: Bool) -> Color {
-        isDark ? Color(red: 0.2, green: 0.2, blue: 0.2) : Color(red: 0.95, green: 0.95, blue: 0.97)
+        return backgroundCard
     }
     
-    // CORREGIDO: Texto primario con más contraste en modo claro
     static func textPrimary(isDark: Bool) -> Color {
-        isDark ? Color.white : Color(red: 0.1, green: 0.1, blue: 0.1) // Texto casi negro en modo claro
+        return textPrimary
     }
     
-    // CORREGIDO: Texto secundario con más contraste en modo claro
+    static func background(isDark: Bool) -> Color {
+        return backgroundPrimary
+    }
+    
     static func textSecondary(isDark: Bool) -> Color {
-        isDark ? Color(red: 0.8, green: 0.8, blue: 0.8) : Color(red: 0.4, green: 0.4, blue: 0.4) // Gris más oscuro en modo claro
+        return textSecondary
     }
     
-    // Funciones de compatibilidad con el enum (mantener si se usan en otras partes)
-    static func background(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color.white
-        case .dark: return Color(red: 28/255, green: 28/255, blue: 30/255) // Gris muy oscuro
-        }
-    }
+    // MARK: - Gradientes modernos
     
-    static func cardBackground(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color(red: 247/255, green: 247/255, blue: 247/255) // #F7F7F7
-        case .dark: return Color(red: 44/255, green: 44/255, blue: 46/255) // Gris oscuro para tarjetas
-        }
-    }
+    static let primaryGradient = LinearGradient(
+        colors: [accentRed, accentOrange],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     
-    static func textPrimary(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color(red: 0.1, green: 0.1, blue: 0.1) // Texto casi negro
-        case .dark: return Color.white
-        }
-    }
+    static let cardGradient = LinearGradient(
+        colors: [backgroundCard, backgroundSecondary],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     
-    static func textSecondary(for theme: AppTheme) -> Color {
-        switch theme {
-        case .light: return Color(red: 0.4, green: 0.4, blue: 0.4) // Gris más oscuro
-        case .dark: return Color(white: 0.7)
-        }
-    }
+    static let blueGradient = LinearGradient(
+        colors: [accentBlue, accentPurple],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     
-    // Colores estáticos que no cambian
-    static let secondaryGray = Color(red: 230/255, green: 230/255, blue: 230/255)
-    static let accentCyan = Color(red: 0.0, green: 0.85, blue: 0.85)
-    static let danger = Color.red
-    static let success = Color.green
+    // MARK: - Colores específicos para las tarjetas del dashboard
     
-    // Para compatibilidad con código existente (modo claro por defecto)
-    static let background = Color.white
-    static let cardBackground = Color(red: 247/255, green: 247/255, blue: 247/255)
-    static let textPrimary = Color(red: 0.1, green: 0.1, blue: 0.1) // Corregido
-    static let textSecondary = Color(red: 0.4, green: 0.4, blue: 0.4) // Corregido
-}
+    static let streakCardColor = accentRed
+    static let bestDayCardColor = accentOrange
+    static let exercisesCardColor = accentBlue
+    static let timeCardColor = accentGreen
 
-struct AppFonts {
-    static let title = Font.system(size: 22, weight: .bold)
-    static let subtitle = Font.system(size: 16, weight: .semibold)
-    static let body = Font.system(size: 15)
-    static let caption = Font.system(size: 13)
+    // MARK: - Colores adicionales para el calendario moderno
+    static let orange = accentOrange
+    static let purple = accentPurple
+    static let pink = Color(red: 1.0, green: 0.18, blue: 0.33) // #FF2D55
+
+    // Alias para compatibilidad
+    static let blue = accentBlue
+    static let green = accentGreen
+    static let red = accentRed
 }

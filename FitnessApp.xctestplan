@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "89C9E530-1EA7-45C4-A09E-BD3EFE0F6683",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:FitnessApp.xcodeproj",
+      "identifier" : "54FF56B82E272C080011485E",
+      "name" : "FitnessApp"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:FitnessApp.xcodeproj",
+        "identifier" : "54FF56C52E272C090011485E",
+        "name" : "FitnessAppTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:FitnessApp.xcodeproj",
+        "identifier" : "54FF56CF2E272C090011485E",
+        "name" : "FitnessAppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
