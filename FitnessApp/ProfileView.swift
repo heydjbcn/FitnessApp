@@ -150,10 +150,7 @@ struct ProfileView: View {
                                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 12) {
+                            VStack(spacing: 12) {
                                 // Edad
                                 ProfileInfoCard(
                                     icon: "calendar",
@@ -161,7 +158,7 @@ struct ProfileView: View {
                                     value: userManager.userAge.isEmpty ? "No especificado" : "\(userManager.userAge) años"
                                 )
                                 .environmentObject(themeManager)
-                                
+
                                 // Altura
                                 ProfileInfoCard(
                                     icon: "ruler",
@@ -169,7 +166,7 @@ struct ProfileView: View {
                                     value: userManager.userHeight.isEmpty ? "No especificado" : "\(userManager.userHeight) cm"
                                 )
                                 .environmentObject(themeManager)
-                                
+
                                 // Peso
                                 ProfileInfoCard(
                                     icon: "scalemass",
@@ -177,7 +174,7 @@ struct ProfileView: View {
                                     value: userManager.userWeight.isEmpty ? "No especificado" : "\(userManager.userWeight) kg"
                                 )
                                 .environmentObject(themeManager)
-                                
+
                                 // IMC
                                 ProfileInfoCard(
                                     icon: "heart.text.square",
@@ -238,26 +235,32 @@ struct ProfileInfoCard: View {
     @EnvironmentObject var themeManager: ThemeManager
     
     var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 28, weight: .medium))
-                .foregroundColor(AppColors.primary(themeManager: themeManager))
-                .frame(height: 32)
-            
-            Text(title)
-                .font(AppFonts.label)
-                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                .lineLimit(1)
+        HStack(spacing: 14) {
+            // Icono + etiqueta a la izquierda
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                    .frame(width: 28, height: 28)
 
+                Text(title)
+                    .font(AppFonts.body)
+                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Valor a la derecha
             Text(value)
                 .font(AppFonts.bodyMedium)
                 .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, minHeight: 90)
-        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, minHeight: 56)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(12)

@@ -33,31 +33,31 @@ struct CustomCalendarView: View {
     }()
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 8) {
             // Header con mes y año
             HStack {
                 Button(action: previousMonth) {
                     Image(systemName: "chevron.left")
                         .foregroundColor(AppColors.primary(themeManager: themeManager))
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                 }
-                
+
                 Spacer()
-                
+
                 Text(dateFormatter.string(from: currentMonth))
                     .font(AppFonts.subtitle)
                     .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                
+
                 Spacer()
-                
+
                 Button(action: nextMonth) {
                     Image(systemName: "chevron.right")
                         .foregroundColor(AppColors.primary(themeManager: themeManager))
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                 }
             }
-            .padding(.horizontal)
-            
+            .padding(.horizontal, 4)
+
             // Días de la semana
             HStack {
                 ForEach(weekdays, id: \.self) { dayInitial in
@@ -67,9 +67,9 @@ struct CustomCalendarView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            
+
             // Grid de días
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
                 ForEach(daysInMonth, id: \.self) { date in
                     DayView(date: date, selectedDate: $selectedDate, currentMonth: currentMonth)
                         .environmentObject(themeManager)
@@ -77,7 +77,8 @@ struct CustomCalendarView: View {
                 }
             }
         }
-        .padding()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
         .cornerRadius(20)
         .shadow(color: Color.black.opacity(0.09), radius: 12, x: 0, y: 6)
@@ -172,16 +173,16 @@ struct DayView: View {
                 Text("\(calendar.component(.day, from: date))")
                     .font(AppFonts.bodyMedium)
                     .foregroundColor(textColor)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 32, height: 32)
                     .background(backgroundColor)
                     .clipShape(Circle())
-                
+
                 // Indicador verde para días con entrenamiento
                 if hasWorkout && isCurrentMonth {
                     Circle()
                         .fill(AppColors.primary(themeManager: themeManager))
-                        .frame(width: 6, height: 6)
-                        .offset(x: 12, y: -12)
+                        .frame(width: 5, height: 5)
+                        .offset(x: 11, y: -11)
                 }
             }
         }

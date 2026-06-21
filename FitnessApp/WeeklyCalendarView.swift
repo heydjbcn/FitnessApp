@@ -33,13 +33,7 @@ struct WeeklyCalendarView: View {
                 AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Progreso del día seleccionado (movido arriba)
-                    DailyProgressContainer(day: selectedDay)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 8)
-                    
-                    // Selector de días
+                    // Selector de días (arriba del todo)
                     HStack(spacing: 8) {
                         ForEach(daysWithExercises, id: \.self) { day in
                             DayCard(
@@ -54,7 +48,8 @@ struct WeeklyCalendarView: View {
                     }
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 16)
                     
                     // Contenido del día seleccionado
                     ScrollView {
@@ -190,17 +185,25 @@ struct DayCard: View {
                     .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textPrimary(isDark: themeManager.isDarkMode))
                     .fontWeight(.semibold)
 
-                if exerciseCount > 0 {
-                    Text("\(exerciseCount)")
-                        .font(AppFonts.caption)
-                        .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? AppColors.onPrimary(themeManager: themeManager).opacity(0.3) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
-                        .cornerRadius(8)
+                // Slot del número con altura reservada para que todas las tarjetas midan igual
+                Group {
+                    if exerciseCount > 0 {
+                        Text("\(exerciseCount)")
+                            .font(AppFonts.caption)
+                            .foregroundColor(isSelected ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(isSelected ? AppColors.background(isDark: themeManager.isDarkMode).opacity(0.85) : AppColors.textSecondary(isDark: themeManager.isDarkMode).opacity(0.2))
+                            .cornerRadius(8)
+                    } else {
+                        // Mantiene la altura aunque no haya número
+                        Color.clear
+                    }
                 }
+                .frame(height: 20)
             }
-            .frame(maxWidth: .infinity, minHeight: 80)
+            .frame(maxWidth: .infinity)
+            .frame(height: 64)
             .padding(.vertical, 8)
             .background(isSelected ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: themeManager.isDarkMode))
             .cornerRadius(12)

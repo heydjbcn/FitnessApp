@@ -22,30 +22,21 @@ struct HistoryView: View {
     var body: some View {
         ZStack {
             AppColors.background(isDark: themeManager.isDarkMode).ignoresSafeArea()
-            VStack(spacing: 20) {
-                // Card para el selector de fecha
+            VStack(spacing: 12) {
+                // Card compacta para el selector de fecha (ya trae su propio fondo/sombra)
                 CustomCalendarView(selectedDate: $selectedDate)
                     .environmentObject(viewModel)
                     .environmentObject(themeManager)
-                    .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-                    .cornerRadius(20)
-                    .shadow(color: Color.black.opacity(0.09), radius: 12, x: 0, y: 6)
-                    .padding()
-                    .cardStyle(isDarkMode: themeManager.isDarkMode)
 
-                // Card para el peso corporal
-                VStack(spacing: 0) {
-                    weightInputView
-                }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 8)
-                .cardStyle(isDarkMode: themeManager.isDarkMode)
+                // Card compacta para el peso corporal
+                weightInputView
 
-                // Lista de historial
+                // Lista de historial: ocupa el resto del alto disponible
                 historyListView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(.horizontal)
-            .padding(.top, 16)
+            .padding(.top, 12)
             .padding(.bottom, 10)
         }
         .navigationTitle("Historial").navigationBarTitleDisplayMode(.inline)
@@ -60,6 +51,7 @@ struct HistoryView: View {
     
     private var historyListView: some View {
         ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
             if let selectedDate = selectedDate,
                let historyForDate = viewModel.exercisesForDate(selectedDate), 
                !historyForDate.values.allSatisfy({ $0.isEmpty }) {
@@ -82,9 +74,11 @@ struct HistoryView: View {
             } else {
                 noDataView
             }
+            }
+            .frame(maxWidth: .infinity, minHeight: 0)
         }
     }
-    
+
     private func historyRow(for exercise: Exercise, workoutRecord: WorkoutExercise) -> some View {
         HStack(spacing: 16) {
             ZStack {
@@ -114,61 +108,53 @@ struct HistoryView: View {
         .padding(.vertical, 4)
     }
     
-    private var weightInputView: some View { 
-        VStack(alignment: .leading, spacing: 12) {
-            // Header con icono y título
-            HStack {
-                Image(systemName: "scalemass")
-                    .foregroundColor(AppColors.primary(themeManager: themeManager))
-                Text("Peso corporal (kg):")
-                    .font(AppFonts.label)
-                    .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                Spacer()
-            }
-            
-            // Input y botón
+    private var weightInputView: some View {
+        // Tarjeta compacta en una sola fila: icono + label + valor/input + acción
+        HStack(spacing: 10) {
+            Image(systemName: "scalemass")
+                .foregroundColor(AppColors.primary(themeManager: themeManager))
+            Text("Peso corporal:")
+                .font(AppFonts.label)
+                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+
+            Spacer()
+
             if isEditingWeight {
-                // Input y botón guardar en la misma línea
-                HStack(spacing: 12) {
-                    TextField("75.5", text: $bodyWeight)
-                        .textFieldStyle(ModernTextFieldStyle(isDarkMode: themeManager.isDarkMode))
-                        .frame(width: 80, height: 40)
-                        .focused($isWeightFocused)
-                        .addFocusGlow(isFocused: isWeightFocused)
-                    
-                    Button("Guardar") {
-                        if let w = Double(bodyWeight), let selectedDate = selectedDate {
-                            viewModel.updateBodyWeight(for: selectedDate, weight: w)
-                        }
-                        isWeightFocused = false
-                        isEditingWeight = false
+                TextField("75.5", text: $bodyWeight)
+                    .textFieldStyle(ModernTextFieldStyle(isDarkMode: themeManager.isDarkMode))
+                    .frame(width: 80, height: 36)
+                    .focused($isWeightFocused)
+                    .addFocusGlow(isFocused: isWeightFocused)
+
+                Button("Guardar") {
+                    if let w = Double(bodyWeight), let selectedDate = selectedDate {
+                        viewModel.updateBodyWeight(for: selectedDate, weight: w)
                     }
-                    .font(AppFonts.subtitle)
-                    .buttonStyle(.borderedProminent)
-                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                    .tint(AppColors.primary(themeManager: themeManager))
+                    isWeightFocused = false
+                    isEditingWeight = false
                 }
+                .font(AppFonts.subtitle)
+                .buttonStyle(.borderedProminent)
+                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
+                .tint(AppColors.primary(themeManager: themeManager))
             } else {
-                // Peso y botón editar en la misma línea
-                HStack {
-                    Text(bodyWeight.isEmpty ? "No registrado" : "\(bodyWeight) kg")
-                        .font(AppFonts.metric)
-                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                Text(bodyWeight.isEmpty ? "No registrado" : "\(bodyWeight) kg")
+                    .font(AppFonts.metric)
+                    .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
 
-                    Spacer()
-
-                    Button("Editar") {
-                        isEditingWeight = true
-                        isWeightFocused = true
-                    }
-                    .font(AppFonts.subtitle)
-                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+                Button("Editar") {
+                    isEditingWeight = true
+                    isWeightFocused = true
                 }
+                .font(AppFonts.subtitle)
+                .foregroundColor(AppColors.primary(themeManager: themeManager))
             }
         }
-        .padding()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        .cornerRadius(12) 
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.09), radius: 12, x: 0, y: 6)
     }
     private var noDataView: some View { VStack { Spacer(); Text("Sin datos para esta fecha.").font(AppFonts.body).foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode)); Spacer() }.frame(height: 200) }
     private func loadWeight() { 

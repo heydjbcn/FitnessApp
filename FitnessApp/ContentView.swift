@@ -26,48 +26,13 @@ struct ContentView: View {
                             
                             // Contenido principal
                             ScrollView(showsIndicators: false) {
-                                VStack(spacing: 24) {
-                                    // Progreso semanal (scrolleable)
+                                VStack(spacing: 20) {
+                                    // 1. Tarjeta grande de progreso semanal (fondo lima)
                                     WeeklyProgressView()
                                         .environmentObject(viewModel)
                                         .environmentObject(themeManager)
-                                    
-                                    // Frase motivacional - MOVIDO AQUÍ
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Motivación Diaria")
-                                            .font(AppFonts.subtitle)
-                                            .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                                        Text(userManager.getMotivationalQuote())
-                                            .font(AppFonts.body)
-                                            .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                                            .italic()
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding()
-                                    .cardStyle(isDarkMode: themeManager.isDarkMode)
-                                    
-                                    // Botón para ir al calendario del día actual
-                                    Button(action: {
-                                        HapticManager.shared.buttonTapped()
-                                        selectedTab = 1
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "play.circle.fill")
-                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                                                .font(.system(size: 20))
-                                            Text("Empecemos con tu rutina")
-                                                .font(AppFonts.subtitle)
-                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                                        }
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(AppColors.primary(themeManager: themeManager))
-                                        .cornerRadius(14)
-                                        .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
-                                    }
-                                    .padding(.horizontal)
-                                    
-                                    // Estadísticas en tarjetas
+
+                                    // 2. Fila de 3 tarjetas de stats
                                     StatsCardsView(
                                         onNavigateToBestDay: { bestDay in
                                             // Cambiar a la pestaña de calendario
@@ -81,13 +46,61 @@ struct ContentView: View {
                                     )
                                     .environmentObject(viewModel)
                                     .environmentObject(themeManager)
-                                    
-                                    // Lista de ejercicios semanales
+
+                                    // 3. Tarjeta "Motivación Diaria" (icono estrella en cuadrito)
+                                    HStack(alignment: .top, spacing: 14) {
+                                        Image(systemName: "star.fill")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(AppColors.primary(themeManager: themeManager))
+                                            .frame(width: 44, height: 44)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppColors.primary(themeManager: themeManager).opacity(0.15))
+                                            )
+
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("MOTIVACIÓN DIARIA")
+                                                .font(AppFonts.label)
+                                                .tracking(1.0)
+                                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
+                                            Text(userManager.getMotivationalQuote())
+                                                .font(AppFonts.subtitle)
+                                                .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+
+                                        Spacer(minLength: 0)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(16)
+                                    .cardStyle(isDarkMode: themeManager.isDarkMode)
+
+                                    // 4. Sección "Hoy · <día>" + lista de ejercicios del día
                                     WeeklyExercisesList()
                                         .environmentObject(viewModel)
                                         .environmentObject(themeManager)
+
+                                    // 5. Botón ancho "Continuar entrenamiento"
+                                    Button(action: {
+                                        HapticManager.shared.buttonTapped()
+                                        selectedTab = 1
+                                    }) {
+                                        HStack {
+                                            Text("Continuar entrenamiento")
+                                                .font(AppFonts.subtitle)
+                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
+                                            Image(systemName: "arrow.right")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 18)
+                                        .background(AppColors.primary(themeManager: themeManager))
+                                        .cornerRadius(16)
+                                        .shadow(color: AppColors.primary(themeManager: themeManager).opacity(0.3), radius: 4, x: 0, y: 2)
+                                    }
                                 }
-                                .padding(.bottom, 60) // Aumentado para mayor separación de la barra de pestañas
+                                .padding(.bottom, 60) // Separación de la barra de pestañas
                             }
                             .padding(.horizontal)
                         }
@@ -164,6 +177,9 @@ struct ContentView: View {
                 updateTabBarAppearance()
             }
             .onChange(of: themeManager.isDarkMode) { _, _ in
+                updateTabBarAppearance()
+            }
+            .onChange(of: themeManager.selectedAccentColor) { _, _ in
                 updateTabBarAppearance()
             }
             .onChange(of: selectedTab) { _, newValue in

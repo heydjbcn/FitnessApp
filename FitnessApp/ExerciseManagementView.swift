@@ -11,29 +11,76 @@ import PhotosUI
 struct ExerciseManagementView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
-    @State private var selectedTab: Int = 0 // 0: Ejercicios, 1: Añadir Ejercicio
+    @State private var showingAddSheet = false
+    // Compatibilidad: si se pide abrir "Añadir" desde fuera, se presenta el sheet.
     var shouldShowAddExerciseTab: Bool = false
-    
+
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // TAB 1: Lista de Ejercicios
-            exercisesListFullView
-                .tag(0)
-            
-            // TAB 2: Añadir Ejercicio
-            addExerciseFullView
-                .tag(1)
+        ZStack(alignment: .bottomTrailing) {
+            // Fondo
+            AppColors.background(isDark: themeManager.isDarkMode)
+                .ignoresSafeArea()
+
+            // CONTENIDO: lista de ejercicios directa (sin cabecera de tabs)
+            exercisesListView
+
+            // BOTÓN FLOTANTE (+)
+            Button(action: {
+                showingAddSheet = true
+            }) {
+                Image(systemName: "plus")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
+                    .frame(width: 60, height: 60)
+                    .background(AppColors.primary(themeManager: themeManager))
+                    .clipShape(Circle())
+                    .shadow(color: Color.black.opacity(0.25), radius: 8, x: 0, y: 4)
+            }
+            .padding(.trailing, 24)
+            .padding(.bottom, 24)
+            .onboardingHighlight(
+                isHighlighted: viewModel.onboardingManager.showingOnboarding &&
+                             (viewModel.onboardingManager.onboardingStep == 1 ||
+                              viewModel.onboardingManager.onboardingStep == 2) &&
+                             (OnboardingManager.onboardingSteps[viewModel.onboardingManager.onboardingStep].highlightArea == .addExerciseForm)
+            )
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         .background(AppColors.background(isDark: themeManager.isDarkMode))
         .onAppear {
-            // Si se debe mostrar la pestaña de añadir ejercicio, cambiar a esa pestaña
+            // Si se debe mostrar el formulario de añadir, presentar el sheet
             if shouldShowAddExerciseTab {
-                selectedTab = 1
+                showingAddSheet = true
+            }
+        }
+        .sheet(isPresented: $showingAddSheet) {
+            addExerciseSheet
+        }
+    }
+
+    // MARK: - Sheet con el Formulario de Añadir Ejercicio (reutiliza AddExerciseForm)
+    private var addExerciseSheet: some View {
+        NavigationView {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    AddExerciseForm()
+                        .environmentObject(viewModel)
+                        .environmentObject(themeManager)
+                }
+                .padding(.top, 8)
+            }
+            .background(AppColors.background(isDark: themeManager.isDarkMode))
+            .navigationTitle("Añadir Ejercicio")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cerrar") {
+                        showingAddSheet = false
+                    }
+                }
             }
         }
     }
-    
+
     // MARK: - Vista de Lista de Ejercicios
     private var exercisesListView: some View {
         ScrollView(showsIndicators: false) {
@@ -61,46 +108,28 @@ struct ExerciseManagementView: View {
                             .environmentObject(themeManager)
                     }
                     .onboardingHighlight(
-                        isHighlighted: viewModel.onboardingManager.showingOnboarding && 
+                        isHighlighted: viewModel.onboardingManager.showingOnboarding &&
                                      viewModel.onboardingManager.onboardingStep == 3 &&
                                      OnboardingManager.onboardingSteps[3].highlightArea == .exerciseList
                     )
                 }
-                
+
                 // Botón de Reset al final
                 resetButtonView
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
+            // Espacio extra para que el FAB no tape el último contenido
+            .padding(.bottom, 100)
         }
         .background(AppColors.background(isDark: themeManager.isDarkMode))
     }
-    
+
     // MARK: - Función para obtener todos los ejercicios
     private func getAllExercises() -> [Exercise] {
         return viewModel.availableExercises
     }
-    
-    // MARK: - Vista del Formulario de Añadir Ejercicio
-    private var addExerciseFormView: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                AddExerciseForm()
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
-                    .onboardingHighlight(
-                        isHighlighted: viewModel.onboardingManager.showingOnboarding && 
-                                     (viewModel.onboardingManager.onboardingStep == 1 || 
-                                      viewModel.onboardingManager.onboardingStep == 2) &&
-                                     (OnboardingManager.onboardingSteps[viewModel.onboardingManager.onboardingStep].highlightArea == .addExerciseForm)
-                    )
-            }
-            .padding(.horizontal, 0)
-            .padding(.top, 20)
-        }
-        .background(AppColors.background(isDark: themeManager.isDarkMode))
-    }
-    
+
     // MARK: - Vista del Botón de Reset
     private var resetButtonView: some View {
         VStack(spacing: 16) {
@@ -116,131 +145,7 @@ struct ExerciseManagementView: View {
                     .cornerRadius(12)
             }
         }
-        .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(AppColors.background(isDark: themeManager.isDarkMode))
-    }
-    
-    // MARK: - Vista Completa de Lista de Ejercicios
-    private var exercisesListFullView: some View {
-        VStack(spacing: 0) {
-            // HEADER CON PESTAÑAS
-            VStack(spacing: 0) {
-                // Título y navegación
-                HStack {
-                    Spacer()
-                    Text("Ejercicios")
-                        .font(AppFonts.title2)
-                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
-
-                // Navegación entre pestañas
-                HStack(spacing: 0) {
-                    // Pestaña Ejercicios (activa)
-                    Button(action: {
-                        selectedTab = 0
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "dumbbell.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(AppColors.primary(themeManager: themeManager))
-                            Text("Ejercicios")
-                                .font(AppFonts.body)
-                                .foregroundColor(AppColors.primary(themeManager: themeManager))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                    }
-
-                    // Pestaña Añadir Ejercicio (inactiva)
-                    Button(action: {
-                        selectedTab = 1
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                            Text("Añadir")
-                                .font(AppFonts.body)
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                    }
-                }
-                .background(AppColors.background(isDark: themeManager.isDarkMode))
-            }
-            .background(AppColors.background(isDark: themeManager.isDarkMode))
-
-            // CONTENIDO
-            exercisesListView
-        }
-        .background(AppColors.background(isDark: themeManager.isDarkMode))
-    }
-    
-    // MARK: - Vista Completa de Añadir Ejercicio
-    private var addExerciseFullView: some View {
-        VStack(spacing: 0) {
-            // HEADER CON PESTAÑAS
-            VStack(spacing: 0) {
-                // Título y navegación
-                HStack {
-                    Spacer()
-                    Text("Añadir Ejercicio")
-                        .font(AppFonts.title2)
-                        .foregroundColor(AppColors.textPrimary(isDark: themeManager.isDarkMode))
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
-
-                // Navegación entre pestañas
-                HStack(spacing: 0) {
-                    // Pestaña Ejercicios (inactiva)
-                    Button(action: {
-                        selectedTab = 0
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "dumbbell.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                            Text("Ejercicios")
-                                .font(AppFonts.body)
-                                .foregroundColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                    }
-
-                    // Pestaña Añadir Ejercicio (activa)
-                    Button(action: {
-                        selectedTab = 1
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(AppColors.primary(themeManager: themeManager))
-                            Text("Añadir")
-                                .font(AppFonts.body)
-                                .foregroundColor(AppColors.primary(themeManager: themeManager))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                    }
-                }
-                .background(AppColors.background(isDark: themeManager.isDarkMode))
-            }
-            .background(AppColors.background(isDark: themeManager.isDarkMode))
-            
-            // CONTENIDO
-            addExerciseFormView
-        }
-        .background(AppColors.background(isDark: themeManager.isDarkMode))
     }
 }
 
