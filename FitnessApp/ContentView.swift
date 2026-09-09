@@ -2,9 +2,9 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @StateObject private var viewModel = WorkoutViewModel()
-    @StateObject private var themeManager = ThemeManager()
-    @StateObject private var userManager = UserManager()
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var userManager: UserManager
     @State private var selectedTab = 0
     @State private var shouldShowAddExerciseTab = false
 

@@ -135,15 +135,7 @@ struct WeeklyExercisesList: View {
         }
     }
 
-    private func dayName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lunes"
-        case .tuesday: return "Martes"
-        case .wednesday: return "Miércoles"
-        case .thursday: return "Jueves"
-        case .friday: return "Viernes"
-        }
-    }
+    private func dayName(for day: WorkoutDay) -> String { day.displayName }
 }
 
 // MARK: - Fila de ejercicio del día con barra de progreso segmentada

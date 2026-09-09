@@ -2,7 +2,11 @@ import SwiftUI
 
 @main
 struct FitnessAppApp: App {
-    @StateObject var workoutViewModel = WorkoutViewModel()
+    // Dueños únicos del estado: ContentView los consume por @EnvironmentObject.
+    // Antes ContentView creaba los suyos propios y la app cargaba los datos dos veces.
+    @StateObject private var workoutViewModel = WorkoutViewModel()
+    @StateObject private var themeManager = ThemeManager()
+    @StateObject private var userManager = UserManager()
 
     init() {
         FontLoader.registerFonts()
@@ -14,7 +18,9 @@ struct FitnessAppApp: App {
                 ContentView()
             }
             .environmentObject(workoutViewModel)
-            .preferredColorScheme(.dark)
+            .environmentObject(themeManager)
+            .environmentObject(userManager)
+            .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
             .onAppear {
                 // Solicitar permisos de notificaciones al iniciar la app
                 NotificationManager.shared.requestNotificationPermission()

@@ -76,18 +76,6 @@ struct DailyProgressCard: View {
     }
 }
 
-extension WorkoutDay {
-    var displayName: String {
-        switch self {
-        case .monday: return "Lunes"
-        case .tuesday: return "Martes"
-        case .wednesday: return "Miércoles"
-        case .thursday: return "Jueves"
-        case .friday: return "Viernes"
-        }
-    }
-}
-
 extension DailyProgressCard {
     private var exercisesForDay: [WorkoutExercise] {
         viewModel.dailyWorkoutRecords[day] ?? []

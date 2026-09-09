@@ -15,16 +15,7 @@ struct WeeklyCalendarView: View {
     
     // Función para obtener el día actual
     static func getCurrentDay() -> WorkoutDay {
-        let weekday = Calendar.current.component(.weekday, from: Date())
-        // weekday: 1 = domingo, 2 = lunes, 3 = martes, 4 = miércoles, 5 = jueves, 6 = viernes, 7 = sábado
-        switch weekday {
-        case 2: return .monday
-        case 3: return .tuesday
-        case 4: return .wednesday
-        case 5: return .thursday
-        case 6: return .friday
-        default: return .monday // Por defecto lunes si es fin de semana
-        }
+        WorkoutDay.from(date: Date()) ?? .monday
     }
     
     var body: some View {
@@ -196,15 +187,7 @@ struct WeeklyCalendarView: View {
         }
     }
     
-    private func dayFullName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lunes"
-        case .tuesday: return "Martes"
-        case .wednesday: return "Miércoles"
-        case .thursday: return "Jueves"
-        case .friday: return "Viernes"
-        }
-    }
+    private func dayFullName(for day: WorkoutDay) -> String { day.displayName }
 
 struct DayCard: View {
     let day: WorkoutDay
@@ -259,15 +242,7 @@ struct DayCard: View {
         return "calendar" // Todos los días usan el mismo icono
     }
     
-    private func dayShortName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lun"
-        case .tuesday: return "Mar"
-        case .wednesday: return "Mié"
-        case .thursday: return "Jue"
-        case .friday: return "Vie"
-        }
-    }
+    private func dayShortName(for day: WorkoutDay) -> String { day.shortLabel }
 }
 
 struct CalendarExerciseCard: View {
@@ -590,15 +565,7 @@ struct DailyProgressContainer: View {
         )
     }
     
-    private func dayDisplayName(for day: WorkoutDay) -> String {
-        switch day {
-        case .monday: return "Lunes"
-        case .tuesday: return "Martes"
-        case .wednesday: return "Miércoles"
-        case .thursday: return "Jueves"
-        case .friday: return "Viernes"
-        }
-    }
+    private func dayDisplayName(for day: WorkoutDay) -> String { day.displayName }
 }
 
 // Componente ProgressRing (igual al de la pantalla principal)

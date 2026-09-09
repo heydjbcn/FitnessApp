@@ -50,13 +50,7 @@ struct StatsCardsView: View {
 
     private func bestDayName() -> String {
         guard let bestDay = viewModel.bestWorkoutDay() else { return "---" }
-        switch bestDay {
-        case .monday: return "Lun"
-        case .tuesday: return "Mar"
-        case .wednesday: return "Mié"
-        case .thursday: return "Jue"
-        case .friday: return "Vie"
-        }
+        return bestDay.shortLabel
     }
 }
 

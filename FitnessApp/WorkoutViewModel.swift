@@ -954,54 +954,22 @@ class WorkoutViewModel: ObservableObject {
         // Crear registros completados para cada fecha
         for date in dates {
             let dateKey = calendar.startOfDay(for: date)
-            let dayOfWeek = calendar.component(.weekday, from: date)
-            
+
             var historyForDate: [WorkoutDay: [WorkoutExercise]] = [:]
-            
-            switch dayOfWeek {
-            case 2: // Lunes
-                if let mondayWorkouts = dailyWorkoutRecords[.monday] {
-                    let completedWorkouts = mondayWorkouts.map { workout in
-                        var completed = workout
-                        if let exercise = getExercise(by: workout.exerciseId) {
-                            completed.completedSets = exercise.totalSets // Completar todas las series
-                            completed.lastSetCompletedAt = date
-                        }
-                        return completed
+
+            // El día natural manda: si esa fecha cae en un día con rutina, se da por completada.
+            if let day = WorkoutDay.from(date: date, calendar: calendar),
+               let workouts = dailyWorkoutRecords[day] {
+                historyForDate[day] = workouts.map { workout in
+                    var completed = workout
+                    if let exercise = getExercise(by: workout.exerciseId) {
+                        completed.completedSets = exercise.totalSets // Completar todas las series
+                        completed.lastSetCompletedAt = date
                     }
-                    historyForDate[.monday] = completedWorkouts
+                    return completed
                 }
-                
-            case 4: // Miércoles
-                if let wednesdayWorkouts = dailyWorkoutRecords[.wednesday] {
-                    let completedWorkouts = wednesdayWorkouts.map { workout in
-                        var completed = workout
-                        if let exercise = getExercise(by: workout.exerciseId) {
-                            completed.completedSets = exercise.totalSets // Completar todas las series
-                            completed.lastSetCompletedAt = date
-                        }
-                        return completed
-                    }
-                    historyForDate[.wednesday] = completedWorkouts
-                }
-                
-            case 6: // Viernes
-                if let fridayWorkouts = dailyWorkoutRecords[.friday] {
-                    let completedWorkouts = fridayWorkouts.map { workout in
-                        var completed = workout
-                        if let exercise = getExercise(by: workout.exerciseId) {
-                            completed.completedSets = exercise.totalSets // Completar todas las series
-                            completed.lastSetCompletedAt = date
-                        }
-                        return completed
-                    }
-                    historyForDate[.friday] = completedWorkouts
-                }
-                
-            default:
-                break
             }
-            
+
             if !historyForDate.isEmpty {
                 workoutHistory[dateKey] = historyForDate
             }
