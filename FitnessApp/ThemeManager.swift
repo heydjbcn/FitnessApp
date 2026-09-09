@@ -14,36 +14,23 @@ enum AccentColor: String, CaseIterable, Identifiable {
     
     var id: String { self.rawValue }
     
-    var color: Color {
-        switch self {
-        case .green:  return AppColors.accentLime
-        case .blue:   return AppColors.accentBlue
-        case .purple: return AppColors.accentPurple
-        case .orange: return AppColors.accentOrange
-        case .red:    return AppColors.accentRed
-        case .pink:   return AppColors.accentPink
-        case .teal:   return AppColors.accentTeal
-        case .indigo: return AppColors.accentIndigo
-        }
-    }
+    /// Color plano del acento en tema oscuro. Para resolverlo según el tema
+    /// vivo, usa `accent(isDark:)` de PulsoTokens.
+    var color: Color { accent(isDark: true) }
 
     /// Color de texto/icono legible ENCIMA del acento (contraste).
-    var onColor: Color {
-        switch self {
-        case .green: return Color(hex: "#0B0D0F") // lima es muy claro → texto oscuro
-        default:     return .white
-        }
-    }
+    var onColor: Color { onAccent(isDark: true) }
 
+    /// Nombre del degradado, como lo llama el diseño.
     var displayName: String {
         switch self {
-        case .green: return "Lima eléctrico"
-        case .blue: return "Azul"
-        case .purple: return "Morado"
-        case .orange: return "Naranja"
-        case .red: return "Rojo"
-        case .pink: return "Rosa"
-        case .teal: return "Azul Verdoso"
+        case .purple: return "Violeta"
+        case .red:    return "Coral"
+        case .green:  return "Lima"
+        case .pink:   return "Rosa"
+        case .orange: return "Ámbar"
+        case .blue:   return "Azul"
+        case .teal:   return "Turquesa"
         case .indigo: return "Índigo"
         }
     }
@@ -66,7 +53,9 @@ class ThemeManager: ObservableObject {
         }
     }
     
-    @Published var selectedAccentColor: AccentColor = .green {
+    // Violeta es el acento por defecto del rediseño «Pulso». Solo afecta a
+    // instalaciones nuevas: si hay preferencia guardada, manda esa.
+    @Published var selectedAccentColor: AccentColor = .purple {
         didSet {
             UserDefaults.standard.set(selectedAccentColor.rawValue, forKey: "selectedAccentColor")
             // Haptic feedback para cambio de color de acento

@@ -2,7 +2,7 @@
 //  FontLoader.swift
 //  FitnessApp
 //
-//  Registra las fuentes personalizadas (Space Grotesk / Hanken Grotesk) en
+//  Registra las fuentes personalizadas (Bricolage Grotesque / Figtree) en
 //  tiempo de ejecución, sin depender de UIAppFonts en el Info.plist
 //  (el proyecto usa GENERATE_INFOPLIST_FILE = YES).
 //
@@ -12,13 +12,14 @@ import Foundation
 
 enum FontLoader {
     private static let fontNames = [
-        "SpaceGrotesk-Medium",
-        "SpaceGrotesk-SemiBold",
-        "SpaceGrotesk-Bold",
-        "HankenGrotesk-Regular",
-        "HankenGrotesk-Medium",
-        "HankenGrotesk-SemiBold",
-        "HankenGrotesk-Bold"
+        // Titulares del rediseño «Pulso»
+        "BricolageGrotesque-Bold",
+        "BricolageGrotesque-ExtraBold",
+        // Texto
+        "Figtree-Regular",
+        "Figtree-Medium",
+        "Figtree-SemiBold",
+        "Figtree-Bold"
     ]
 
     private static var didRegister = false

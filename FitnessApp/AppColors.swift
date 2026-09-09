@@ -21,62 +21,54 @@ enum AppTheme: String, CaseIterable {
     case dark = "dark"
 }
 
+/// Fachada de color de la app. Mantiene la API que ya usan las vistas, pero
+/// por dentro resuelve todo contra los tokens de `Pulso`.
 struct AppColors {
-    // MARK: - Paleta (rediseño 2026, dark-first, acento lima eléctrico)
-    static let limeAccent   = Color(hex: "#C6F542")
-    static let accentLime    = Color(hex: "#C6F542")
-    static let accentBlue    = Color(hex: "#3B82F6")
-    static let accentPurple  = Color(hex: "#A855F7")
-    static let accentOrange  = Color(hex: "#F97316")
-    static let accentRed     = Color(hex: "#EF4444")
-    static let accentPink    = Color(hex: "#EC4899")
-    static let accentTeal    = Color(hex: "#14B8A6")
-    static let accentIndigo  = Color(hex: "#6366F1")
+    // MARK: - Paleta de acentos (extremo vivo de cada degradado de «Pulso»)
+    static let limeAccent    = Color(hex: "#A3FF12")
+    static let accentLime    = Color(hex: "#A3FF12")
+    static let accentBlue    = Color(hex: "#60A5FA")
+    static let accentPurple  = Color(hex: "#8B5CF6")
+    static let accentOrange  = Color(hex: "#FBBF24")
+    static let accentRed     = Color(hex: "#FF6B81")
+    static let accentPink    = Color(hex: "#F472B6")
+    static let accentTeal    = Color(hex: "#22D3EE")
+    static let accentIndigo  = Color(hex: "#818CF8")
 
     // Fondos / superficies
-    static let bgDark    = Color(hex: "#0B0D0F")
-    static let surfaceDark = Color(hex: "#16191D")
-    static let cardDark  = Color(hex: "#1F242A")
-    static let bgLight   = Color(hex: "#F2F4F2")
-    static let cardLight = Color(hex: "#FFFFFF")
+    static let bgDark      = Color(hex: "#0B0A14")
+    static let surfaceDark = Color(hex: "#141224")
+    static let cardDark    = Color(hex: "#17162A")
+    static let bgLight     = Color(hex: "#F5F4FB")
+    static let cardLight   = Color(hex: "#FFFFFF")
 
     // MARK: - Color primario (acento del usuario)
     static func primary(themeManager: ThemeManager) -> Color {
-        themeManager.selectedAccentColor.color
+        themeManager.selectedAccentColor.accent(isDark: themeManager.isDarkMode)
     }
     static func primaryDynamic(themeManager: ThemeManager) -> Color {
-        themeManager.selectedAccentColor.color
+        primary(themeManager: themeManager)
     }
     /// Color de texto/icono legible sobre el acento (contraste correcto).
     static func onPrimary(themeManager: ThemeManager) -> Color {
-        themeManager.selectedAccentColor.onColor
+        themeManager.selectedAccentColor.onAccent(isDark: themeManager.isDarkMode)
     }
-    /// Texto oscuro para usar sobre el acento lima por defecto.
-    static let onAccentDark = Color(hex: "#0B0D0F")
-    static let primary = accentLime  // fallback estático
+    /// Degradado del acento del usuario: el relleno estrella del diseño.
+    static func primaryGradient(themeManager: ThemeManager) -> LinearGradient {
+        themeManager.selectedAccentColor.gradient(isDark: themeManager.isDarkMode)
+    }
+    /// Texto oscuro para usar sobre un acento claro.
+    static let onAccentDark = Color(hex: "#0B0A14")
+    static let primary = accentTeal  // fallback estático
 
     // MARK: - Colores dinámicos por isDark
-    static func background(isDark: Bool) -> Color {
-        isDark ? bgDark : bgLight
-    }
-    static func surface(isDark: Bool) -> Color {
-        isDark ? surfaceDark : Color(hex: "#F2F4EE")
-    }
-    static func cardBackground(isDark: Bool) -> Color {
-        isDark ? cardDark : cardLight
-    }
-    static func textPrimary(isDark: Bool) -> Color {
-        isDark ? Color(hex: "#F2F4F2") : Color(hex: "#0B0D0F")
-    }
-    static func textSecondary(isDark: Bool) -> Color {
-        isDark ? Color(hex: "#8B929B") : Color(hex: "#565D66")
-    }
-    static func textTertiary(isDark: Bool) -> Color {
-        isDark ? Color(hex: "#565D66") : Color(hex: "#8B929B")
-    }
-    static func hairline(isDark: Bool) -> Color {
-        isDark ? Color.white.opacity(0.06) : Color.black.opacity(0.06)
-    }
+    static func background(isDark: Bool) -> Color { Pulso.background(isDark: isDark) }
+    static func surface(isDark: Bool) -> Color { Pulso.soft(isDark: isDark) }
+    static func cardBackground(isDark: Bool) -> Color { Pulso.card(isDark: isDark) }
+    static func textPrimary(isDark: Bool) -> Color { Pulso.ink(isDark: isDark) }
+    static func textSecondary(isDark: Bool) -> Color { Pulso.mute(isDark: isDark) }
+    static func textTertiary(isDark: Bool) -> Color { Pulso.faint(isDark: isDark) }
+    static func hairline(isDark: Bool) -> Color { Pulso.line(isDark: isDark) }
 
     // MARK: - Compatibilidad con AppTheme
     static func background(for theme: AppTheme) -> Color { background(isDark: theme == .dark) }
@@ -85,39 +77,49 @@ struct AppColors {
     static func textSecondary(for theme: AppTheme) -> Color { textSecondary(isDark: theme == .dark) }
 
     // MARK: - Colores estáticos / estado
-    static let secondaryGray = Color(hex: "#565D66")
+    static let secondaryGray = Color(hex: "#6E6C86")
     static let accentCyan = accentTeal
-    static let danger  = accentRed
-    static let success = accentLime
-    static let warning = accentOrange
+    static func danger(isDark: Bool) -> Color { Pulso.danger(isDark: isDark) }
+    static func success(isDark: Bool) -> Color { Pulso.ok(isDark: isDark) }
+    static func warning(isDark: Bool) -> Color { Pulso.warning(isDark: isDark) }
+    static let danger  = Color(hex: "#FB7185")
+    static let success = Color(hex: "#34D399")
+    static let warning = Color(hex: "#FBBF24")
 
     // Estáticos "por defecto" (dark-first)
     static let background     = bgDark
     static let cardBackground = cardDark
-    static let textPrimary    = Color(hex: "#F2F4F2")
-    static let textSecondary  = Color(hex: "#8B929B")
+    static let textPrimary    = Color(hex: "#F4F3FF")
+    static let textSecondary  = Color(hex: "#8E8CA8")
 
-    // Gradientes
+    // Gradiente por defecto (violeta → cian), para cuando no hay ThemeManager a mano
     static let primaryGradient = LinearGradient(
-        colors: [accentLime, accentTeal], startPoint: .topLeading, endPoint: .bottomTrailing)
+        colors: [Color(hex: "#8B5CF6"), Color(hex: "#22D3EE")],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
 }
 
+/// Tipografía de «Pulso»: Bricolage Grotesque en los titulares y los números
+/// grandes, Figtree en todo el texto corrido.
 struct AppFonts {
-    private static func space(_ size: CGFloat, _ w: String) -> Font { .custom("SpaceGrotesk-\(w)", size: size) }
-    private static func hanken(_ size: CGFloat, _ w: String) -> Font { .custom("HankenGrotesk-\(w)", size: size) }
+    private static func display(_ size: CGFloat, _ w: String = "Bold") -> Font {
+        .custom("BricolageGrotesque-\(w)", size: size)
+    }
+    private static func text(_ size: CGFloat, _ w: String) -> Font {
+        .custom("Figtree-\(w)", size: size)
+    }
 
-    // Space Grotesk → títulos / datos
-    static let title    = space(22, "Bold")
-    static let subtitle = space(16, "SemiBold")
-    // Hanken Grotesk → cuerpo / etiquetas
-    static let body     = hanken(15, "Regular")
-    static let caption  = hanken(13, "Regular")
+    // Titulares / datos
+    static let title    = display(22)
+    static let subtitle = text(16, "SemiBold")
+    // Cuerpo / etiquetas
+    static let body     = text(15, "Regular")
+    static let caption  = text(13, "Regular")
 
-    // Extras útiles para el rediseño (números/métricas y títulos grandes)
-    static let largeTitle = space(34, "Bold")
-    static let title2     = space(28, "Bold")
-    static let metric     = space(26, "Bold")
-    static let bigMetric  = space(40, "Bold")
-    static let bodyMedium = hanken(15, "Medium")
-    static let label      = hanken(12, "SemiBold")
+    // Números grandes y títulos de pantalla
+    static let largeTitle = display(34, "ExtraBold")
+    static let title2     = display(28, "ExtraBold")
+    static let metric     = display(26)
+    static let bigMetric  = display(40, "ExtraBold")
+    static let bodyMedium = text(15, "Medium")
+    static let label      = text(12, "SemiBold")
 }
