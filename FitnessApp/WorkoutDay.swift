@@ -7,6 +7,12 @@
 
 import Foundation
 
+extension Int {
+    /// Convierte el día de `Calendar` (1 = domingo) al orden que usa la app,
+    /// donde la semana empieza en lunes.
+    var mondayFirst: Int { self == 1 ? 7 : self - 1 }
+}
+
 enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
     case monday    = "Lunes"
     case tuesday   = "Martes"
@@ -58,6 +64,9 @@ enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
         case .saturday: return 7
         }
     }
+
+    /// Orden natural de la semana empezando en lunes (1 = lunes … 7 = domingo).
+    var weekOrder: Int { calendarWeekday.mondayFirst }
 
     /// El día de entrenamiento correspondiente a una fecha real.
     static func from(date: Date, calendar: Calendar = .current) -> WorkoutDay? {

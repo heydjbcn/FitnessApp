@@ -35,6 +35,16 @@ class WorkoutViewModel: ObservableObject {
     // Onboarding Manager
     @Published var onboardingManager = OnboardingManager()
 
+    /// Nombre que el usuario le pone a cada día ("Hombro y core", "Pierna"…).
+    /// Lo introduce el rediseño «Pulso»; si está vacío, la UI enseña solo el día.
+    @Published var dayLabels: [WorkoutDay: String] = [:] {
+        didSet {
+            if let enc = try? JSONEncoder().encode(dayLabels) {
+                userDefaults.set(enc, forKey: "DayLabels")
+            }
+        }
+    }
+
     private var timer: Timer?
     private let userDefaults = UserDefaults.standard
     
@@ -462,6 +472,48 @@ class WorkoutViewModel: ObservableObject {
         }
         return totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0
     }
+    // MARK: - Cifras de la sesión de un día (cabecera de Inicio)
+
+    /// Series ya marcadas ese día.
+    func completedSets(for day: WorkoutDay) -> Int {
+        (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + $1.completedSets }
+    }
+
+    /// Series que tiene la sesión de ese día.
+    func totalSets(for day: WorkoutDay) -> Int {
+        (dailyWorkoutRecords[day] ?? []).reduce(0) { acc, record in
+            acc + (getExercise(by: record.exerciseId)?.totalSets ?? 0)
+        }
+    }
+
+    /// Minutos que faltan para terminar la sesión, contando el descanso propio
+    /// de cada ejercicio más un minuto de trabajo por serie.
+    func remainingMinutes(for day: WorkoutDay) -> Int {
+        let seconds = (dailyWorkoutRecords[day] ?? []).reduce(0) { acc, record in
+            guard let exercise = getExercise(by: record.exerciseId) else { return acc }
+            let pending = max(0, exercise.totalSets - record.completedSets)
+            return acc + pending * (60 + exercise.restDuration)
+        }
+        return Int((Double(seconds) / 60).rounded())
+    }
+
+    /// True si ese día no queda ninguna serie pendiente (y había alguna).
+    func isDayComplete(_ day: WorkoutDay) -> Bool {
+        let total = totalSets(for: day)
+        return total > 0 && completedSets(for: day) >= total
+    }
+
+    /// Nombre de la sesión de un día, si el usuario le ha puesto uno.
+    func label(for day: WorkoutDay) -> String? {
+        guard let l = dayLabels[day]?.trimmingCharacters(in: .whitespaces), !l.isEmpty else { return nil }
+        return l
+    }
+
+    func setLabel(_ label: String, for day: WorkoutDay) {
+        let clean = label.trimmingCharacters(in: .whitespaces)
+        if clean.isEmpty { dayLabels.removeValue(forKey: day) } else { dayLabels[day] = clean }
+    }
+
     func updateRestDuration(_ duration: Int) {
         restDuration = duration
         timeRemaining = duration
@@ -574,10 +626,16 @@ class WorkoutViewModel: ObservableObject {
     }
     private func loadData() {
         let decoder = JSONDecoder()
-        
+
         // Verificar si es la primera vez que se abre la app
         let isFirstLaunch = !userDefaults.bool(forKey: "HasLaunchedBefore")
-        
+
+        // Nombres de las sesiones por día
+        if let data = userDefaults.data(forKey: "DayLabels"),
+           let decoded = try? decoder.decode([WorkoutDay: String].self, from: data) {
+            dayLabels = decoded
+        }
+
         // Cargar availableExercises
         if let data = userDefaults.data(forKey: "AvailableExercises") {
             print("WorkoutViewModel: Cargando availableExercises - \(data.count) bytes")
