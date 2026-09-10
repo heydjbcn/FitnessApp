@@ -99,6 +99,8 @@ Dir[File.join(ROOT, 'WatchApp', '*.swift')].sort.each do |path|
   watch.add_file_references([ref]) unless watch.source_build_phase.files_references.include?(ref)
 end
 watch_group.files.find { |f| f.path == 'Watch.entitlements' } || watch_group.new_file('Watch.entitlements')
+assets = watch_group.files.find { |f| f.path == 'Assets.xcassets' } || watch_group.new_file('Assets.xcassets')
+watch.resources_build_phase.add_file_reference(assets) unless watch.resources_build_phase.files_references.include?(assets)
 watch.build_configurations.each do |c|
   c.build_settings.merge!(
     'CODE_SIGN_ENTITLEMENTS' => 'WatchApp/Watch.entitlements',

@@ -11,6 +11,7 @@
 		12419794A4F956742A3E9189 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
 		24E0944FDB6541C1307472CF /* ChamaFitWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		25F627ADC9141BE05758DD8A /* RestLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5056444605F415CCD99EEA /* RestLiveActivity.swift */; };
+		2C4905799931F359F2190100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7FB05CE264A60C7E08561938 /* Assets.xcassets */; };
 		2FD021769EEB6D1589428888 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
 		3EB026936A728AC1D8830B72 /* ChamaFitWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */; };
 		47734AD5D3B0E75128EE7AE4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 07B0E053139FD794AC3B3522 /* Foundation.framework */; };
@@ -96,6 +97,7 @@
 		54FF56D02E272C090011485E /* FitnessAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
 		786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ChamaFitWidgets.entitlements; sourceTree = "<group>"; };
+		7FB05CE264A60C7E08561938 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitWidgetsBundle.swift; sourceTree = "<group>"; };
 		89295C9FFD4744E36409A06F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
@@ -123,11 +125,15 @@
 		};
 		54FF56C92E272C090011485E /* FitnessAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = FitnessAppTests;
 			sourceTree = "<group>";
 		};
 		54FF56D32E272C090011485E /* FitnessAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = FitnessAppUITests;
 			sourceTree = "<group>";
 		};
@@ -190,6 +196,7 @@
 				5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */,
 				38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */,
 				4FC221B1CDFF3C3256B16C38 /* Watch.entitlements */,
+				7FB05CE264A60C7E08561938 /* Assets.xcassets */,
 			);
 			path = WatchApp;
 			sourceTree = "<group>";
@@ -440,6 +447,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2C4905799931F359F2190100 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
