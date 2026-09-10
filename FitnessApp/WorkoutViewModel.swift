@@ -15,6 +15,7 @@
 import SwiftUI
 import Combine
 import Foundation
+import WidgetKit
 
 final class WorkoutViewModel: ObservableObject {
 
@@ -63,6 +64,13 @@ final class WorkoutViewModel: ObservableObject {
     /// Mensaje de celebración cuando se bate un récord (lo observa la UI).
     @Published var prCelebration: String? = nil
 
+    /// Colores con los que se pinta la Live Activity (los pone ContentView según el tema).
+    var activityStyle = ActivityStyle()
+    /// Día que se está entrenando en Inicio (para el reloj y el widget).
+    var trainingDay: WorkoutDay = WeeklyCalendarView.getCurrentDay() {
+        didSet { if trainingDay != oldValue { publishSummary() } }
+    }
+
     /// Fecha (inicio de día) de la sesión que lleva la plantilla.
     private(set) var sessionDate: Date
 
@@ -70,9 +78,7 @@ final class WorkoutViewModel: ObservableObject {
     let userDefaults = UserDefaults.standard
     private var pendingSave: DispatchWorkItem?
     private let saveQueue = DispatchQueue(label: "chamafit.save", qos: .utility)
-
-    @MainActor
-    private lazy var liveActivityManager: LiveActivityManager? = LiveActivityManager()
+    private let liveActivity = LiveActivityManager()
 
     // MARK: - Ciclo de vida
 
@@ -81,6 +87,27 @@ final class WorkoutViewModel: ObservableObject {
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
         loadData()
         ensureSession()
+        liveActivity.endAllOrphans()
+        // Los botones de la Live Activity (+30 s / Parar) llegan por aquí.
+        RestTimerBridge.shared.extend = { [weak self] in self?.extendTimer(by: 30) }
+        RestTimerBridge.shared.stop = { [weak self] in self?.stopTimer() }
+        publishSummary()
+    }
+
+    /// Deja en el App Group el resumen de la sesión para el widget y refresca.
+    func publishSummary() {
+        let day = trainingDay
+        let records = dailyWorkoutRecords[day] ?? []
+        let next = records.first { r in
+            guard let ex = getExercise(by: r.exerciseId) else { return false }
+            return r.completedSets < ex.totalSets
+        }.flatMap { getExercise(by: $0.exerciseId)?.name }
+        TodaySummary(dayName: day.displayName, sessionLabel: label(for: day),
+                     exerciseCount: records.count, doneSets: completedSets(for: day),
+                     totalSets: totalSets(for: day), nextExercise: next,
+                     streak: consecutiveWorkoutDays(), accent1: activityStyle.accent1,
+                     accent2: activityStyle.accent2, onAccentDark: activityStyle.onAccentDark).save()
+        WidgetCenter.shared.reloadTimelines(ofKind: "ChamaFitToday")
     }
 
     /// Si ha cambiado el día desde la última sesión, archiva el progreso bajo
@@ -122,6 +149,8 @@ final class WorkoutViewModel: ObservableObject {
         ensureSession()
         mirrorToHistory(day, on: sessionDate)
         scheduleSave()
+        if day == trainingDay { publishSummary() }
+        PhoneConnectivity.shared.sendTodayContext()
     }
 
     func exercisesForDate(_ date: Date) -> [WorkoutDay: [WorkoutExercise]]? {
@@ -136,7 +165,10 @@ final class WorkoutViewModel: ObservableObject {
 
     // MARK: - Series
 
-    func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
+    /// Marca la siguiente serie. Sin `weight`/`reps` nace con lo de la última
+    /// vez (o con la plantilla); con ellos, con lo que se haya escrito.
+    func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay,
+                     weight: Double? = nil, reps: Int? = nil, type: SetType = .normal, rpe: Int? = nil) {
         ensureSession()
         guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }),
               let exercise = getExercise(by: dailyWorkoutRecords[day]![idx].exerciseId) else { return }
@@ -144,10 +176,10 @@ final class WorkoutViewModel: ObservableObject {
         var record = dailyWorkoutRecords[day]![idx]
         guard record.completedSets < exercise.totalSets else { return }
 
-        // La serie nace con lo de la última vez (o con la plantilla).
         let last = lastPerformance(for: exercise.id)
-        let log = SetLog(reps: last?.reps ?? exercise.repetitions,
-                         weight: last?.weight ?? exercise.weight)
+        let log = SetLog(reps: reps ?? last?.reps ?? exercise.repetitions,
+                         weight: weight ?? last?.weight ?? exercise.weight,
+                         type: type, rpe: rpe)
         record.setLogs.append(log)
         record.completedSets += 1
         record.lastSetCompletedAt = Date()
@@ -156,10 +188,21 @@ final class WorkoutViewModel: ObservableObject {
         checkRecord(weight: log.weight, exerciseId: exercise.id, excluding: log.id, name: exercise.name)
         HapticManager.shared.setCompleted()
 
-        if record.completedSets < exercise.totalSets {
-            timerLabel = "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
-            startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
+        guard record.completedSets < exercise.totalSets else { return }
+
+        // En una superserie el descanso llega al cerrar la vuelta: si el
+        // compañero de grupo va por detrás, todavía toca hacer su serie.
+        if let g = record.supersetGroup {
+            let partners = (dailyWorkoutRecords[day] ?? []).filter { $0.supersetGroup == g && $0.id != record.id }
+            if partners.contains(where: { $0.completedSets < record.completedSets }) {
+                let next = partners.first { $0.completedSets < record.completedSets }
+                    .flatMap { getExercise(by: $0.exerciseId)?.name } ?? "el siguiente"
+                timerLabel = "Ahora \(next) · sin descanso"
+                return
+            }
         }
+        timerLabel = "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
+        startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
     }
 
     func undoLastSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
@@ -480,6 +523,11 @@ final class WorkoutViewModel: ObservableObject {
 
     // MARK: - Temporizador de descanso
 
+    private var sessionName: String {
+        let day = trainingDay
+        return label(for: day).map { "\(day.displayName) · \($0)" } ?? day.displayName
+    }
+
     func startTimer(duration: Int, isEnabled: Bool = true) {
         guard isEnabled, duration > 0 else { return }
         stopTimer(silent: true)
@@ -489,8 +537,12 @@ final class WorkoutViewModel: ObservableObject {
         timeRemaining = duration
         timerActive = true
         HapticManager.shared.timerStarted()
+        // El permiso de avisos se pide aquí, en el primer descanso, no al arrancar.
+        NotificationManager.shared.ensurePermission()
         NotificationManager.shared.scheduleRestNotification(after: TimeInterval(duration))
-        Task { @MainActor in liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration) }
+        liveActivity.start(endDate: end, label: timerLabel.isEmpty ? "Descanso" : timerLabel,
+                           sessionName: sessionName, style: activityStyle)
+        PhoneConnectivity.shared.sendTimer(endDate: end, label: timerLabel)
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             DispatchQueue.main.async { self?.tick() }
         }
@@ -504,36 +556,44 @@ final class WorkoutViewModel: ObservableObject {
             completeTimer()
         } else if remaining != timeRemaining {
             timeRemaining = remaining
-            Task { @MainActor in
-                liveActivityManager?.updateTimerActivity(timeRemaining: remaining, totalTime: currentTimerDuration, isActive: true)
-            }
         }
     }
 
     /// Alarga el descanso en curso (+30 s) y reprograma el aviso.
     func extendTimer(by seconds: Int) {
         guard timerActive, let end = timerEndDate else { return }
-        timerEndDate = end.addingTimeInterval(TimeInterval(seconds))
+        let newEnd = end.addingTimeInterval(TimeInterval(seconds))
+        timerEndDate = newEnd
         currentTimerDuration += seconds
         tick()
         NotificationManager.shared.cancelRestNotification()
         NotificationManager.shared.scheduleRestNotification(after: TimeInterval(timeRemaining))
+        liveActivity.update(endDate: newEnd)
+        PhoneConnectivity.shared.sendTimer(endDate: newEnd, label: timerLabel)
         HapticManager.shared.buttonTapped()
     }
 
     func stopTimer(silent: Bool = false) {
         timer?.invalidate()
         timer = nil
+        let wasActive = timerActive
         timerActive = false
         timerEndDate = nil
         timeRemaining = currentTimerDuration
         if !silent { HapticManager.shared.timerStopped() }
         NotificationManager.shared.cancelRestNotification()
-        Task { @MainActor in liveActivityManager?.endTimerActivity() }
+        liveActivity.end()
+        if wasActive { PhoneConnectivity.shared.sendTimer(endDate: nil, label: "") }
     }
 
     private func completeTimer() {
-        stopTimer(silent: true)
+        timer?.invalidate()
+        timer = nil
+        timerActive = false
+        timerEndDate = nil
+        timeRemaining = currentTimerDuration
+        liveActivity.finish()
+        PhoneConnectivity.shared.sendTimer(endDate: nil, label: "")
         HapticManager.shared.timerCompleted()
         notify(.restTimer, title: "Descanso terminado", message: "Cuando quieras, a por la siguiente serie.")
     }

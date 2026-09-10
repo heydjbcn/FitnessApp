@@ -92,6 +92,8 @@ struct ContentView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.prCelebration)
         .onAppear {
             PhoneConnectivity.shared.viewModel = viewModel
+            syncStyle()
+            viewModel.trainingDay = homeDay
             PhoneConnectivity.shared.sendTodayContext()
             viewModel.updateTimerEnabledState(themeManager.isTimerEnabled)
             UIApplication.shared.isIdleTimerDisabled = keepScreenOn
@@ -101,6 +103,12 @@ struct ContentView: View {
             }
         }
         .onChange(of: themeManager.isTimerEnabled) { _, on in viewModel.updateTimerEnabledState(on) }
+        .onChange(of: themeManager.selectedAccentColor) { _, _ in syncStyle() }
+        .onChange(of: themeManager.isDarkMode) { _, _ in syncStyle() }
+        .onChange(of: homeDay) { _, day in
+            viewModel.trainingDay = day
+            PhoneConnectivity.shared.sendTodayContext()
+        }
         .onChange(of: keepScreenOn) { _, on in UIApplication.shared.isIdleTimerDisabled = on }
         .onChange(of: selectedTab) { _, _ in HapticManager.shared.tabChanged() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
@@ -109,6 +117,8 @@ struct ContentView: View {
             let wasToday = homeDay == WeeklyCalendarView.getCurrentDay()
             viewModel.ensureSession()
             viewModel.tick()
+            NotificationManager.shared.clearDelivered()
+            PhoneConnectivity.shared.sendTodayContext()
             if !wasToday || viewModel.sessionDate != Calendar.current.startOfDay(for: Date()) {
                 homeDay = WeeklyCalendarView.getCurrentDay()
             }
@@ -134,6 +144,14 @@ struct ContentView: View {
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
+    }
+
+    /// La Live Activity y el widget se pintan con el degradado del acento del usuario.
+    private func syncStyle() {
+        let colors = themeManager.selectedAccentColor.gradientColors(isDark: themeManager.isDarkMode)
+        viewModel.activityStyle = ActivityStyle(accent1: colors[0].hexString, accent2: colors[1].hexString,
+                                                onAccentDark: themeManager.isDarkMode)
+        viewModel.publishSummary()
     }
 
     private func startTutorial() {

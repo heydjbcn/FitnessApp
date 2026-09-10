@@ -10,6 +10,9 @@ import AudioToolbox
 
 class HapticManager {
     static let shared = HapticManager()
+
+    /// Interruptor de Configuración ("Vibración"). Por defecto, encendida.
+    private var enabled: Bool { UserDefaults.standard.object(forKey: "hapticsEnabled") as? Bool ?? true }
     
     // Generadores pre-inicializados para mejor rendimiento
     private let lightImpactGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -33,21 +36,25 @@ class HapticManager {
     
     /// Haptic feedback para completar una serie
     func setCompleted() {
+        guard enabled else { return }
         mediumImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para iniciar el temporizador
     func timerStarted() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para detener el temporizador
     func timerStopped() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para cuando el temporizador termina
     func timerCompleted() {
+        guard enabled else { return }
         // Vibración intensa para llamar la atención
         rigidImpactGenerator.impactOccurred()
         
@@ -72,11 +79,13 @@ class HapticManager {
     
     /// Haptic feedback para pausar el temporizador
     func timerPaused() {
+        guard enabled else { return }
         mediumImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para reanudar el temporizador
     func timerResumed() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
@@ -84,21 +93,25 @@ class HapticManager {
     
     /// Haptic feedback para añadir un ejercicio
     func exerciseAdded() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.success)
     }
     
     /// Haptic feedback para eliminar un ejercicio
     func exerciseDeleted() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.warning)
     }
     
     /// Haptic feedback para editar un ejercicio
     func exerciseEdited() {
+        guard enabled else { return }
         mediumImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para duplicar un ejercicio
     func exerciseDuplicated() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
@@ -106,26 +119,31 @@ class HapticManager {
     
     /// Haptic feedback para acciones generales (botones, navegación)
     func buttonTapped() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para cambios de tab
     func tabChanged() {
+        guard enabled else { return }
         selectionGenerator.selectionChanged()
     }
     
     /// Haptic feedback para cambios de segmento
     func segmentChanged() {
+        guard enabled else { return }
         selectionGenerator.selectionChanged()
     }
     
     /// Haptic feedback para deslizar/swipe
     func swipeAction() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para pull-to-refresh
     func refreshTriggered() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
@@ -133,11 +151,13 @@ class HapticManager {
     
     /// Haptic feedback para activar modo enfoque
     func focusModeActivated() {
+        guard enabled else { return }
         mediumImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para desactivar modo enfoque
     func focusModeDeactivated() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
@@ -145,6 +165,7 @@ class HapticManager {
     
     /// Haptic feedback para completar un workout
     func workoutCompleted() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.success)
         
         // Vibración adicional para celebrar
@@ -155,6 +176,7 @@ class HapticManager {
     
     /// Haptic feedback para alcanzar un objetivo
     func goalAchieved() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.success)
         
         // Secuencia de vibraciones celebratorias
@@ -168,6 +190,7 @@ class HapticManager {
     
     /// Haptic feedback para streak/racha
     func streakMaintained() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
@@ -175,11 +198,13 @@ class HapticManager {
     
     /// Haptic feedback para cambiar tema
     func themeChanged() {
+        guard enabled else { return }
         mediumImpactGenerator.impactOccurred()
     }
     
     /// Haptic feedback para toggle de configuración
     func settingToggled() {
+        guard enabled else { return }
         lightImpactGenerator.impactOccurred()
     }
     
@@ -187,21 +212,25 @@ class HapticManager {
     
     /// Haptic feedback para acciones de éxito
     func success() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.success)
     }
     
     /// Haptic feedback para errores
     func error() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.error)
     }
     
     /// Haptic feedback para advertencias
     func warning() {
+        guard enabled else { return }
         notificationGenerator.notificationOccurred(.warning)
     }
     
     /// Haptic feedback para selecciones
     func selectionFeedback() {
+        guard enabled else { return }
         selectionGenerator.selectionChanged()
     }
     
@@ -209,6 +238,7 @@ class HapticManager {
     
     /// Haptic feedback personalizado para notificaciones importantes
     func importantNotification() {
+        guard enabled else { return }
         heavyImpactGenerator.impactOccurred()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -221,6 +251,7 @@ class HapticManager {
     
     /// Haptic feedback para confirmar acciones destructivas
     func destructiveAction() {
+        guard enabled else { return }
         rigidImpactGenerator.impactOccurred()
     }
     

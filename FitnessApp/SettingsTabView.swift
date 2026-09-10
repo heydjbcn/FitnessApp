@@ -20,6 +20,7 @@ struct SettingsTabView: View {
 
     @AppStorage("keepScreenOn") private var keepScreenOn = false
     @AppStorage("autoFocusMode") private var autoFocusMode = true
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
 
     @State private var showingProfile = false
     @State private var showingNotifications = false
@@ -173,6 +174,8 @@ struct SettingsTabView: View {
                       sub: "Evita que se apague durante el entreno", isOn: $keepScreenOn, divider: true)
             toggleRow(icon: "moon.zzz.fill", title: "Modo de enfoque automático",
                       sub: "Silencia avisos mientras entrenas", isOn: $autoFocusMode, divider: true)
+            toggleRow(icon: "iphone.radiowaves.left.and.right", title: "Vibración",
+                      sub: "Al marcar series, acabar el descanso y batir marcas", isOn: $hapticsEnabled, divider: true)
             HStack(spacing: 12) {
                 IconTile(symbol: "hourglass", p: p)
                 VStack(alignment: .leading, spacing: 2) {

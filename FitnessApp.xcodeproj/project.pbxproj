@@ -8,10 +8,20 @@
 
 /* Begin PBXBuildFile section */
 		0737929935E4EC13F94B41E0 /* AppFit Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		12419794A4F956742A3E9189 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
+		24E0944FDB6541C1307472CF /* ChamaFitWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		25F627ADC9141BE05758DD8A /* RestLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5056444605F415CCD99EEA /* RestLiveActivity.swift */; };
+		2FD021769EEB6D1589428888 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
+		3EB026936A728AC1D8830B72 /* ChamaFitWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */; };
 		47734AD5D3B0E75128EE7AE4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 07B0E053139FD794AC3B3522 /* Foundation.framework */; };
 		679FAB50BC638A7D0495ED97 /* AppFitWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */; };
+		69D69BA5068F58BD0403CC52 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */; };
+		855588D7A7FCAD172332AADA /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7D8848F4D553FFDB4435 /* RestActivity.swift */; };
+		8C456EC0D4BB2B11373E1356 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CC7CC03EC34E8E83DE540FF /* Foundation.framework */; };
 		8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */; };
+		9B9CB770F4199C68E79A2D7F /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */; };
 		E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */; };
+		ECA52B97F270F8F51FDC8865 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7D8848F4D553FFDB4435 /* RestActivity.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +46,13 @@
 			remoteGlobalIDString = 21A71F4E33AA0164458D83DE;
 			remoteInfo = "AppFit Watch";
 		};
+		BDA609C2D0E1CC4497D4E745 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 54FF56B12E272C080011485E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9F74213A0897E1E1317497B6;
+			remoteInfo = ChamaFitWidgets;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -50,16 +67,38 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4212AECF6A7405A20CF5D231 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				24E0944FDB6541C1307472CF /* ChamaFitWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		009C7D8848F4D553FFDB4435 /* RestActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivity.swift; sourceTree = "<group>"; };
+		02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChamaFitWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AppFit Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		07B0E053139FD794AC3B3522 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		1B5056444605F415CCD99EEA /* RestLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestLiveActivity.swift; sourceTree = "<group>"; };
 		33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
+		38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutSessionManager.swift; sourceTree = "<group>"; };
+		3CC7CC03EC34E8E83DE540FF /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		43DEE2203B6080FA0954AB99 /* TodaySummary.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodaySummary.swift; sourceTree = "<group>"; };
+		4FC221B1CDFF3C3256B16C38 /* Watch.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Watch.entitlements; sourceTree = "<group>"; };
 		54FF56B92E272C080011485E /* FitnessApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		54FF56C62E272C090011485E /* FitnessAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		54FF56D02E272C090011485E /* FitnessAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
+		786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ChamaFitWidgets.entitlements; sourceTree = "<group>"; };
+		84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitWidgetsBundle.swift; sourceTree = "<group>"; };
+		89295C9FFD4744E36409A06F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
 		8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppFitWatchApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -99,6 +138,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		50E5B4FA1DCEF240DFA62A75 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8C456EC0D4BB2B11373E1356 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		54FF56B62E272C080011485E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -145,9 +192,24 @@
 				8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */,
 				33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */,
 				5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */,
+				38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */,
+				4FC221B1CDFF3C3256B16C38 /* Watch.entitlements */,
 			);
 			name = WatchApp;
 			path = WatchApp;
+			sourceTree = "<group>";
+		};
+		4BA32A4F5BC7054FA221A21F /* ChamaFitWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */,
+				1B5056444605F415CCD99EEA /* RestLiveActivity.swift */,
+				8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */,
+				89295C9FFD4744E36409A06F /* Info.plist */,
+				786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */,
+			);
+			name = ChamaFitWidgets;
+			path = ChamaFitWidgets;
 			sourceTree = "<group>";
 		};
 		54FF56B02E272C080011485E = {
@@ -159,6 +221,8 @@
 				54FF56BA2E272C080011485E /* Products */,
 				598A3F196EF4C1890544D396 /* Frameworks */,
 				2A2295E9FF484650FCD9397E /* WatchApp */,
+				819154CFD1D9DD8EF87A9961 /* Shared */,
+				4BA32A4F5BC7054FA221A21F /* ChamaFitWidgets */,
 			);
 			sourceTree = "<group>";
 		};
@@ -169,6 +233,7 @@
 				54FF56C62E272C090011485E /* FitnessAppTests.xctest */,
 				54FF56D02E272C090011485E /* FitnessAppUITests.xctest */,
 				07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */,
+				02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -177,8 +242,27 @@
 			isa = PBXGroup;
 			children = (
 				0643BDBB73A86B239B2BE817 /* watchOS */,
+				B6D5CC9B1FDA0997F2E1F22A /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		819154CFD1D9DD8EF87A9961 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				009C7D8848F4D553FFDB4435 /* RestActivity.swift */,
+				43DEE2203B6080FA0954AB99 /* TodaySummary.swift */,
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		B6D5CC9B1FDA0997F2E1F22A /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				3CC7CC03EC34E8E83DE540FF /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -209,11 +293,13 @@
 				54FF56B62E272C080011485E /* Frameworks */,
 				54FF56B72E272C080011485E /* Resources */,
 				1CC36A8C489D2029DABB3A77 /* Embed Watch Content */,
+				4212AECF6A7405A20CF5D231 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				192B8EA1BCEF9C7CCB53BF5F /* PBXTargetDependency */,
+				A3F557A4C9B211058444F5CC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				54FF56BB2E272C080011485E /* FitnessApp */,
@@ -265,6 +351,23 @@
 			productReference = 54FF56D02E272C090011485E /* FitnessAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		9F74213A0897E1E1317497B6 /* ChamaFitWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CA8832B507202E98A5772C6C /* Build configuration list for PBXNativeTarget "ChamaFitWidgets" */;
+			buildPhases = (
+				F5130197A47A7FFFD574B372 /* Sources */,
+				50E5B4FA1DCEF240DFA62A75 /* Frameworks */,
+				889EE5F0055373E7FDBB4DF0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChamaFitWidgets;
+			productName = ChamaFitWidgets;
+			productReference = 02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -306,6 +409,7 @@
 				54FF56C52E272C090011485E /* FitnessAppTests */,
 				54FF56CF2E272C090011485E /* FitnessAppUITests */,
 				21A71F4E33AA0164458D83DE /* AppFit Watch */,
+				9F74213A0897E1E1317497B6 /* ChamaFitWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -332,6 +436,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		889EE5F0055373E7FDBB4DF0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A827D8EBBD3324F52C07862D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -346,6 +457,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ECA52B97F270F8F51FDC8865 /* RestActivity.swift in Sources */,
+				2FD021769EEB6D1589428888 /* TodaySummary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -370,6 +483,19 @@
 				679FAB50BC638A7D0495ED97 /* AppFitWatchApp.swift in Sources */,
 				E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */,
 				8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */,
+				9B9CB770F4199C68E79A2D7F /* WorkoutSessionManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F5130197A47A7FFFD574B372 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3EB026936A728AC1D8830B72 /* ChamaFitWidgetsBundle.swift in Sources */,
+				25F627ADC9141BE05758DD8A /* RestLiveActivity.swift in Sources */,
+				69D69BA5068F58BD0403CC52 /* TodayWidget.swift in Sources */,
+				855588D7A7FCAD172332AADA /* RestActivity.swift in Sources */,
+				12419794A4F956742A3E9189 /* TodaySummary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,9 +518,48 @@
 			target = 54FF56B82E272C080011485E /* FitnessApp */;
 			targetProxy = 54FF56D12E272C090011485E /* PBXContainerItemProxy */;
 		};
+		A3F557A4C9B211058444F5CC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ChamaFitWidgets;
+			target = 9F74213A0897E1E1317497B6 /* ChamaFitWidgets */;
+			targetProxy = BDA609C2D0E1CC4497D4E745 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		33E12AA4A0CD4C887A2FB5A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = ChamaFitWidgets/ChamaFitWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 47BY9SGLT7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ChamaFitWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.ChamaFitWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		54FF56D82E272C090011485E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -516,16 +681,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FitnessApp/FitnessApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AppFit;
+				INFOPLIST_FILE = FitnessApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -534,27 +699,23 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 15.5;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -568,12 +729,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AppFit;
+				INFOPLIST_FILE = FitnessApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -582,26 +742,22 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 15.5;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -614,20 +770,18 @@
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessAppTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FitnessApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FitnessApp";
-				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -640,20 +794,18 @@
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessAppTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FitnessApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FitnessApp";
-				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
@@ -665,20 +817,18 @@
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessAppUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = FitnessApp;
-				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -690,20 +840,18 @@
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessAppUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = FitnessApp;
-				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
@@ -712,21 +860,24 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/Watch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AppFit;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "ChamaFit lee tu ritmo cardíaco y las calorías durante el entrenamiento para mostrarlos en el reloj.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud para que cuente en tus anillos.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Mauri.FitnessApp;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp;
 				PRODUCT_NAME = "AppFit Watch";
 				SDKROOT = watchos;
 				SKIP_INSTALL = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Debug;
 		};
@@ -735,14 +886,17 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/Watch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 47BY9SGLT7;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AppFit;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "ChamaFit lee tu ritmo cardíaco y las calorías durante el entrenamiento para mostrarlos en el reloj.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud para que cuente en tus anillos.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Mauri.FitnessApp;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp;
 				PRODUCT_NAME = "AppFit Watch";
 				SDKROOT = watchos;
@@ -750,9 +904,41 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				VALIDATE_PRODUCT = YES;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Release;
+		};
+		C80A8D22C7FE9B9C8DEC6360 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = ChamaFitWidgets/ChamaFitWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 47BY9SGLT7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ChamaFitWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.ChamaFitWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
@@ -798,6 +984,15 @@
 			buildConfigurations = (
 				C4F3B171A7E3A0F7D8AB0FF4 /* Release */,
 				8D6A9C50114D1C6DC918FCA8 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CA8832B507202E98A5772C6C /* Build configuration list for PBXNativeTarget "ChamaFitWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				33E12AA4A0CD4C887A2FB5A4 /* Release */,
+				C80A8D22C7FE9B9C8DEC6360 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

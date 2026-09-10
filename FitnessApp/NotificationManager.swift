@@ -1,27 +1,30 @@
 //
 //  NotificationManager.swift
-//  FitnessApp
+//  ChamaFit
 //
-//  Created by Jordi Mauri on 18/7/25.
+//  Avisos locales: fin de descanso. El permiso se pide la primera vez que
+//  hace falta (primer descanso), no al abrir la app.
 //
 
 import Foundation
 import UserNotifications
-import Combine
 
-class NotificationManager: ObservableObject {
+final class NotificationManager {
     static let shared = NotificationManager()
-    
     private init() {}
-    
-    func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            if let error = error {
-                print("Error requesting notification permission: \(error)")
-            }
+
+    private let restId = "rest-timer"
+
+    /// Pide permiso solo si nunca se ha decidido. Si el usuario dijo que no,
+    /// no insiste: el descanso sigue funcionando dentro de la app.
+    func ensurePermission() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         }
     }
-    
+
     func scheduleRestNotification(after seconds: TimeInterval) {
         let defaults = UserDefaults.standard
         // Avisos apagados desde la hoja de Notificaciones: no se programa nada.
@@ -29,56 +32,32 @@ class NotificationManager: ObservableObject {
 
         let content = UNMutableNotificationContent()
         content.title = "¡Descanso terminado!"
-        content.body = "Es hora de continuar con tu entrenamiento"
+        content.body = "A por la siguiente serie."
         // "Modo de enfoque automático": el aviso llega, pero sin sonido ni
         // vibración y sin encender la pantalla (nivel pasivo).
         if defaults.bool(forKey: "autoFocusMode") {
             content.sound = nil
             content.interruptionLevel = .passive
         } else {
-            content.sound = UNNotificationSound.default
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
         }
-        content.badge = 1
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
-        let request = UNNotificationRequest(identifier: "rest-timer", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling notification: \(error)")
-            }
-        }
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
+        let request = UNNotificationRequest(identifier: restId, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
     }
-    
+
     func cancelRestNotification() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest-timer"])
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [restId])
+        center.removeDeliveredNotifications(withIdentifiers: [restId])
     }
-    
-    func scheduleWorkoutReminder(at time: Date, exerciseName: String) {
-        let content = UNMutableNotificationContent()
-        content.title = "¡Hora de entrenar!"
-        content.body = "No olvides hacer tu ejercicio: \(exerciseName)"
-        content.sound = UNNotificationSound.default
-        content.badge = 1
-        
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.hour, .minute], from: time)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        
-        let request = UNNotificationRequest(
-            identifier: "workout-reminder-\(exerciseName)",
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling workout reminder: \(error)")
-            }
-        }
-    }
-    
-    func cancelWorkoutReminder(for exerciseName: String) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["workout-reminder-\(exerciseName)"])
+
+    /// Limpia el globo del icono y los avisos ya entregados al volver a la app.
+    func clearDelivered() {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllDeliveredNotifications()
+        center.setBadgeCount(0)
     }
 }

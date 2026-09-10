@@ -21,10 +21,6 @@ struct FitnessAppApp: App {
             .environmentObject(themeManager)
             .environmentObject(userManager)
             .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
-            .onAppear {
-                // Solicitar permisos de notificaciones al iniciar la app
-                NotificationManager.shared.requestNotificationPermission()
-            }
         }
     }
 }

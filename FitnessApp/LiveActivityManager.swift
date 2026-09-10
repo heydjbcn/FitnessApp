@@ -1,85 +1,72 @@
-import SwiftUI
-import ActivityKit
-import Combine
+//
+//  LiveActivityManager.swift
+//  ChamaFit
+//
+//  Arranca, alarga y cierra la Live Activity del descanso. La vista vive en
+//  la extensión ChamaFitWidgets; aquí solo se mueve el estado.
+//
 
-@available(iOS 16.1, *)
-struct TimerActivityAttributes: ActivityAttributes {
-    public typealias TimerStatus = ContentState
-    
-    public struct ContentState: Codable, Hashable {
-        var timeRemaining: Int
-        var totalTime: Int
-        var isActive: Bool
-    }
-    
-    var exerciseName: String
+import ActivityKit
+import Foundation
+
+/// Cómo se pinta la actividad: el degradado del acento del usuario.
+struct ActivityStyle: Equatable {
+    var accent1 = "#8B5CF6"
+    var accent2 = "#22D3EE"
+    var onAccentDark = true
 }
 
-@available(iOS 16.1, *)
 @MainActor
-class LiveActivityManager: ObservableObject {
-    @Published var currentActivity: Activity<TimerActivityAttributes>? = nil
-    
-    func startTimerActivity(exerciseName: String, totalTime: Int) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("Activities are not enabled")
-            return
-        }
-        
-        let attributes = TimerActivityAttributes(exerciseName: exerciseName)
-        let contentState = TimerActivityAttributes.ContentState(
-            timeRemaining: totalTime,
-            totalTime: totalTime,
-            isActive: true
+final class LiveActivityManager {
+    private var activity: Activity<RestActivityAttributes>?
+
+    var isAvailable: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
+
+    func start(endDate: Date, label: String, sessionName: String, style: ActivityStyle) {
+        guard isAvailable else { return }
+        end()
+        let attributes = RestActivityAttributes(sessionName: sessionName, accent1: style.accent1,
+                                                accent2: style.accent2, onAccentDark: style.onAccentDark)
+        let state = RestActivityAttributes.ContentState(startDate: Date(), endDate: endDate, label: label)
+        activity = try? Activity.request(
+            attributes: attributes,
+            content: ActivityContent(state: state, staleDate: endDate.addingTimeInterval(90)),
+            pushType: nil
         )
-        
-        do {
-            currentActivity = try Activity<TimerActivityAttributes>.request(
-                attributes: attributes,
-                content: ActivityContent(
-                    state: contentState,
-                    staleDate: Date().addingTimeInterval(60)
-                ),
-                pushType: nil
-            )
-        } catch {
-            print("Error starting activity: \(error)")
-        }
     }
-    
-    func updateTimerActivity(timeRemaining: Int, totalTime: Int, isActive: Bool) {
-        guard let activity = currentActivity else { return }
-        
-        let contentState = TimerActivityAttributes.ContentState(
-            timeRemaining: timeRemaining,
-            totalTime: totalTime,
-            isActive: isActive
-        )
-        
-        Task {
-            await activity.update(ActivityContent(
-                state: contentState,
-                staleDate: Date().addingTimeInterval(60)
-            ))
-        }
+
+    /// El descanso se ha alargado: nueva hora de fin, misma fecha de inicio.
+    func update(endDate: Date, label: String? = nil) {
+        guard let activity else { return }
+        var state = activity.content.state
+        state.endDate = endDate
+        if let label { state.label = label }
+        let content = ActivityContent(state: state, staleDate: endDate.addingTimeInterval(90))
+        Task { await activity.update(content) }
     }
-    
-    func endTimerActivity() {
-        guard let activity = currentActivity else { return }
-        
-        let contentState = TimerActivityAttributes.ContentState(
-            timeRemaining: 0,
-            totalTime: 0,
-            isActive: false
-        )
-        
-        Task {
-            await activity.end(
-                ActivityContent(state: contentState, staleDate: Date()),
-                dismissalPolicy: .immediate
-            )
+
+    /// El descanso ha terminado solo: se enseña "¡Ya!" un momento y se retira.
+    func finish() {
+        guard let activity else { return }
+        var state = activity.content.state
+        state.finished = true
+        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(10))
+        Task { await activity.end(content, dismissalPolicy: .after(Date().addingTimeInterval(8))) }
+        self.activity = nil
+    }
+
+    /// Parado a mano: fuera al instante.
+    func end() {
+        guard let activity else { return }
+        let state = activity.content.state
+        Task { await activity.end(ActivityContent(state: state, staleDate: Date()), dismissalPolicy: .immediate) }
+        self.activity = nil
+    }
+
+    /// Al arrancar la app, cierra actividades huérfanas de una ejecución anterior.
+    func endAllOrphans() {
+        for a in Activity<RestActivityAttributes>.activities {
+            Task { await a.end(ActivityContent(state: a.content.state, staleDate: Date()), dismissalPolicy: .immediate) }
         }
-        
-        currentActivity = nil
     }
 }

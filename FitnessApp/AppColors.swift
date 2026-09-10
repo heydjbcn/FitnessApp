@@ -13,6 +13,14 @@ extension Color {
         let b = Double(rgb & 0x0000FF) / 255.0
         self.init(red: r, green: g, blue: b)
     }
+
+    /// "#RRGGBB" del color (para pasárselo al widget y al reloj).
+    var hexString: String {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "#%02X%02X%02X", Int(round(r * 255)), Int(round(g * 255)), Int(round(b * 255)))
+    }
 }
 
 // Enum para el tema

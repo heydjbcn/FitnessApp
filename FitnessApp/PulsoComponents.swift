@@ -452,6 +452,8 @@ struct SetDot: View {
     var number: Int? = nil
     let isDone: Bool
     let p: Palette
+    /// Pulsación larga: editar la serie (peso, reps, tipo, RPE).
+    var onLongPress: (() -> Void)? = nil
     let action: () -> Void
 
     var body: some View {
@@ -475,6 +477,12 @@ struct SetDot: View {
             .shadow(color: isDone ? p.glow1 : .clear, radius: 8, y: 6)
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                HapticManager.shared.buttonTapped()
+                onLongPress?()
+            }
+        )
         .animation(.spring(response: 0.3, dampingFraction: 0.65), value: isDone)
     }
 }

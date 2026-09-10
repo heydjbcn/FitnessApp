@@ -251,15 +251,51 @@ struct HomeView: View {
             }
             .padding(.top, 10)
         } else {
-            ForEach(records) { record in
-                if let exercise = viewModel.getExercise(by: record.exerciseId) {
-                    HomeExerciseCard(exercise: exercise, record: record, day: selectedDay, p: p) {
-                        detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id)
+            // Los ejercicios de una misma superserie van juntos, bajo su cabecera.
+            ForEach(Array(groupedRecords.enumerated()), id: \.offset) { _, group in
+                if group.count > 1, let g = group.first?.supersetGroup {
+                    HStack(spacing: 8) {
+                        DayTag(text: "Superserie \(ExerciseDetailSheet.ssLetter(g))", icon: "arrow.triangle.2.circlepath", filled: true, p: p)
+                        Text("sin descanso entre ellos")
+                            .font(.fig(12, .medium))
+                            .foregroundColor(p.mute)
+                        Spacer()
                     }
-                    .padding(.top, 10)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 14)
+                }
+                ForEach(group) { record in
+                    if let exercise = viewModel.getExercise(by: record.exerciseId) {
+                        HomeExerciseCard(exercise: exercise, record: record, day: selectedDay, p: p) {
+                            detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id)
+                        }
+                        .padding(.top, group.count > 1 ? 8 : 10)
+                        .padding(.leading, group.count > 1 ? 10 : 0)
+                        .overlay(alignment: .leading) {
+                            if group.count > 1 {
+                                Capsule().fill(p.hgrad).frame(width: 3).padding(.top, 8)
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// Los registros del día, con los de una misma superserie consecutivos y agrupados.
+    private var groupedRecords: [[WorkoutExercise]] {
+        var groups: [[WorkoutExercise]] = []
+        var seen: Set<Int> = []
+        for record in records {
+            if let g = record.supersetGroup {
+                if seen.contains(g) { continue }
+                seen.insert(g)
+                groups.append(records.filter { $0.supersetGroup == g })
+            } else {
+                groups.append([record])
+            }
+        }
+        return groups
     }
 
     struct DetailTarget: Identifiable {
@@ -285,11 +321,17 @@ struct HomeExerciseCard: View {
 
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
+    @State private var editing: EditTarget? = nil
 
     private var isDone: Bool { record.completedSets >= exercise.totalSets }
     private var isStarted: Bool { record.completedSets > 0 && !isDone }
 
     var body: some View {
+        card
+            .sheet(item: $editing) { target in editor(target) }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
@@ -328,7 +370,8 @@ struct HomeExerciseCard: View {
 
             HStack(spacing: 8) {
                 ForEach(0..<max(0, exercise.totalSets), id: \.self) { index in
-                    SetDot(number: index + 1, isDone: index < record.completedSets, p: p) {
+                    SetDot(number: index + 1, isDone: index < record.completedSets, p: p,
+                           onLongPress: { editing = EditTarget(index: index) }) {
                         tapSet(index)
                     }
                 }
@@ -358,6 +401,27 @@ struct HomeExerciseCard: View {
         .pulsoCard(p, radius: 22)
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpenDetail)
+    }
+
+    struct EditTarget: Identifiable {
+        let index: Int
+        var id: Int { index }
+    }
+
+    /// Pulsación larga en una bolita: editar esa serie, o marcar la siguiente
+    /// con otro peso/reps sin pasar por el detalle.
+    @ViewBuilder private func editor(_ target: EditTarget) -> some View {
+        let i = target.index
+        let existing: SetLog? = i < record.setLogs.count && i < record.completedSets ? record.setLogs[i] : nil
+        SetQuickEditor(exercise: exercise, existing: existing, setNumber: i + 1,
+                       suggested: viewModel.lastPerformance(for: exercise.id), p: p) { w, r, t, rpe in
+            if var log = existing {
+                log.weight = w; log.reps = r; log.type = t; log.rpe = rpe
+                viewModel.updateSetLog(log, for: record.id, in: day)
+            } else if i == record.completedSets {
+                viewModel.completeSet(for: record.id, in: day, weight: w, reps: r, type: t, rpe: rpe)
+            }
+        }
     }
 
     /// Tocar la siguiente bolita marca la serie (y el modelo arranca el
