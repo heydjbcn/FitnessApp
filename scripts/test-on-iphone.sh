@@ -31,6 +31,14 @@ snapshot() {
   md5 -q "$OUT/$1.plist" 2>/dev/null || echo "sin-datos"
 }
 
+# Con el iPhone bloqueado la app no arranca y xcodebuild se queda esperando
+# sin decir nada. Mientras la app de pruebas está abierta la pantalla no se
+# apaga, pero entre compilación y prueba sí: mejor Bloqueo automático = Nunca.
+if xcrun devicectl device info lockState --device $DEVICE 2>/dev/null | grep -q "passcodeRequired: true"; then
+  echo "⚠️ El iPhone está bloqueado: desbloquéalo (y pon Bloqueo automático en Nunca mientras dura)."
+  until ! xcrun devicectl device info lockState --device $DEVICE 2>/dev/null | grep -q "passcodeRequired: true"; do sleep 5; done
+fi
+
 echo "▸ Copia de los datos reales antes de empezar…"
 BEFORE=$(snapshot antes)
 
