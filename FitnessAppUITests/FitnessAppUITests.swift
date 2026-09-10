@@ -733,6 +733,39 @@ class ChamaFitUITests: XCTestCase {
         XCTAssertEqual(app.buttons["set.Press de banca.1"].value as? String, "hecha", "la serie marcada sobrevive a los relanzamientos")
         snap("lifecycle")
     }
+
+    // MARK: - 11. Modo entreno de principio a fin
+
+    func test11_WorkoutMode() {
+        launch(["--named", "--seed-history"])
+        selectDay("Lunes")
+        tap(app.buttons["home.startWorkout"])
+        XCTAssertTrue(exists(app.staticTexts["session.exercise"], 8), "modo entreno abierto")
+        let first = app.staticTexts["session.exercise"].label
+        XCTAssertTrue(exists(app.otherElements["detail.suggestion"]) || app.staticTexts["HOY TOCA"].exists,
+                      "sugerencia de peso con historial")
+        tap(app.buttons["session.weight.plus"])
+        tap(app.buttons["session.reps.minus"])
+        tap(app.buttons["session.done"])
+        XCTAssertTrue(exists(app.buttons["rest.skip"], 5), "descanso a pantalla completa")
+        tap(app.buttons["rest.extend"])
+        tap(app.buttons["rest.skip"])
+        tap(app.buttons["session.undo"])
+        tap(app.buttons["session.done"])
+        tap(app.buttons["rest.skip"])
+        tap(app.buttons["session.skip"])
+        XCTAssertNotEqual(app.staticTexts["session.exercise"].label, first, "saltar pasa al siguiente")
+        tap(app.buttons["session.done"])
+        if exists(app.buttons["rest.skip"], 3) { app.buttons["rest.skip"].tap() }
+        tap(app.buttons["session.finish"])
+        confirm("Terminar y ver resumen")
+        XCTAssertTrue(exists(app.staticTexts["¡Buen entreno!"], 8), "resumen")
+        XCTAssertTrue(exists(app.buttons["summary.share"], 5), "tarjeta para compartir lista")
+        snap("resumen")
+        tap(app.buttons["summary.close"])
+        XCTAssertTrue(exists(app.buttons["home.startWorkout"], 5), "vuelta a Inicio")
+        XCTAssertEqual(app.buttons["set.Press de banca.1"].value as? String, "hecha")
+    }
 }
 
 /// Toda la batería otra vez en modo claro (repaso visual: las capturas quedan adjuntas).

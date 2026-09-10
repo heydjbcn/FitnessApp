@@ -22,6 +22,7 @@ struct ExerciseFormSheet: View {
     @State private var step = 0
     @State private var name = ""
     @State private var info = ""
+    @State private var setupNote = ""
     @State private var muscleGroup: String? = nil
     @State private var days: Set<WorkoutDay> = []
     @State private var icon = "dumbbell.fill"
@@ -195,6 +196,11 @@ struct ExerciseFormSheet: View {
             .frame(height: 104)
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+
+            UpperLabel(text: "Ajustes de la máquina", p: p)
+                .padding(.top, 16)
+                .padding(.bottom, 6)
+            PulsoField(placeholder: "Ej. asiento 4, agarre ancho", text: $setupNote, p: p)
 
             UpperLabel(text: "Grupo muscular", p: p)
                 .padding(.top, 16)
@@ -536,6 +542,7 @@ struct ExerciseFormSheet: View {
         if let ex = editing {
             name = ex.name
             info = ex.info
+            setupNote = ex.setupNote ?? ""
             muscleGroup = ex.muscleGroup
             days = Set(viewModel.days(for: ex.id))
             icon = ExerciseSymbols.symbol(for: ex)
@@ -569,10 +576,15 @@ struct ExerciseFormSheet: View {
         let restDuration = restMin * 60 + restSec
         let cleanName = name.trimmingCharacters(in: .whitespaces)
         let cleanInfo = info.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanSetup: String? = {
+            let t = setupNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }()
 
         if var ex = editing {
             ex.name = cleanName
             ex.info = cleanInfo
+            ex.setupNote = cleanSetup
             ex.muscleGroup = muscleGroup
             ex.sfSymbolIcon = icon
             ex.imageData = imageData
@@ -585,7 +597,7 @@ struct ExerciseFormSheet: View {
             var ex = Exercise(id: UUID(), name: cleanName, repetitions: 0, weight: 0, totalSets: 4,
                               info: cleanInfo, imageData: imageData, restDuration: restDuration,
                               sfSymbolIcon: icon, iconColor: "accent", segundos: 0, rir: 0,
-                              muscleGroup: muscleGroup)
+                              muscleGroup: muscleGroup, setupNote: cleanSetup)
             params.apply(to: &ex)
             viewModel.createExercise(ex, days: days)
         }

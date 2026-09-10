@@ -35,6 +35,7 @@ cat > /tmp/ChamaFit-export.plist <<'EOF'
 		<key>Mauri.FitnessApp</key><string>ChamaFit AdHoc</string>
 		<key>Mauri.FitnessApp.watchkitapp</key><string>ChamaFit Watch AdHoc</string>
 		<key>Mauri.FitnessApp.ChamaFitWidgets</key><string>ChamaFit Widgets AdHoc</string>
+		<key>Mauri.FitnessApp.watchkitapp.ChamaFitWatchWidgets</key><string>ChamaFit Watch Widgets AdHoc</string>
 	</dict>
 	<key>compileBitcode</key><false/>
 	<key>thinning</key><string>&lt;none&gt;</string>

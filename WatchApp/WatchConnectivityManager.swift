@@ -69,6 +69,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
             }
         }
         send(["action": "completeSet", "id": id])
+        publishComplication()
     }
 
     func undoSet(_ id: String) {
@@ -76,16 +77,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
             exercises[i].completed -= 1
         }
         send(["action": "undoSet", "id": id])
+        publishComplication()
     }
 
     func stopTimer() {
         timerEnd = nil
         send(["action": "stopTimer", "id": UUID().uuidString])
+        publishComplication()
     }
 
     func extendTimer() {
         if let end = timerEnd { timerEnd = end.addingTimeInterval(30) }
         send(["action": "extendTimer", "id": UUID().uuidString])
+        publishComplication()
     }
 
     /// Mensaje con respuesta si el iPhone está a mano; si no, a la cola.
@@ -132,7 +136,17 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
                               superset: $0["superset"] as? Int ?? -1)
             }
             self.lastSync = Date()
+            self.publishComplication()
         }
+    }
+
+    /// La esfera enseña lo mismo que la app: series de hoy, lo siguiente y el descanso.
+    func publishComplication() {
+        let done = exercises.reduce(0) { $0 + min($1.completed, $1.totalSets) }
+        let total = exercises.reduce(0) { $0 + $1.totalSets }
+        let next = exercises.first { $0.completed < $0.totalSets }.map { "\($0.name) · \($0.meta)" }
+        WatchComplicationState(dayName: dayName, label: sessionLabel, done: done, total: total, next: next,
+                               restEnd: restActive ? timerEnd : nil, accent1: accent1, accent2: accent2).save()
     }
 
     // MARK: - WCSessionDelegate

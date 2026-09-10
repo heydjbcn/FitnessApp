@@ -14,6 +14,8 @@ struct ChamaFitWidgetsBundle: WidgetBundle {
     var body: some Widget {
         RestLiveActivity()
         TodayWidget()
+        MarkSetControl()
+        RestControl()
     }
 }
 

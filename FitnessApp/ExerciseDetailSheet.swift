@@ -44,6 +44,13 @@ struct ExerciseDetailSheet: View {
                     VStack(alignment: .leading, spacing: 0) {
                         hero(ex)
                         dataTable(ex).padding(.top, 20)
+                        if let s = viewModel.suggestion(for: ex) {
+                            SuggestionCard(suggestion: s, p: p).padding(.top, 12)
+                        }
+                        if ex.segundos == 0 {
+                            WarmupCard(work: viewModel.proposedSet(for: ex, record: todayRecord).weight, p: p)
+                                .padding(.top, 12)
+                        }
                         if let rec = todayRecord { todaySets(rec).padding(.top, 20) }
                         platesButton.padding(.top, 12)
                         progress.padding(.top, 20)
@@ -108,6 +115,15 @@ struct ExerciseDetailSheet: View {
                     ForEach(days) { DayTag(text: $0.shortLabel, p: p) }
                 }
                 .padding(.top, 10)
+            }
+
+            if let note = ex.setupText {
+                Label(note, systemImage: "wrench.adjustable")
+                    .font(.fig(13, .semibold))
+                    .foregroundColor(p.ink)
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .background(Capsule().fill(p.soft))
+                    .padding(.top, 12)
             }
 
             if !ex.info.isEmpty {
@@ -262,7 +278,7 @@ struct ExerciseDetailSheet: View {
                                         if let tag = log.type.shortTag {
                                             Text(tag).font(.fig(9, .bold)).foregroundColor(p.acc)
                                         }
-                                        Text("\(WorkoutViewModel.number(log.weight))×\(log.reps)")
+                                        Text((exercise?.segundos ?? 0) > 0 ? "\(log.reps) s" : "\(WorkoutViewModel.number(log.weight))×\(log.reps)")
                                             .font(.fig(11, .semibold)).foregroundColor(p.ink)
                                         if let rpe = log.rpe {
                                             Text("@\(rpe)").font(.fig(9, .medium)).foregroundColor(p.mute)

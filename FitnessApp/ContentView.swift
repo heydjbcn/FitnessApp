@@ -14,6 +14,11 @@ struct ContentView: View {
     @State private var tutorial: TutorialStep? = nil
     @State private var showingWelcome = false
     @State private var tutorialForm = false
+    /// Modo entreno abierto desde Siri / Atajos.
+    @State private var intentWorkout = false
+    /// Ficha abierta desde Spotlight.
+    @State private var spotlightExercise: SpotlightTarget? = nil
+    struct SpotlightTarget: Identifiable { let id: UUID }
 
     @AppStorage("keepScreenOn", store: AppDefaults.store) private var keepScreenOn = false
     @ObservedObject private var spotify = SpotifyManager.shared
@@ -134,6 +139,11 @@ struct ContentView: View {
         .onAppear {
             PhoneConnectivity.shared.viewModel = viewModel
             viewModel.seedForUITestsIfRequested()
+            viewModel.indexExercisesForSpotlight()
+            if let id = viewModel.pendingExerciseOpen {
+                viewModel.pendingExerciseOpen = nil
+                spotlightExercise = SpotlightTarget(id: id)
+            }
             syncStyle()
             viewModel.trainingDay = homeDay
             PhoneConnectivity.shared.sendTodayContext()
@@ -143,6 +153,11 @@ struct ContentView: View {
             // Primera vez: la pantalla "Entrena con pulso" pide el nombre.
             if userManager.userName.trimmingCharacters(in: .whitespaces).isEmpty {
                 showingWelcome = true
+            } else if viewModel.pendingWorkoutOpen {
+                // Siri abrió la app en frío pidiendo el modo entreno.
+                viewModel.pendingWorkoutOpen = false
+                homeDay = viewModel.activeTrainingDay
+                intentWorkout = true
             }
         }
         .onChange(of: themeManager.isTimerEnabled) { _, on in viewModel.updateTimerEnabledState(on) }
@@ -154,6 +169,29 @@ struct ContentView: View {
         }
         .onChange(of: keepScreenOn) { _, on in UIApplication.shared.isIdleTimerDisabled = on || AppDefaults.isTesting }
         .onChange(of: selectedTab) { _, _ in HapticManager.shared.tabChanged() }
+        .onChange(of: viewModel.pendingWorkoutOpen) { _, open in
+            guard open else { return }
+            viewModel.pendingWorkoutOpen = false
+            homeDay = viewModel.activeTrainingDay
+            selectedTab = 0
+            intentWorkout = true
+        }
+        .onChange(of: viewModel.pendingExerciseOpen) { _, id in
+            guard let id else { return }
+            viewModel.pendingExerciseOpen = nil
+            spotlightExercise = SpotlightTarget(id: id)
+        }
+        .onChange(of: viewModel.availableExercises.map(\.name)) { _, _ in viewModel.indexExercisesForSpotlight() }
+        .sheet(item: $spotlightExercise) { target in
+            ExerciseDetailSheet(exerciseId: target.id)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .fullScreenCover(isPresented: $intentWorkout) {
+            WorkoutSessionView(day: homeDay)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             // Si ha cambiado el día, la sesión de ayer se archiva y hoy empieza
             // a cero; el descanso en curso se recalcula contra el reloj de pared.

@@ -41,7 +41,7 @@ struct TodayWidget: Widget {
         }
         .configurationDisplayName("Sesión de hoy")
         .description("Lo que toca hoy y cuánto llevas hecho.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -50,8 +50,12 @@ private struct TodayWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        if let s = entry.summary {
+        if let s = entry.summary, family == .accessoryCircular || family == .accessoryRectangular || family == .accessoryInline {
+            LockScreenView(s: s, family: family)
+        } else if let s = entry.summary {
             content(s)
+        } else if family == .accessoryInline {
+            Text("ChamaFit")
         } else {
             VStack(spacing: 6) {
                 Image(systemName: "dumbbell.fill").font(.system(size: 22, weight: .semibold)).foregroundColor(WidgetStyle.mute)
@@ -124,6 +128,48 @@ private struct TodayWidgetView: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(WidgetStyle.color(s.accent2))
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Pantalla bloqueada y esfera
+
+/// Monocromo, como pide la pantalla bloqueada: anillo de series, siguiente
+/// ejercicio y racha.
+private struct LockScreenView: View {
+    let s: TodaySummary
+    let family: WidgetFamily
+
+    var body: some View {
+        switch family {
+        case .accessoryCircular:
+            Gauge(value: s.progress) {
+                Image(systemName: "dumbbell.fill")
+            } currentValueLabel: {
+                Text(s.isRestDay ? "—" : "\(s.doneSets)")
+            }
+            .gaugeStyle(.accessoryCircularCapacity)
+            .widgetAccentable()
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 1) {
+                Text(s.isRestDay ? "Día libre" : (s.sessionLabel ?? s.dayName))
+                    .font(.headline).widgetAccentable().lineLimit(1)
+                if !s.isRestDay {
+                    Text("\(s.doneSets)/\(s.totalSets) series").font(.caption)
+                    if let next = s.nextExercise {
+                        Text("→ \(next)").font(.caption).lineLimit(1)
+                    } else {
+                        Text("Sesión completada").font(.caption)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        default:
+            if s.isRestDay {
+                Text("Día libre · racha \(s.streak)")
+            } else {
+                Text("\(s.doneSets)/\(s.totalSets) series · \(s.sessionLabel ?? s.dayName)")
             }
         }
     }

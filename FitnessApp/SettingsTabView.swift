@@ -9,6 +9,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import AppIntents
 
 struct SettingsTabView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
@@ -21,6 +22,7 @@ struct SettingsTabView: View {
     @AppStorage("keepScreenOn", store: AppDefaults.store) private var keepScreenOn = false
     @AppStorage("autoFocusMode", store: AppDefaults.store) private var autoFocusMode = true
     @AppStorage("hapticsEnabled", store: AppDefaults.store) private var hapticsEnabled = true
+    @AppStorage("voiceCues", store: AppDefaults.store) private var voiceCues = true
     @ObservedObject private var spotify = SpotifyManager.shared
 
     @State private var showingProfile = false
@@ -48,6 +50,8 @@ struct SettingsTabView: View {
                         trainingCard
                         section("Música y avisos")
                         musicCard
+                        section("iPhone y Apple Watch")
+                        iphoneCard
                         section("Coach y datos")
                         extrasCard
                         tutorialCard.padding(.top, 20)
@@ -175,6 +179,9 @@ struct SettingsTabView: View {
                       sub: "Evita que se apague durante el entreno", isOn: $keepScreenOn, divider: true)
             toggleRow(icon: "moon.zzz.fill", title: "Modo de enfoque automático",
                       sub: "Silencia avisos mientras entrenas", isOn: $autoFocusMode, divider: true)
+            toggleRow(icon: "waveform", title: "Voz en los descansos",
+                      sub: "Cuenta los últimos segundos y dice lo siguiente (baja la música)",
+                      isOn: $voiceCues, divider: true)
             toggleRow(icon: "iphone.radiowaves.left.and.right", title: "Vibración",
                       sub: "Al marcar series, acabar el descanso y batir marcas", isOn: $hapticsEnabled, divider: true)
             HStack(spacing: 12) {
@@ -431,6 +438,45 @@ struct SettingsTabView: View {
         }
         .padding(.vertical, 12)
         .contentShape(Rectangle())
+    }
+
+    // MARK: - iPhone y Apple Watch
+
+    private var iphoneCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            guideRow("button.horizontal.top.press", "Botón de Acción",
+                     "Ajustes › Botón de Acción › Atajo › ChamaFit › «Marcar serie». Marca la serie con el móvil bloqueado.")
+            guideRow("mic.fill", "Siri",
+                     "«Oye Siri, marca una serie en ChamaFit», «¿Qué me toca hoy en ChamaFit?», «Empieza el descanso en ChamaFit».")
+            guideRow("switch.2", "Centro de control",
+                     "Mantén pulsado el Centro de control › Añadir un control › ChamaFit: «Marcar serie» y «Descanso».")
+            guideRow("lock.iphone", "Pantalla bloqueada y reloj",
+                     "Widgets de ChamaFit en la pantalla bloqueada y complicación en la esfera del Apple Watch.")
+            guideRow("moon.circle.fill", "Modo Gimnasio",
+                     "En Atajos › Automatización: al activar tu modo de concentración, «Empezar entreno» de ChamaFit.")
+            SiriTipView(intent: MarkSetIntent())
+            Button {
+                if let url = URL(string: "shortcuts://") { UIApplication.shared.open(url) }
+            } label: {
+                Label("Abrir Atajos", systemImage: "square.2.layers.3d.fill").font(.fig(14, .bold))
+                    .foregroundColor(p.onacc).frame(maxWidth: .infinity).frame(height: 44)
+                    .background(Capsule().fill(p.hgrad))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .pulsoCard(p, radius: 22)
+    }
+
+    private func guideRow(_ icon: String, _ title: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IconTile(symbol: icon, p: p)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.fig(15, .semibold)).foregroundColor(p.ink)
+                Text(text).font(.fig(12, .medium)).lineSpacing(2).foregroundColor(p.mute)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     // MARK: - Tutorial

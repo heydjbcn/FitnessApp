@@ -19,6 +19,10 @@ import WidgetKit
 
 final class WorkoutViewModel: ObservableObject {
 
+    /// La de la app. Siri, el Botón de Acción y los Controles la usan aunque
+    /// la app arranque en segundo plano sin pantalla. Los tests crean la suya.
+    static let shared = WorkoutViewModel()
+
     // MARK: - Estado
 
     @Published var activeDays: [WorkoutDay] = WorkoutDay.allCases
@@ -88,6 +92,12 @@ final class WorkoutViewModel: ObservableObject {
     private var setLogIndex: [UUID: [SetLog]]? = nil
     /// Rutinas guardadas en memoria (el JSON se lee una vez, no en cada render).
     var routinesCache: [Routine]? = nil
+    /// Lo llama el modo entreno al terminar (Salud guarda el entreno).
+    var onSessionFinished: ((SessionSummary) -> Void)? = nil
+    /// Siri / Atajos han pedido abrir el modo entreno (lo recoge ContentView).
+    @Published var pendingWorkoutOpen = false
+    /// Spotlight / Atajos han pedido abrir la ficha de un ejercicio.
+    @Published var pendingExerciseOpen: UUID? = nil
 
     // MARK: - Ciclo de vida
 
@@ -205,10 +215,8 @@ final class WorkoutViewModel: ObservableObject {
         var record = dailyWorkoutRecords[day]![idx]
         guard record.completedSets < exercise.totalSets else { return }
 
-        let last = lastPerformance(for: exercise.id)
-        let log = SetLog(reps: reps ?? last?.reps ?? exercise.repetitions,
-                         weight: weight ?? last?.weight ?? exercise.weight,
-                         type: type, rpe: rpe)
+        let start = proposedSet(for: exercise, record: record)
+        let log = SetLog(reps: reps ?? start.reps, weight: weight ?? start.weight, type: type, rpe: rpe)
         record.setLogs.append(log)
         record.completedSets += 1
         record.lastSetCompletedAt = Date()
@@ -619,6 +627,7 @@ final class WorkoutViewModel: ObservableObject {
         liveActivity.start(endDate: end, label: timerLabel.isEmpty ? "Descanso" : timerLabel,
                            sessionName: sessionName, style: activityStyle)
         PhoneConnectivity.shared.sendTimer(endDate: end, label: timerLabel)
+        syncRestState()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             DispatchQueue.main.async { self?.tick() }
         }
@@ -632,6 +641,7 @@ final class WorkoutViewModel: ObservableObject {
             completeTimer()
         } else if remaining != timeRemaining {
             timeRemaining = remaining
+            VoiceCoach.shared.restTick(remaining)
         }
     }
 
@@ -646,6 +656,7 @@ final class WorkoutViewModel: ObservableObject {
         NotificationManager.shared.scheduleRestNotification(after: TimeInterval(timeRemaining))
         liveActivity.update(endDate: newEnd)
         PhoneConnectivity.shared.sendTimer(endDate: newEnd, label: timerLabel)
+        syncRestState()
         HapticManager.shared.buttonTapped()
     }
 
@@ -660,6 +671,7 @@ final class WorkoutViewModel: ObservableObject {
         NotificationManager.shared.cancelRestNotification()
         liveActivity.end()
         if wasActive { PhoneConnectivity.shared.sendTimer(endDate: nil, label: "") }
+        if wasActive { syncRestState() }
     }
 
     private func completeTimer() {
@@ -670,7 +682,9 @@ final class WorkoutViewModel: ObservableObject {
         timeRemaining = currentTimerDuration
         liveActivity.finish()
         PhoneConnectivity.shared.sendTimer(endDate: nil, label: "")
+        syncRestState()
         HapticManager.shared.timerCompleted()
+        VoiceCoach.shared.restDone(next: nextUpText(in: trainingDay))
         notify(.restTimer, title: "Descanso terminado", message: "Cuando quieras, a por la siguiente serie.")
     }
 

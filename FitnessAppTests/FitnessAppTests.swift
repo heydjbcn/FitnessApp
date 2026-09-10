@@ -696,3 +696,257 @@ struct TimerTests {
         #expect(box.vm.activeDays == [.monday, .wednesday, .friday])
     }
 }
+
+// MARK: - Fase 1: discos, calentamiento y sugerencia de peso
+
+@Suite(.serialized) @MainActor
+struct ProgressionTests {
+
+    /// Deja una sesión de trabajo del ejercicio `daysAgo` días atrás.
+    func session(_ box: TestBox, _ ex: Exercise, daysAgo: Int, weight: Double, reps: [Int], rpe: Int? = nil,
+                 type: SetType = .normal) {
+        let date = TestBox.daysAgo(daysAgo).addingTimeInterval(18 * 3600)
+        var rec = WorkoutExercise(exerciseId: ex.id)
+        for (i, r) in reps.enumerated() {
+            rec.setLogs.append(SetLog(reps: r, weight: weight, type: i == reps.count - 1 ? type : .normal,
+                                      rpe: i == reps.count - 1 ? rpe : nil, date: date.addingTimeInterval(Double(i) * 180)))
+        }
+        rec.completedSets = reps.count
+        box.vm.workoutHistory[TestBox.daysAgo(daysAgo)] = [.monday: [rec]]
+    }
+
+    @Test func plates() {
+        let side = PlateMath.perSide(target: 100, bar: 20)
+        #expect(side.map(\.plate) == [25, 15])
+        #expect(PlateMath.sideText(target: 100, bar: 20) == "25 + 15")
+        #expect(PlateMath.sideText(target: 20, bar: 20) == "solo la barra")
+        #expect(PlateMath.perSide(target: 10, bar: 20).isEmpty)
+        #expect(abs(PlateMath.residual(target: 101, bar: 20) - 1) < 0.001)
+        #expect(PlateMath.sideText(target: 62.5, bar: 20) == "20 + 1,25")
+    }
+
+    @Test func warmups() {
+        #expect(PlateMath.warmup(for: 20).isEmpty)
+        #expect(PlateMath.warmup(for: 30) == [.init(weight: 20, reps: 10)])
+        let w = PlateMath.warmup(for: 100)
+        #expect(w.map(\.weight) == [20, 50, 70, 85])
+        #expect(w.map(\.reps) == [10, 5, 3, 1])
+        let light = PlateMath.warmup(for: 50)
+        #expect(light.map(\.weight) == [20, 25, 35])
+        #expect(light.allSatisfy { $0.weight < 50 })
+    }
+
+    @Test func suggestsUpWhenCompletedEasy() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, reps: 8, on: .monday)
+        session(box, ex, daysAgo: 3, weight: 60, reps: [8, 8, 8], rpe: 8)
+        let s = box.vm.suggestion(for: ex)
+        #expect(s?.trend == .up && s?.weight == 62.5 && s?.reps == 8)
+        #expect(s?.reason.contains("60 kg") == true)
+    }
+
+    @Test func lightWeightsGoUpByOne() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Curl", sets: 3, weight: 12, reps: 10, on: .monday)
+        session(box, ex, daysAgo: 2, weight: 12, reps: [10, 10, 10])
+        #expect(box.vm.suggestion(for: ex)?.weight == 13)
+    }
+
+    @Test func staysWhenHardOrMissed() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, reps: 8, on: .monday)
+        session(box, ex, daysAgo: 3, weight: 60, reps: [8, 8, 8], rpe: 10)
+        #expect(box.vm.suggestion(for: ex)?.trend == .same)
+        session(box, ex, daysAgo: 3, weight: 60, reps: [8, 7, 5])
+        #expect(box.vm.suggestion(for: ex)?.trend == .same)
+        #expect(box.vm.suggestion(for: ex)?.weight == 60)
+    }
+
+    @Test func goesDownAfterTwoMissedSessions() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 80, reps: 8, on: .monday)
+        session(box, ex, daysAgo: 7, weight: 80, reps: [8, 6, 5])
+        session(box, ex, daysAgo: 3, weight: 80, reps: [7, 6, 5])
+        let s = box.vm.suggestion(for: ex)
+        #expect(s?.trend == .down)
+        #expect(s?.weight == 75)
+    }
+
+    @Test func bodyweightAndTimed() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (dips, _) = box.add("Fondos", sets: 3, weight: 0, reps: 10, on: .monday)
+        session(box, dips, daysAgo: 2, weight: 0, reps: [10, 10, 10])
+        #expect(box.vm.suggestion(for: dips)?.reps == 11)
+        var plank = Exercise(name: "Plancha", repetitions: 0, weight: 0, segundos: 45)
+        box.vm.createExercise(plank, days: [.monday])
+        plank = box.vm.getExercise(by: plank.id)!
+        #expect(box.vm.suggestion(for: plank) == nil)
+        let fresh = Exercise(name: "Nuevo", repetitions: 8, weight: 30)
+        box.vm.createExercise(fresh, days: [.monday])
+        #expect(box.vm.suggestion(for: fresh) == nil, "sin historial no se inventa")
+    }
+
+    @Test func dotUsesSuggestionThenTodaysLastSet() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, rec) = box.add("Press", sets: 4, weight: 60, reps: 8, on: .monday)
+        session(box, ex, daysAgo: 3, weight: 60, reps: [8, 8, 8, 8], rpe: 7)
+        box.vm.completeSet(for: rec.id, in: .monday)
+        #expect(box.vm.dailyWorkoutRecords[.monday]!.first!.setLogs.last?.weight == 62.5, "la bolita usa la sugerencia")
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 65, reps: 6)
+        box.vm.completeSet(for: rec.id, in: .monday)
+        #expect(box.vm.dailyWorkoutRecords[.monday]!.first!.setLogs.last?.weight == 65, "dentro de la sesión, la serie anterior")
+        // La sesión de hoy no cuenta para la sugerencia de hoy.
+        #expect(box.vm.suggestion(for: ex)?.weight == 62.5)
+    }
+
+    @Test func newExerciseFieldsRoundTrip() throws {
+        let ex = Exercise(name: "Prensa", repetitions: 10, weight: 120, setupNote: "asiento 4", goalWeight: 150)
+        let back = try JSONDecoder().decode(Exercise.self, from: JSONEncoder().encode(ex))
+        #expect(back.setupNote == "asiento 4" && back.goalWeight == 150)
+        #expect(back.setupText == "asiento 4")
+        let old = try JSONDecoder().decode(Exercise.self, from: Data("{\"name\":\"Viejo\"}".utf8))
+        #expect(old.setupNote == nil && old.goalWeight == nil && old.setupText == nil)
+    }
+}
+
+// MARK: - Fase 2: modo entreno y resumen
+
+@Suite(.serialized) @MainActor
+struct SessionFlowTests {
+
+    @Test func nextRecordFollowsOrderSupersetsAndSkips() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, a) = box.add("A", sets: 2, on: .monday)
+        let (_, b) = box.add("B", sets: 2, on: .monday)
+        let (_, c) = box.add("C", sets: 1, on: .monday)
+        #expect(box.vm.nextRecord(in: .monday)?.id == a.id)
+        box.vm.setSupersetGroup(0, for: a.id, in: .monday)
+        box.vm.setSupersetGroup(0, for: b.id, in: .monday)
+        box.vm.completeSet(for: a.id, in: .monday)
+        #expect(box.vm.nextRecord(in: .monday)?.id == b.id, "en superserie, el que va por detrás")
+        box.vm.completeSet(for: b.id, in: .monday)
+        #expect(box.vm.nextRecord(in: .monday)?.id == a.id)
+        #expect(box.vm.nextRecord(in: .monday, skipping: [a.id, b.id])?.id == c.id, "saltados quedan para el final")
+        box.vm.completeSet(for: a.id, in: .monday)
+        box.vm.completeSet(for: b.id, in: .monday)
+        box.vm.completeSet(for: c.id, in: .monday)
+        #expect(box.vm.nextRecord(in: .monday) == nil)
+        #expect(box.vm.nextRecord(in: .monday, skipping: [c.id]) == nil)
+        box.vm.stopTimer(silent: true)
+    }
+
+    @Test func skippedComeBackWhenNothingElse() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, a) = box.add("A", sets: 1, on: .monday)
+        #expect(box.vm.nextRecord(in: .monday, skipping: [a.id])?.id == a.id)
+    }
+
+    @Test func summaryWithRecordsAndPrevious() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, rec) = box.add("Press", sets: 3, weight: 60, reps: 8, on: .monday)
+        // La última vez que se hizo el lunes: 2 series de 60.
+        var old = WorkoutExercise(exerciseId: ex.id)
+        let oldDate = TestBox.daysAgo(7)
+        old.setLogs = [SetLog(reps: 8, weight: 60, date: oldDate.addingTimeInterval(3600)),
+                       SetLog(reps: 8, weight: 60, date: oldDate.addingTimeInterval(3600 + 1500))]
+        old.completedSets = 2
+        box.vm.workoutHistory[oldDate] = [.monday: [old]]
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 65, reps: 8)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 65, reps: 8)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 65, reps: 6)
+        box.vm.stopTimer(silent: true)
+        let s = box.vm.sessionSummary(for: .monday, endedAt: Date())
+        #expect(s.sets == 3 && s.totalSets == 3 && s.exercisesDone == 1)
+        #expect(abs(s.volume - (65 * 8 * 2 + 65 * 6)) < 0.01)
+        #expect(s.records == [.init(name: "Press", weight: 65)])
+        #expect(s.previous?.sets == 2)
+        #expect(abs((s.previous?.volume ?? 0) - 960) < 0.01)
+        #expect(abs((s.previous?.duration ?? 0) - 1500) < 1)
+        #expect(s.start != nil && s.duration >= 0)
+    }
+
+    @Test func firstEverSessionHasNoRecordsNorPrevious() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, rec) = box.add("Press", sets: 3, weight: 60, on: .monday)
+        box.vm.completeSet(for: rec.id, in: .monday)
+        box.vm.stopTimer(silent: true)
+        let s = box.vm.sessionSummary(for: .monday)
+        #expect(s.records.isEmpty && s.previous == nil)
+    }
+
+    @Test func nextUpTextAndFormatting() {
+        let box = TestBox(); defer { box.tearDown() }
+        box.add("Press militar", sets: 3, weight: 40, reps: 8, on: .monday)
+        #expect(box.vm.nextUpText(in: .monday) == "Press militar, 40 kilos por 8")
+        #expect(box.vm.nextUpText(in: .sunday) == nil)
+        #expect(WorkoutViewModel.durationText(42 * 60) == "42 min")
+        #expect(WorkoutViewModel.durationText(65 * 60) == "1 h 05 min")
+        #expect(WorkoutViewModel.durationText(10) == "1 min")
+        #expect(WorkoutViewModel.tonnageText(840) == "840 kg")
+        #expect(WorkoutViewModel.tonnageText(1250) == "1,2 t" || WorkoutViewModel.tonnageText(1250) == "1,3 t")
+    }
+
+    @Test func finishingCallsTheHook() {
+        let box = TestBox(); defer { box.tearDown() }
+        var got: SessionSummary? = nil
+        box.vm.onSessionFinished = { got = $0 }
+        box.vm.sessionFinished(box.vm.sessionSummary(for: .monday))
+        #expect(got?.day == .monday)
+    }
+}
+
+// MARK: - Fase 3: acciones de Siri, Atajos y Botón de Acción
+
+@Suite(.serialized) @MainActor
+struct IntentActionTests {
+
+    @Test func markUndoAndToday() {
+        let box = TestBox(); defer { box.tearDown() }
+        let today = WeeklyCalendarView.getCurrentDay()
+        box.vm.trainingDay = today
+        #expect(box.vm.handle(.markSet) == "Hoy no tienes ejercicios en la rutina.")
+        #expect(box.vm.handle(.today) == "Hoy es día libre. ¡A descansar!")
+        let (ex, _) = box.add("Press", sets: 2, weight: 50, reps: 8, rest: 90, on: today)
+        box.vm.setLabel("Pecho", for: today)
+        let t = box.vm.handle(.today)
+        #expect(t.contains("Pecho") && t.contains("1 ejercicio y 2 series") && t.contains("Siguiente: Press, 50 kilos por 8"))
+        let m = box.vm.handle(.markSet)
+        #expect(m == "Serie 1 de 2 de Press: 50 kilos por 8. Descanso de 1:30.")
+        #expect(box.vm.timerActive)
+        #expect(box.vm.handle(.extendRest).hasPrefix("Treinta segundos más"))
+        #expect(box.vm.handle(.stopRest) == "Descanso terminado.")
+        #expect(box.vm.handle(.stopRest) == "No había ningún descanso en marcha.")
+        #expect(box.vm.handle(.undoSet) == "Quitada la serie 1 de Press.")
+        #expect(box.vm.handle(.undoSet) == "No hay ninguna serie que deshacer.")
+        _ = box.vm.handle(.markSet); box.vm.stopTimer(silent: true)
+        _ = box.vm.handle(.markSet); box.vm.stopTimer(silent: true)
+        #expect(box.vm.handle(.markSet) == "¡Ya has hecho todas las series de hoy!")
+        #expect(box.vm.allSetLogs(for: ex.id).count == 2)
+    }
+
+    @Test func restAndWeightAndOpen() {
+        let box = TestBox(); defer { box.tearDown() }
+        #expect(box.vm.handle(.extendRest) == "No hay ningún descanso en marcha.")
+        #expect(box.vm.handle(.startRest) == "Descanso de 2:00.")
+        #expect(box.vm.timerActive)
+        box.vm.stopTimer(silent: true)
+        #expect(box.vm.handle(.logWeight(80.5)) == "Apuntado: 80,5 kg.")
+        #expect(box.vm.bodyWeightForDate(Date()) == 80.5)
+        #expect(box.vm.handle(.openWorkout) == "Abriendo el modo entreno.")
+        #expect(box.vm.pendingWorkoutOpen)
+    }
+
+    @Test func activeTrainingDayFollowsWhatYouTrain() {
+        let box = TestBox(); defer { box.tearDown() }
+        let today = WeeklyCalendarView.getCurrentDay()
+        let other: WorkoutDay = today == .monday ? .tuesday : .monday
+        box.vm.trainingDay = today
+        let (_, rec) = box.add("Sentadilla", sets: 3, on: other)
+        #expect(box.vm.activeTrainingDay == today)
+        box.vm.completeSet(for: rec.id, in: other)
+        box.vm.stopTimer(silent: true)
+        #expect(box.vm.activeTrainingDay == other, "si hoy entrenas otro día de rutina, Siri sigue ese")
+        #expect(box.vm.handle(.markSet).hasPrefix("Serie 2 de 3 de Sentadilla"))
+        box.vm.stopTimer(silent: true)
+    }
+}

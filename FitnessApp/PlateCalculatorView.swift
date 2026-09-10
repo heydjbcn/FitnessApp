@@ -16,26 +16,12 @@ struct PlateCalculatorView: View {
     @State private var barWeight: Double = 20
 
     private var p: Palette { themeManager.p }
-    private let availablePlates: [Double] = [25, 20, 15, 10, 5, 2.5, 1.25]
-
     init(initialWeight: Double = 0) {
         _target = State(initialValue: max(0, initialWeight))
     }
 
-    private var perSide: [(plate: Double, count: Int)] {
-        var remaining = (target - barWeight) / 2
-        guard remaining > 0 else { return [] }
-        var result: [(Double, Int)] = []
-        for plate in availablePlates {
-            let c = Int((remaining + 0.0001) / plate)
-            if c > 0 { result.append((plate, c)); remaining -= Double(c) * plate }
-        }
-        return result.map { (plate: $0.0, count: $0.1) }
-    }
-
-    private var residual: Double {
-        target - (perSide.reduce(0) { $0 + $1.plate * Double($1.count) } * 2 + barWeight)
-    }
+    private var perSide: [(plate: Double, count: Int)] { PlateMath.perSide(target: target, bar: barWeight) }
+    private var residual: Double { PlateMath.residual(target: target, bar: barWeight) }
 
     var body: some View {
         PulsoSheet(p: p) {

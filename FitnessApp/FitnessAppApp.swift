@@ -4,7 +4,7 @@ import SwiftUI
 struct FitnessAppApp: App {
     // Dueños únicos del estado: ContentView los consume por @EnvironmentObject.
     // Antes ContentView creaba los suyos propios y la app cargaba los datos dos veces.
-    @StateObject private var workoutViewModel = WorkoutViewModel()
+    @StateObject private var workoutViewModel = WorkoutViewModel.shared
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var userManager = UserManager()
 
@@ -12,6 +12,10 @@ struct FitnessAppApp: App {
         FontLoader.registerFonts()
         // Solo actúa en una pasada de pruebas (dominio de datos aparte).
         AppDefaults.applyLaunchArguments()
+        // Siri, Atajos, el Botón de Acción y los Controles llegan por aquí,
+        // también cuando la app arranca en segundo plano sin pantalla.
+        AppActionBridge.shared.handler = { WorkoutViewModel.shared.handle($0) }
+        AppActionBridge.shared.flushPending()
     }
 
     var body: some Scene {

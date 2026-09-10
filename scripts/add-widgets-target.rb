@@ -46,6 +46,21 @@ unless widget
   app.add_dependency(widget)
 end
 
+# Ficheros nuevos de la extensión y de Shared/ (el bloque de arriba solo corre la primera vez).
+widget_group = proj.main_group['ChamaFitWidgets']
+Dir[File.join(ROOT, 'ChamaFitWidgets', '*.swift')].sort.each do |path|
+  name = File.basename(path)
+  ref = widget_group.files.find { |f| f.path == name } || widget_group.new_file(name)
+  widget.add_file_references([ref]) unless widget.source_build_phase.files_references.include?(ref)
+end
+shared_refs.each do |ref|
+  widget.add_file_references([ref]) unless widget.source_build_phase.files_references.include?(ref)
+end
+
+# Idioma base español: Siri entiende las frases de los atajos en español.
+proj.root_object.development_region = 'es'
+proj.root_object.known_regions = (proj.root_object.known_regions | ['es', 'Base'])
+
 widget.build_configurations.each do |c|
   c.build_settings.merge!(
     'CODE_SIGN_STYLE' => 'Automatic',
@@ -110,6 +125,51 @@ watch.build_configurations.each do |c|
     'MARKETING_VERSION' => '2.0',
     'WATCHOS_DEPLOYMENT_TARGET' => '11.0',
     'SKIP_INSTALL' => 'YES'
+  )
+end
+
+# ---------------------------------------------------------------- Complicaciones del reloj
+wwidget = proj.targets.find { |t| t.name == 'ChamaFitWatchWidgets' }
+wgroup = proj.main_group['ChamaFitWatchWidgets'] || proj.main_group.new_group('ChamaFitWatchWidgets', 'ChamaFitWatchWidgets')
+unless wwidget
+  wwidget = proj.new_target(:app_extension, 'ChamaFitWatchWidgets', :watchos, '11.0', proj.products_group, :swift)
+  wembed = watch.new_copy_files_build_phase('Embed Foundation Extensions')
+  wembed.dst_subfolder_spec = '13' # PlugIns
+  wembed.dst_path = ''
+  bf = wembed.add_file_reference(wwidget.product_reference)
+  bf.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
+  watch.add_dependency(wwidget)
+end
+%w[Info.plist ChamaFitWatchWidgets.entitlements].each { |n| wgroup.files.find { |f| f.path == n } || wgroup.new_file(n) }
+wsources = Dir[File.join(ROOT, 'ChamaFitWatchWidgets', '*.swift')].sort.map do |path|
+  name = File.basename(path)
+  wgroup.files.find { |f| f.path == name } || wgroup.new_file(name)
+end
+# El estado de la complicación lo comparten el reloj y la extensión.
+state = watch_group.files.find { |f| f.path == 'WatchComplicationState.swift' }
+(wsources + [state].compact).each do |ref|
+  wwidget.add_file_references([ref]) unless wwidget.source_build_phase.files_references.include?(ref)
+end
+wwidget.build_configurations.each do |c|
+  c.build_settings.merge!(
+    'CODE_SIGN_STYLE' => 'Automatic',
+    'DEVELOPMENT_TEAM' => TEAM,
+    'CODE_SIGN_ENTITLEMENTS' => 'ChamaFitWatchWidgets/ChamaFitWatchWidgets.entitlements',
+    'GENERATE_INFOPLIST_FILE' => 'YES',
+    'INFOPLIST_FILE' => 'ChamaFitWatchWidgets/Info.plist',
+    'INFOPLIST_KEY_CFBundleDisplayName' => 'ChamaFit',
+    'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks',
+    'MARKETING_VERSION' => '2.0',
+    'CURRENT_PROJECT_VERSION' => '1',
+    'PRODUCT_BUNDLE_IDENTIFIER' => 'Mauri.FitnessApp.watchkitapp.ChamaFitWatchWidgets',
+    'PRODUCT_NAME' => '$(TARGET_NAME)',
+    'SDKROOT' => 'watchos',
+    'SKIP_INSTALL' => 'YES',
+    'SUPPORTED_PLATFORMS' => 'watchos watchsimulator',
+    'SWIFT_VERSION' => '5.0',
+    'SWIFT_EMIT_LOC_STRINGS' => 'YES',
+    'TARGETED_DEVICE_FAMILY' => '4',
+    'WATCHOS_DEPLOYMENT_TARGET' => '11.0',
   )
 end
 

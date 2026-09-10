@@ -24,7 +24,8 @@ B = 'https://api.appstoreconnect.apple.com/v1'
 
 PROFILES = [('Mauri.FitnessApp', 'ChamaFit AdHoc'),
             ('Mauri.FitnessApp.watchkitapp', 'ChamaFit Watch AdHoc'),
-            ('Mauri.FitnessApp.ChamaFitWidgets', 'ChamaFit Widgets AdHoc')]
+            ('Mauri.FitnessApp.ChamaFitWidgets', 'ChamaFit Widgets AdHoc'),
+            ('Mauri.FitnessApp.watchkitapp.ChamaFitWatchWidgets', 'ChamaFit Watch Widgets AdHoc')]
 
 def get(p):
     r = requests.get(B + p, headers=H); r.raise_for_status(); return r.json()
@@ -39,7 +40,8 @@ if len(sys.argv) == 4 and sys.argv[1] == '--add-device':
     print('registrado', sys.argv[2])
 
 ids = {b['attributes']['identifier']: b['id'] for b in get('/bundleIds?limit=200')['data']}
-for bid, name in [('Mauri.FitnessApp.ChamaFitWidgets', 'ChamaFit Widgets')]:
+for bid, name in [('Mauri.FitnessApp.ChamaFitWidgets', 'ChamaFit Widgets'),
+                  ('Mauri.FitnessApp.watchkitapp.ChamaFitWatchWidgets', 'ChamaFit Watch Widgets')]:
     if bid not in ids:
         ids[bid] = post('/bundleIds', {'data': {'type': 'bundleIds', 'attributes': {'identifier': bid, 'name': name, 'platform': 'IOS'}}})['data']['id']
         print('bundle ID registrado:', bid)

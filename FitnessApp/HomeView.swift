@@ -20,6 +20,7 @@ struct HomeView: View {
 
     @State private var detail: DetailTarget? = nil
     @State private var formDay: FormTarget? = nil
+    @State private var training = false
 
     private var p: Palette { themeManager.p }
     private var today: WorkoutDay { WeeklyCalendarView.getCurrentDay() }
@@ -54,6 +55,11 @@ struct HomeView: View {
         }
         .sheet(item: $formDay) { target in
             ExerciseFormSheet(editing: nil, prefillDay: target.day)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .fullScreenCover(isPresented: $training) {
+            WorkoutSessionView(day: selectedDay)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
@@ -161,6 +167,13 @@ struct HomeView: View {
                 StatTile(label: "Quedan", value: "\(viewModel.remainingMinutes(for: selectedDay)) min", p: p)
             }
             .padding(.top, 16)
+
+            if total > 0 && done < total {
+                PrimaryButton(title: done == 0 ? "Empezar entreno" : "Seguir entreno", icon: "play.fill",
+                              height: 48, p: p) { training = true }
+                    .padding(.top, 14)
+                    .accessibilityIdentifier("home.startWorkout")
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 18)
@@ -325,6 +338,7 @@ struct HomeExerciseCard: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @State private var editing: EditTarget? = nil
+    @State private var timing = false
 
     private var isDone: Bool { record.completedSets >= exercise.totalSets }
     private var isStarted: Bool { record.completedSets > 0 && !isDone }
@@ -332,6 +346,11 @@ struct HomeExerciseCard: View {
     var body: some View {
         card
             .sheet(item: $editing) { target in editor(target) }
+            .sheet(isPresented: $timing) {
+                TimedSetSheet(exercise: exercise, setNumber: record.completedSets + 1, p: p) {
+                    viewModel.completeSet(for: record.id, in: day, reps: exercise.segundos)
+                }
+            }
     }
 
     private var card: some View {
@@ -348,6 +367,27 @@ struct HomeExerciseCard: View {
                         Text(viewModel.meta(for: exercise))
                             .font(.fig(13, .medium))
                             .foregroundColor(p.mute)
+                        if let note = exercise.setupText {
+                            Label(note, systemImage: "wrench.adjustable")
+                                .font(.fig(12, .medium))
+                                .foregroundColor(p.mute)
+                                .lineLimit(1)
+                        }
+                        if record.completedSets == 0, let s = viewModel.suggestion(for: exercise) {
+                            Button { editing = EditTarget(index: 0) } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: s.arrow).font(.system(size: 10, weight: .heavy))
+                                    Text("Hoy \(s.text)").font(.fig(12, .bold))
+                                }
+                                .foregroundColor(s.trend == .up ? p.onacc : p.ink)
+                                .padding(.horizontal, 9).frame(height: 24)
+                                .background(Capsule().fill(s.trend == .up ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 3)
+                            .accessibilityIdentifier("suggestion.\(exercise.name)")
+                            .accessibilityLabel("Sugerencia de hoy: \(s.text). \(s.reason)")
+                        }
                     }
                 }
                 Spacer(minLength: 0)
@@ -421,8 +461,10 @@ struct HomeExerciseCard: View {
     @ViewBuilder private func editor(_ target: EditTarget) -> some View {
         let i = target.index
         let existing: SetLog? = i < record.setLogs.count && i < record.completedSets ? record.setLogs[i] : nil
+        let start = viewModel.proposedSet(for: exercise, record: record)
+        let proposed = SetLog(reps: start.reps, weight: start.weight)
         SetQuickEditor(exercise: exercise, existing: existing, setNumber: i + 1,
-                       suggested: viewModel.lastPerformance(for: exercise.id), p: p) { w, r, t, rpe in
+                       suggested: proposed, p: p) { w, r, t, rpe in
             if var log = existing {
                 log.weight = w; log.reps = r; log.type = t; log.rpe = rpe
                 viewModel.updateSetLog(log, for: record.id, in: day)
@@ -436,6 +478,7 @@ struct HomeExerciseCard: View {
     /// descanso); tocar la última marcada la deshace.
     private func tapSet(_ index: Int) {
         if index == record.completedSets {
+            if exercise.segundos > 0 { timing = true; return }
             viewModel.completeSet(for: record.id, in: day)
         } else if index == record.completedSets - 1 {
             viewModel.undoLastSet(for: record.id, in: day)

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0737929935E4EC13F94B41E0 /* AppFit Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1092163F029D5232C88190B0 /* ChamaFitWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7E3A07DD4CAE3F4F01D62C71 /* ChamaFitWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		12419794A4F956742A3E9189 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
 		24E0944FDB6541C1307472CF /* ChamaFitWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		25F627ADC9141BE05758DD8A /* RestLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5056444605F415CCD99EEA /* RestLiveActivity.swift */; };
@@ -15,18 +16,32 @@
 		2FD021769EEB6D1589428888 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
 		3EB026936A728AC1D8830B72 /* ChamaFitWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */; };
 		47734AD5D3B0E75128EE7AE4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 07B0E053139FD794AC3B3522 /* Foundation.framework */; };
+		4960395ECB688CB88421E55B /* ChamaFitIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6D420DB41FD213E553E633F /* ChamaFitIntents.swift */; };
+		64A6FE4B9AE9FEA3A02BC8C7 /* WatchComplicationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */; };
 		679FAB50BC638A7D0495ED97 /* AppFitWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */; };
 		69D69BA5068F58BD0403CC52 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */; };
 		855588D7A7FCAD172332AADA /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7D8848F4D553FFDB4435 /* RestActivity.swift */; };
 		8C456EC0D4BB2B11373E1356 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CC7CC03EC34E8E83DE540FF /* Foundation.framework */; };
 		8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */; };
+		9651A3ED51C1381CFE8DC416 /* ControlWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA6445570477D2501099E148 /* ControlWidgets.swift */; };
 		9B9CB770F4199C68E79A2D7F /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */; };
+		B243AD64495022AC45F37158 /* ChamaFitIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6D420DB41FD213E553E633F /* ChamaFitIntents.swift */; };
+		CC932C8A15188B0F2F5C7D07 /* ChamaFitWatchWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0309B6935CBD898232EF2244 /* ChamaFitWatchWidgets.swift */; };
+		D01809EB8DE895677E26CC3A /* WatchComplicationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */; };
 		E105F1F3D7227DE561B0E9B4 /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = 4CACB41E9D493C058F4A8F73 /* SpotifyiOS */; };
 		E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */; };
 		ECA52B97F270F8F51FDC8865 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7D8848F4D553FFDB4435 /* RestActivity.swift */; };
+		FBD8B464E3312CD6CC9D222F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 07B0E053139FD794AC3B3522 /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		3CEE378854FECFD8D68D58E4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 54FF56B12E272C080011485E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DA3E2391330B087A70CA9ACE;
+			remoteInfo = ChamaFitWatchWidgets;
+		};
 		54FF56C72E272C090011485E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 54FF56B12E272C080011485E /* Project object */;
@@ -58,6 +73,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		1B3A433220B9EE3B2ED6C046 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				1092163F029D5232C88190B0 /* ChamaFitWatchWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1CC36A8C489D2029DABB3A77 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -84,7 +110,9 @@
 
 /* Begin PBXFileReference section */
 		009C7D8848F4D553FFDB4435 /* RestActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivity.swift; sourceTree = "<group>"; };
+		01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchComplicationState.swift; sourceTree = "<group>"; };
 		02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChamaFitWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0309B6935CBD898232EF2244 /* ChamaFitWatchWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitWatchWidgets.swift; sourceTree = "<group>"; };
 		07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AppFit Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		07B0E053139FD794AC3B3522 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		1B5056444605F415CCD99EEA /* RestLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestLiveActivity.swift; sourceTree = "<group>"; };
@@ -98,11 +126,16 @@
 		54FF56D02E272C090011485E /* FitnessAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
 		786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ChamaFitWidgets.entitlements; sourceTree = "<group>"; };
+		7E3A07DD4CAE3F4F01D62C71 /* ChamaFitWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChamaFitWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FB05CE264A60C7E08561938 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitWidgetsBundle.swift; sourceTree = "<group>"; };
 		89295C9FFD4744E36409A06F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
 		8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppFitWatchApp.swift; sourceTree = "<group>"; };
+		AA6445570477D2501099E148 /* ControlWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ControlWidgets.swift; sourceTree = "<group>"; };
+		AED016F852ED4094BFC89711 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D7432C80E1776A1C2B36EC77 /* ChamaFitWatchWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ChamaFitWatchWidgets.entitlements; sourceTree = "<group>"; };
+		F6D420DB41FD213E553E633F /* ChamaFitIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitIntents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -141,6 +174,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		16A88B642F6914B9F484BCB0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FBD8B464E3312CD6CC9D222F /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		50E5B4FA1DCEF240DFA62A75 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -199,6 +240,7 @@
 				38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */,
 				4FC221B1CDFF3C3256B16C38 /* Watch.entitlements */,
 				7FB05CE264A60C7E08561938 /* Assets.xcassets */,
+				01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */,
 			);
 			path = WatchApp;
 			sourceTree = "<group>";
@@ -211,6 +253,7 @@
 				8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */,
 				89295C9FFD4744E36409A06F /* Info.plist */,
 				786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */,
+				AA6445570477D2501099E148 /* ControlWidgets.swift */,
 			);
 			path = ChamaFitWidgets;
 			sourceTree = "<group>";
@@ -226,6 +269,7 @@
 				2A2295E9FF484650FCD9397E /* WatchApp */,
 				819154CFD1D9DD8EF87A9961 /* Shared */,
 				4BA32A4F5BC7054FA221A21F /* ChamaFitWidgets */,
+				7011AF142186C2050DCA1959 /* ChamaFitWatchWidgets */,
 			);
 			sourceTree = "<group>";
 		};
@@ -237,6 +281,7 @@
 				54FF56D02E272C090011485E /* FitnessAppUITests.xctest */,
 				07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */,
 				02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */,
+				7E3A07DD4CAE3F4F01D62C71 /* ChamaFitWatchWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -250,11 +295,23 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		7011AF142186C2050DCA1959 /* ChamaFitWatchWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				AED016F852ED4094BFC89711 /* Info.plist */,
+				D7432C80E1776A1C2B36EC77 /* ChamaFitWatchWidgets.entitlements */,
+				0309B6935CBD898232EF2244 /* ChamaFitWatchWidgets.swift */,
+			);
+			name = ChamaFitWatchWidgets;
+			path = ChamaFitWatchWidgets;
+			sourceTree = "<group>";
+		};
 		819154CFD1D9DD8EF87A9961 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
 				009C7D8848F4D553FFDB4435 /* RestActivity.swift */,
 				43DEE2203B6080FA0954AB99 /* TodaySummary.swift */,
+				F6D420DB41FD213E553E633F /* ChamaFitIntents.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -277,10 +334,12 @@
 				A7B74F94C1D453A315324E64 /* Sources */,
 				F95C97125957F7BFEBF04030 /* Frameworks */,
 				A827D8EBBD3324F52C07862D /* Resources */,
+				1B3A433220B9EE3B2ED6C046 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				62CFE5569E87AEEBDC610F73 /* PBXTargetDependency */,
 			);
 			name = "AppFit Watch";
 			productName = "AppFit Watch";
@@ -373,6 +432,23 @@
 			productReference = 02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		DA3E2391330B087A70CA9ACE /* ChamaFitWatchWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 516B08F838990F4025CCD0AD /* Build configuration list for PBXNativeTarget "ChamaFitWatchWidgets" */;
+			buildPhases = (
+				F84B078B45466D05953A9F58 /* Sources */,
+				16A88B642F6914B9F484BCB0 /* Frameworks */,
+				71E5544AB65DFF2F2F6272EE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChamaFitWatchWidgets;
+			productName = ChamaFitWatchWidgets;
+			productReference = 7E3A07DD4CAE3F4F01D62C71 /* ChamaFitWatchWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -397,11 +473,12 @@
 				};
 			};
 			buildConfigurationList = 54FF56B42E272C080011485E /* Build configuration list for PBXProject "FitnessApp" */;
-			developmentRegion = en;
+			developmentRegion = es;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				es,
 			);
 			mainGroup = 54FF56B02E272C080011485E;
 			minimizedProjectReferenceProxies = 1;
@@ -418,6 +495,7 @@
 				54FF56CF2E272C090011485E /* FitnessAppUITests */,
 				21A71F4E33AA0164458D83DE /* AppFit Watch */,
 				9F74213A0897E1E1317497B6 /* ChamaFitWidgets */,
+				DA3E2391330B087A70CA9ACE /* ChamaFitWatchWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -438,6 +516,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		54FF56CE2E272C090011485E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		71E5544AB65DFF2F2F6272EE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -468,6 +553,7 @@
 			files = (
 				ECA52B97F270F8F51FDC8865 /* RestActivity.swift in Sources */,
 				2FD021769EEB6D1589428888 /* TodaySummary.swift in Sources */,
+				4960395ECB688CB88421E55B /* ChamaFitIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -493,6 +579,7 @@
 				E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */,
 				8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */,
 				9B9CB770F4199C68E79A2D7F /* WorkoutSessionManager.swift in Sources */,
+				64A6FE4B9AE9FEA3A02BC8C7 /* WatchComplicationState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -505,6 +592,17 @@
 				69D69BA5068F58BD0403CC52 /* TodayWidget.swift in Sources */,
 				855588D7A7FCAD172332AADA /* RestActivity.swift in Sources */,
 				12419794A4F956742A3E9189 /* TodaySummary.swift in Sources */,
+				9651A3ED51C1381CFE8DC416 /* ControlWidgets.swift in Sources */,
+				B243AD64495022AC45F37158 /* ChamaFitIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F84B078B45466D05953A9F58 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC932C8A15188B0F2F5C7D07 /* ChamaFitWatchWidgets.swift in Sources */,
+				D01809EB8DE895677E26CC3A /* WatchComplicationState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -527,6 +625,12 @@
 			target = 54FF56B82E272C080011485E /* FitnessApp */;
 			targetProxy = 54FF56D12E272C090011485E /* PBXContainerItemProxy */;
 		};
+		62CFE5569E87AEEBDC610F73 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ChamaFitWatchWidgets;
+			target = DA3E2391330B087A70CA9ACE /* ChamaFitWatchWidgets */;
+			targetProxy = 3CEE378854FECFD8D68D58E4 /* PBXContainerItemProxy */;
+		};
 		A3F557A4C9B211058444F5CC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = ChamaFitWidgets;
@@ -536,6 +640,35 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		277B91841522D5305EE782E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ChamaFitWatchWidgets/ChamaFitWatchWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 47BY9SGLT7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ChamaFitWatchWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp.ChamaFitWatchWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
 		33E12AA4A0CD4C887A2FB5A4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -890,6 +1023,34 @@
 			};
 			name = Debug;
 		};
+		B129CA754A27309581C1D712 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ChamaFitWatchWidgets/ChamaFitWatchWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 47BY9SGLT7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ChamaFitWatchWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ChamaFit;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp.ChamaFitWatchWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
 		C4F3B171A7E3A0F7D8AB0FF4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -952,6 +1113,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		516B08F838990F4025CCD0AD /* Build configuration list for PBXNativeTarget "ChamaFitWatchWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				277B91841522D5305EE782E0 /* Release */,
+				B129CA754A27309581C1D712 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		54FF56B42E272C080011485E /* Build configuration list for PBXProject "FitnessApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
