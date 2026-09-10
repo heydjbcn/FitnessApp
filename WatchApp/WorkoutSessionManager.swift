@@ -38,18 +38,34 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         authorized = store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized
     }
 
-    func requestAuthorization() {
+    func requestAuthorization(then completion: (() -> Void)? = nil) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
         store.requestAuthorization(toShare: typesToShare, read: typesToRead) { [weak self] _, _ in
-            DispatchQueue.main.async { self?.refreshAuthorization() }
+            DispatchQueue.main.async {
+                self?.refreshAuthorization()
+                completion?()
+            }
         }
     }
 
     // MARK: - Empezar / terminar
 
+    /// La primera vez pide permiso y arranca cuando el usuario responde; si lo
+    /// deniega, no hay sesión (el reloj sigue sirviendo para marcar series).
     func start() {
         guard !isRunning, HKHealthStore.isHealthDataAvailable() else { return }
-        if !authorized { requestAuthorization() }
+        if !authorized {
+            requestAuthorization { [weak self] in
+                guard let self, self.authorized else { return }
+                self.beginSession()
+            }
+            return
+        }
+        beginSession()
+    }
+
+    private func beginSession() {
+        guard !isRunning else { return }
         let config = HKWorkoutConfiguration()
         config.activityType = .traditionalStrengthTraining
         config.locationType = .indoor

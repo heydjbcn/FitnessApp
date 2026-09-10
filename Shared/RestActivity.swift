@@ -38,7 +38,7 @@ struct ExtendRestIntent: LiveActivityIntent {
     init() {}
 
     func perform() async throws -> some IntentResult {
-        await MainActor.run { RestTimerBridge.shared.extend?() }
+        await MainActor.run { RestTimerBridge.shared.run(.extend) }
         return .result()
     }
 }
@@ -51,17 +51,35 @@ struct StopRestIntent: LiveActivityIntent {
     init() {}
 
     func perform() async throws -> some IntentResult {
-        await MainActor.run { RestTimerBridge.shared.stop?() }
+        await MainActor.run { RestTimerBridge.shared.run(.stop) }
         return .result()
     }
 }
 
 /// Puente entre los intents (que no conocen el ViewModel) y el temporizador.
 /// La app lo rellena al arrancar; en la extensión queda vacío y no hace nada.
+/// Si el intent despierta la app en frío y llega antes que el modelo, la orden
+/// espera aquí y el modelo la aplica en cuanto se enlaza (`flushPending`).
 @MainActor
 final class RestTimerBridge {
+    enum Command { case extend, stop }
+
     static let shared = RestTimerBridge()
     var extend: (() -> Void)?
     var stop: (() -> Void)?
+    private var pending: Command?
     private init() {}
+
+    func run(_ command: Command) {
+        switch command {
+        case .extend: if let extend { extend() } else { pending = command }
+        case .stop: if let stop { stop() } else { pending = command }
+        }
+    }
+
+    func flushPending() {
+        guard let command = pending else { return }
+        pending = nil
+        run(command)
+    }
 }

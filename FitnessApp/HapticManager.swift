@@ -12,7 +12,7 @@ class HapticManager {
     static let shared = HapticManager()
 
     /// Interruptor de Configuración ("Vibración"). Por defecto, encendida.
-    private var enabled: Bool { UserDefaults.standard.object(forKey: "hapticsEnabled") as? Bool ?? true }
+    private var enabled: Bool { AppDefaults.store.object(forKey: "hapticsEnabled") as? Bool ?? true }
     
     // Generadores pre-inicializados para mejor rendimiento
     private let lightImpactGenerator = UIImpactFeedbackGenerator(style: .light)

@@ -56,13 +56,18 @@ final class SpotifyManager: NSObject, ObservableObject {
     }()
 
     private var accessToken: String? {
-        get { UserDefaults.standard.string(forKey: "SpotifyAccessToken") }
-        set { UserDefaults.standard.set(newValue, forKey: "SpotifyAccessToken") }
+        get { Keychain.string(for: "SpotifyAccessToken") }
+        set { Keychain.set(newValue, for: "SpotifyAccessToken") }
     }
 
     private override init() {
         super.init()
-        if let raw = UserDefaults.standard.string(forKey: "SpotifyPresentation"), let p = Presentation(rawValue: raw) {
+        // Tokens guardados en UserDefaults por versiones anteriores pasan al llavero.
+        if let old = AppDefaults.store.string(forKey: "SpotifyAccessToken") {
+            Keychain.set(old, for: "SpotifyAccessToken")
+            AppDefaults.store.removeObject(forKey: "SpotifyAccessToken")
+        }
+        if let raw = AppDefaults.store.string(forKey: "SpotifyPresentation"), let p = Presentation(rawValue: raw) {
             presentation = p
         }
     }
@@ -131,7 +136,7 @@ final class SpotifyManager: NSObject, ObservableObject {
 
     func setPresentation(_ p: Presentation) {
         presentation = p
-        UserDefaults.standard.set(p.rawValue, forKey: "SpotifyPresentation")
+        AppDefaults.store.set(p.rawValue, forKey: "SpotifyPresentation")
     }
 
     // MARK: - Estado del reproductor

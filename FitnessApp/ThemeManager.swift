@@ -39,7 +39,7 @@ enum AccentColor: String, CaseIterable, Identifiable {
 class ThemeManager: ObservableObject {
     @Published var isDarkMode: Bool = true {
         didSet {
-            UserDefaults.standard.set(isDarkMode, forKey: "isDarkMode")
+            AppDefaults.store.set(isDarkMode, forKey: "isDarkMode")
             // Haptic feedback para cambio de tema
             HapticManager.shared.themeChanged()
         }
@@ -47,7 +47,7 @@ class ThemeManager: ObservableObject {
     
     @Published var isTimerEnabled: Bool = true {
         didSet {
-            UserDefaults.standard.set(isTimerEnabled, forKey: "isTimerEnabled")
+            AppDefaults.store.set(isTimerEnabled, forKey: "isTimerEnabled")
             // Haptic feedback para toggle de configuración
             HapticManager.shared.settingToggled()
         }
@@ -57,17 +57,17 @@ class ThemeManager: ObservableObject {
     // instalaciones nuevas: si hay preferencia guardada, manda esa.
     @Published var selectedAccentColor: AccentColor = .purple {
         didSet {
-            UserDefaults.standard.set(selectedAccentColor.rawValue, forKey: "selectedAccentColor")
+            AppDefaults.store.set(selectedAccentColor.rawValue, forKey: "selectedAccentColor")
             // Haptic feedback para cambio de color de acento
             HapticManager.shared.selectionFeedback()
         }
     }
     
     init() {
-        isDarkMode = UserDefaults.standard.object(forKey: "isDarkMode") as? Bool ?? true
-        isTimerEnabled = UserDefaults.standard.object(forKey: "isTimerEnabled") as? Bool ?? true
+        isDarkMode = AppDefaults.store.object(forKey: "isDarkMode") as? Bool ?? true
+        isTimerEnabled = AppDefaults.store.object(forKey: "isTimerEnabled") as? Bool ?? true
         
-        if let colorString = UserDefaults.standard.string(forKey: "selectedAccentColor"),
+        if let colorString = AppDefaults.store.string(forKey: "selectedAccentColor"),
            let accentColor = AccentColor(rawValue: colorString) {
             selectedAccentColor = accentColor
         }

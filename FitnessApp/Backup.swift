@@ -26,6 +26,34 @@ struct ChamaFitBackup: Codable {
     /// Rutinas guardadas y nombre de la activa (opcionales: copias antiguas no los traen).
     var routines: [Routine]? = nil
     var activeRoutineName: String? = nil
+
+    init(exercises: [Exercise], plan: [WorkoutDay: [WorkoutExercise]],
+         history: [Date: [WorkoutDay: [WorkoutExercise]]], bodyWeight: [Date: Double],
+         activeDays: [WorkoutDay], dayLabels: [WorkoutDay: String], notes: [Date: String],
+         profile: [String: String], routines: [Routine]? = nil, activeRoutineName: String? = nil) {
+        self.exercises = exercises; self.plan = plan; self.history = history
+        self.bodyWeight = bodyWeight; self.activeDays = activeDays; self.dayLabels = dayLabels
+        self.notes = notes; self.profile = profile
+        self.routines = routines; self.activeRoutineName = activeRoutineName
+    }
+
+    /// Solo `exercises` es imprescindible: una copia a la que le falte cualquier
+    /// otra clave se restaura con lo que traiga.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        exportedAt = try c.decodeIfPresent(Date.self, forKey: .exportedAt) ?? Date()
+        exercises = try c.decode([Exercise].self, forKey: .exercises)
+        plan = try c.decodeIfPresent([WorkoutDay: [WorkoutExercise]].self, forKey: .plan) ?? [:]
+        history = try c.decodeIfPresent([Date: [WorkoutDay: [WorkoutExercise]]].self, forKey: .history) ?? [:]
+        bodyWeight = try c.decodeIfPresent([Date: Double].self, forKey: .bodyWeight) ?? [:]
+        activeDays = try c.decodeIfPresent([WorkoutDay].self, forKey: .activeDays) ?? WorkoutDay.allCases
+        dayLabels = try c.decodeIfPresent([WorkoutDay: String].self, forKey: .dayLabels) ?? [:]
+        notes = try c.decodeIfPresent([Date: String].self, forKey: .notes) ?? [:]
+        profile = try c.decodeIfPresent([String: String].self, forKey: .profile) ?? [:]
+        routines = try c.decodeIfPresent([Routine].self, forKey: .routines)
+        activeRoutineName = try c.decodeIfPresent(String.self, forKey: .activeRoutineName)
+    }
 }
 
 extension WorkoutViewModel {
@@ -82,10 +110,15 @@ extension WorkoutViewModel {
         }
         savedRoutines = backup.routines ?? []
         activeRoutineName = backup.activeRoutineName ?? "Mi rutina"
-        // Las series que traiga la plantilla pertenecen al día en que se hizo la copia.
-        userDefaults.set(Calendar.current.startOfDay(for: backup.exportedAt), forKey: "LastSessionDate")
+        stopTimer(silent: true)
+        prCelebration = nil
+        // Las series que traiga la plantilla pertenecen al día en que se hizo la
+        // copia: si es de otro día, `ensureSession` las archiva bajo esa fecha.
+        adoptSession(date: backup.exportedAt)
         saveNow()
         ensureSession()
+        publishSummary()
+        PhoneConnectivity.shared.sendTodayContext()
         HapticManager.shared.success()
     }
 }

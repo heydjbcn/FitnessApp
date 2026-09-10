@@ -365,6 +365,7 @@ struct HomeExerciseCard: View {
                             .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("info.\(exercise.name)")
                 }
             }
 
@@ -374,6 +375,9 @@ struct HomeExerciseCard: View {
                            onLongPress: { editing = EditTarget(index: index) }) {
                         tapSet(index)
                     }
+                    .accessibilityIdentifier("set.\(exercise.name).\(index + 1)")
+                    .accessibilityLabel("Serie \(index + 1) de \(exercise.name)")
+                    .accessibilityValue(index < record.completedSets ? "hecha" : "pendiente")
                 }
                 Spacer(minLength: 0)
                 Button {
@@ -391,6 +395,7 @@ struct HomeExerciseCard: View {
                     .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("rest.\(exercise.name)")
                 .disabled(!themeManager.isTimerEnabled)
                 .opacity(themeManager.isTimerEnabled ? 1 : 0.4)
             }

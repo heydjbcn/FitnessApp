@@ -10,6 +10,8 @@ struct FitnessAppApp: App {
 
     init() {
         FontLoader.registerFonts()
+        // Solo actúa en una pasada de pruebas (dominio de datos aparte).
+        AppDefaults.applyLaunchArguments()
     }
 
     var body: some Scene {

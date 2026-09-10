@@ -18,9 +18,9 @@ struct SettingsTabView: View {
     /// Arranca el tutorial de siete pasos (lo pinta ContentView).
     var onStartTutorial: () -> Void = {}
 
-    @AppStorage("keepScreenOn") private var keepScreenOn = false
-    @AppStorage("autoFocusMode") private var autoFocusMode = true
-    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
+    @AppStorage("keepScreenOn", store: AppDefaults.store) private var keepScreenOn = false
+    @AppStorage("autoFocusMode", store: AppDefaults.store) private var autoFocusMode = true
+    @AppStorage("hapticsEnabled", store: AppDefaults.store) private var hapticsEnabled = true
     @ObservedObject private var spotify = SpotifyManager.shared
 
     @State private var showingProfile = false
@@ -188,7 +188,11 @@ struct SettingsTabView: View {
             .padding(.top, 12)
             PulsoSegmented(options: Self.restPresets.map { WorkoutViewModel.restText($0) },
                            selection: Binding(
-                               get: { Self.restPresets.firstIndex(of: viewModel.defaultRestDuration) ?? 3 },
+                               get: {
+                                   // Un valor fuera de los presets (copia restaurada) marca el más cercano.
+                                   let v = viewModel.defaultRestDuration
+                                   return Self.restPresets.indices.min { abs(Self.restPresets[$0] - v) < abs(Self.restPresets[$1] - v) } ?? 3
+                               },
                                set: { viewModel.defaultRestDuration = Self.restPresets[$0] }),
                            onCard: false, p: p)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -209,6 +213,7 @@ struct SettingsTabView: View {
             }
             Spacer(minLength: 8)
             PulsoToggle(isOn: isOn, p: p)
+                .accessibilityIdentifier("toggle.\(title)")
         }
         .padding(.vertical, 12)
         .overlay(alignment: .bottom) {

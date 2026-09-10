@@ -27,8 +27,13 @@ final class WorkoutViewModel: ObservableObject {
     /// Plantilla semanal + progreso de la sesión de hoy.
     @Published var dailyWorkoutRecords: [WorkoutDay: [WorkoutExercise]] = [:]
     /// Lo hecho cada fecha: qué día de rutina se entrenó y con qué series.
-    @Published var workoutHistory: [Date: [WorkoutDay: [WorkoutExercise]]] = [:]
+    @Published var workoutHistory: [Date: [WorkoutDay: [WorkoutExercise]]] = [:] {
+        didSet { setLogIndex = nil }
+    }
     @Published var bodyWeightHistory: [Date: Double] = [:]
+
+    /// Aviso de arranque: una clave guardada no se pudo leer (se conserva aparte).
+    @Published var loadWarning: String? = nil
 
     /// Nombre que el usuario le pone a cada día ("Hombro y core", "Pierna"…).
     @Published var dayLabels: [WorkoutDay: String] = [:] {
@@ -75,27 +80,49 @@ final class WorkoutViewModel: ObservableObject {
     private(set) var sessionDate: Date
 
     private var timer: Timer?
-    let userDefaults = UserDefaults.standard
+    let userDefaults: UserDefaults
     private var pendingSave: DispatchWorkItem?
     private let saveQueue = DispatchQueue(label: "chamafit.save", qos: .utility)
     private let liveActivity = LiveActivityManager()
+    /// Series por ejercicio, calculadas una vez por cambio del historial.
+    private var setLogIndex: [UUID: [SetLog]]? = nil
+    /// Rutinas guardadas en memoria (el JSON se lee una vez, no en cada render).
+    var routinesCache: [Routine]? = nil
 
     // MARK: - Ciclo de vida
 
-    init() {
+    init(defaults: UserDefaults = AppDefaults.store) {
+        userDefaults = defaults
         sessionDate = Calendar.current.startOfDay(for: Date())
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
         loadData()
         ensureSession()
         liveActivity.endAllOrphans()
-        // Los botones de la Live Activity (+30 s / Parar) llegan por aquí.
+        // Los botones de la Live Activity (+30 s / Parar) llegan por aquí. Si el
+        // intent despertó la app en frío antes de existir el modelo, la orden
+        // quedó apuntada en el puente y se aplica ahora.
         RestTimerBridge.shared.extend = { [weak self] in self?.extendTimer(by: 30) }
         RestTimerBridge.shared.stop = { [weak self] in self?.stopTimer() }
+        RestTimerBridge.shared.flushPending()
         publishSummary()
+    }
+
+    /// Solo para pruebas: mueve el fin del descanso (simula el paso del tiempo).
+    func adoptTimerEnd(_ date: Date) {
+        guard timerActive else { return }
+        timerEndDate = date
+    }
+
+    /// Fija la fecha de la sesión que lleva la plantilla (al restaurar una copia).
+    func adoptSession(date: Date) {
+        sessionDate = Calendar.current.startOfDay(for: date)
+        userDefaults.set(sessionDate, forKey: "LastSessionDate")
     }
 
     /// Deja en el App Group el resumen de la sesión para el widget y refresca.
     func publishSummary() {
+        // En pruebas el widget de inicio conserva el resumen real.
+        guard !AppDefaults.isTesting else { return }
         let day = trainingDay
         let records = dailyWorkoutRecords[day] ?? []
         let next = records.first { r in
@@ -115,7 +142,9 @@ final class WorkoutViewModel: ObservableObject {
     /// fondo y antes de cualquier cambio en las series.
     func ensureSession() {
         let today = Calendar.current.startOfDay(for: Date())
-        guard sessionDate < today else { return }
+        // También si la fecha del móvil ha ido hacia atrás (huso, ajuste manual):
+        // lo marcado se archiva bajo la fecha en que se marcó y hoy empieza limpio.
+        guard sessionDate != today else { return }
         for day in WorkoutDay.allCases {
             mirrorToHistory(day, on: sessionDate)
             dailyWorkoutRecords[day] = (dailyWorkoutRecords[day] ?? []).map { $0.resettingProgress() }
@@ -188,20 +217,34 @@ final class WorkoutViewModel: ObservableObject {
         checkRecord(weight: log.weight, exerciseId: exercise.id, excluding: log.id, name: exercise.name)
         HapticManager.shared.setCompleted()
 
-        guard record.completedSets < exercise.totalSets else { return }
+        let finished = record.completedSets >= exercise.totalSets
 
-        // En una superserie el descanso llega al cerrar la vuelta: si el
-        // compañero de grupo va por detrás, todavía toca hacer su serie.
         if let g = record.supersetGroup {
+            // En una superserie el descanso llega al cerrar la vuelta: si un
+            // compañero de grupo va por detrás y aún le quedan series, toca la suya.
             let partners = (dailyWorkoutRecords[day] ?? []).filter { $0.supersetGroup == g && $0.id != record.id }
-            if partners.contains(where: { $0.completedSets < record.completedSets }) {
-                let next = partners.first { $0.completedSets < record.completedSets }
-                    .flatMap { getExercise(by: $0.exerciseId)?.name } ?? "el siguiente"
+            let pending = partners.first { p in
+                guard let pex = getExercise(by: p.exerciseId) else { return false }
+                return p.completedSets < record.completedSets && p.completedSets < pex.totalSets
+            }
+            if let pending {
+                let next = getExercise(by: pending.exerciseId)?.name ?? "el siguiente"
                 timerLabel = "Ahora \(next) · sin descanso"
                 return
             }
+            // Vuelta cerrada. Si a nadie del grupo le quedan series, se acabó.
+            let groupDone = finished && partners.allSatisfy { p in
+                guard let pex = getExercise(by: p.exerciseId) else { return true }
+                return p.completedSets >= pex.totalSets
+            }
+            if groupDone { return }
+            timerLabel = finished
+                ? "\(exercise.name) · descanso de la superserie"
+                : "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
+        } else {
+            guard !finished else { return }
+            timerLabel = "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
         }
-        timerLabel = "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
         startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
     }
 
@@ -212,9 +255,14 @@ final class WorkoutViewModel: ObservableObject {
         guard record.completedSets > 0 else { return }
         record.completedSets -= 1
         if !record.setLogs.isEmpty { record.setLogs.removeLast() }
+        // Datos antiguos sin series detalladas: el contador manda; con series, coinciden.
+        if !record.setLogs.isEmpty { record.completedSets = record.setLogs.count }
         if record.completedSets == 0 { record.lastSetCompletedAt = nil }
         dailyWorkoutRecords[day]![idx] = record
         recordHistory(for: day)
+        // El descanso y la celebración nacieron de la serie que se acaba de quitar.
+        if timerActive { stopTimer(silent: true) }
+        prCelebration = nil
         HapticManager.shared.warning()
     }
 
@@ -245,11 +293,18 @@ final class WorkoutViewModel: ObservableObject {
     /// Todas las series registradas de un ejercicio. Salen del historial, que
     /// incluye la sesión de hoy: cada serie cuenta una sola vez.
     func allSetLogs(for exerciseId: UUID) -> [SetLog] {
-        workoutHistory.values.flatMap { byDay in
-            byDay.values.flatMap { records in
-                records.filter { $0.exerciseId == exerciseId }.flatMap(\.setLogs)
+        if setLogIndex == nil {
+            var index: [UUID: [SetLog]] = [:]
+            for byDay in workoutHistory.values {
+                for records in byDay.values {
+                    for record in records where !record.setLogs.isEmpty {
+                        index[record.exerciseId, default: []].append(contentsOf: record.setLogs)
+                    }
+                }
             }
+            setLogIndex = index
         }
+        return setLogIndex?[exerciseId] ?? []
     }
 
     /// Última serie de trabajo de un ejercicio. Ignora calentamientos y drops
@@ -307,7 +362,7 @@ final class WorkoutViewModel: ObservableObject {
     func exerciseDailyVolume(for exerciseId: UUID) -> [(date: Date, volume: Double)] {
         let cal = Calendar.current
         var byDay: [Date: Double] = [:]
-        for log in allSetLogs(for: exerciseId) {
+        for log in allSetLogs(for: exerciseId) where log.weight > 0 {
             let d = cal.startOfDay(for: log.date)
             byDay[d, default: 0] += log.volume
         }
@@ -397,7 +452,9 @@ final class WorkoutViewModel: ObservableObject {
     }
 
     private func history(in interval: DateInterval) -> [(date: Date, byDay: [WorkoutDay: [WorkoutExercise]])] {
-        workoutHistory.filter { interval.contains($0.key) }
+        // `DateInterval.contains` incluye el final: el lunes a las 0:00 caería
+        // también en la semana anterior y cada sesión de lunes contaría dos veces.
+        workoutHistory.filter { $0.key >= interval.start && $0.key < interval.end }
             .map { (date: $0.key, byDay: $0.value) }
             .sorted { $0.date < $1.date }
     }
@@ -450,7 +507,7 @@ final class WorkoutViewModel: ObservableObject {
     func consecutiveWorkoutDays() -> Int {
         let cal = Calendar.current
         var date = cal.startOfDay(for: Date())
-        if !hasWorkoutForDate(date) { date = cal.date(byAdding: .day, value: -1, to: date)! }
+        if !hasWorkoutForDate(date), let prev = cal.date(byAdding: .day, value: -1, to: date) { date = prev }
         var streak = 0
         for _ in 0..<400 {
             if hasWorkoutForDate(date) {
@@ -458,7 +515,8 @@ final class WorkoutViewModel: ObservableObject {
             } else if let day = WorkoutDay.from(date: date), !(dailyWorkoutRecords[day] ?? []).isEmpty {
                 break
             }
-            date = cal.date(byAdding: .day, value: -1, to: date)!
+            guard let prev = cal.date(byAdding: .day, value: -1, to: date) else { break }
+            date = prev
         }
         return streak
     }
@@ -493,6 +551,7 @@ final class WorkoutViewModel: ObservableObject {
     /// Deja la app vacía: biblioteca, plantilla, historial, peso y notas.
     /// No toca el perfil ni los ajustes.
     func resetAllData() {
+        stopTimer(silent: true)
         availableExercises = []
         dailyWorkoutRecords = Dictionary(uniqueKeysWithValues: WorkoutDay.allCases.map { ($0, []) })
         workoutHistory = [:]
@@ -501,7 +560,13 @@ final class WorkoutViewModel: ObservableObject {
         dayLabels = [:]
         sessionNotes = [:]
         notifications = []
+        prCelebration = nil
+        // Las rutinas guardadas apuntaban a ejercicios que ya no existen.
+        savedRoutines = []
+        activeRoutineName = "Mi rutina"
         saveNow()
+        publishSummary()
+        PhoneConnectivity.shared.sendTodayContext()
     }
 
     // MARK: - Exportar
@@ -638,7 +703,8 @@ final class WorkoutViewModel: ObservableObject {
     private func scheduleSave() {
         pendingSave?.cancel()
         let snap = snapshot()
-        let work = DispatchWorkItem { Self.write(snap) }
+        let defaults = userDefaults
+        let work = DispatchWorkItem { Self.write(snap, to: defaults) }
         pendingSave = work
         saveQueue.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
@@ -647,12 +713,11 @@ final class WorkoutViewModel: ObservableObject {
     func saveNow() {
         pendingSave?.cancel()
         pendingSave = nil
-        Self.write(snapshot())
+        Self.write(snapshot(), to: userDefaults)
     }
 
-    nonisolated private static func write(_ snap: Snapshot) {
+    nonisolated private static func write(_ snap: Snapshot, to defaults: UserDefaults) {
         let encoder = JSONEncoder()
-        let defaults = UserDefaults.standard
         func put<T: Encodable>(_ value: T, _ key: String) {
             if let data = try? encoder.encode(value) { defaults.set(data, forKey: key) }
         }
@@ -669,9 +734,24 @@ final class WorkoutViewModel: ObservableObject {
 
     private func loadData() {
         let decoder = JSONDecoder()
+        var unreadable: [String] = []
+        // Una clave que existe pero no se puede leer NO se pisa en silencio: se
+        // guarda tal cual bajo otra clave (para recuperarla) y se avisa.
         func get<T: Decodable>(_ key: String, _ type: T.Type) -> T? {
             guard let data = userDefaults.data(forKey: key) else { return nil }
-            return try? decoder.decode(type, from: data)
+            do {
+                return try decoder.decode(type, from: data)
+            } catch {
+                let stamp = ISO8601DateFormatter().string(from: Date())
+                userDefaults.set(data, forKey: "\(key)-corrupt-\(stamp)")
+                unreadable.append(key)
+                return nil
+            }
+        }
+        defer {
+            if !unreadable.isEmpty {
+                loadWarning = "No se pudieron leer estos datos guardados: \(unreadable.joined(separator: ", ")). Se ha conservado una copia; restaura una copia de seguridad si te falta algo."
+            }
         }
 
         availableExercises = get("AvailableExercises", [Exercise].self) ?? []

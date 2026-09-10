@@ -306,7 +306,8 @@ struct ExerciseDetailSheet: View {
             }
     }
 
-    static func ssLetter(_ g: Int) -> String { String(UnicodeScalar(UInt8(65 + max(0, g)))) }
+    /// A–Z; el grupo puede venir de una copia o del reloj, así que se acota.
+    static func ssLetter(_ g: Int) -> String { String(UnicodeScalar(UInt8(65 + min(25, max(0, g))))) }
 
     /// "3 jun"
     static func shortDate(_ date: Date) -> String {

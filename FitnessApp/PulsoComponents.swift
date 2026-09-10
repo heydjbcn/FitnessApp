@@ -224,6 +224,8 @@ struct CloseCircle: View {
                 .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("sheet.close")
+        .accessibilityLabel("Cerrar")
     }
 }
 
@@ -280,6 +282,7 @@ struct PulsoToggle: View {
             .frame(width: 48, height: 28)
         }
         .buttonStyle(.plain)
+        .accessibilityValue(isOn ? "1" : "0")
     }
 }
 
@@ -425,6 +428,10 @@ struct DayChip: View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(isSelected ? .clear : p.line, lineWidth: 1)
             )
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("day.\(day.rawValue)")
+            .accessibilityLabel(day.displayName)
+            .accessibilityValue(isSelected ? "seleccionado" : "\(count)")
             .shadow(color: isSelected ? p.glow1 : .clear, radius: 10, y: 8)
         }
         .buttonStyle(.plain)
@@ -596,6 +603,14 @@ struct MonthGrid: View {
         return c
     }
 
+    /// "2026-09-10", identificador de cada celda para accesibilidad y pruebas.
+    static func stamp(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+
     private var monthLabel: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "es_ES")
@@ -669,6 +684,8 @@ struct MonthGrid: View {
                 .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(dir < 0 ? "month.prev" : "month.next")
+        .accessibilityLabel(dir < 0 ? "Mes anterior" : "Mes siguiente")
     }
 
     private func cell(_ date: Date) -> some View {
@@ -704,6 +721,10 @@ struct MonthGrid: View {
                     }
                 }
                 .shadow(color: isSel ? p.glow1 : .clear, radius: 8, y: 6)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("cal.\(Self.stamp(date))")
+                .accessibilityLabel("\(calendar.component(.day, from: date))")
+                .accessibilityValue(worked ? "entrenado" : "")
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -809,6 +830,7 @@ struct PulsoRestTimer: View {
                 .foregroundStyle(p.hgrad)
                 .frame(minWidth: 64, alignment: .leading)
                 .contentTransition(.numericText())
+                .accessibilityIdentifier("timer.clock")
 
             VStack(alignment: .leading, spacing: 0) {
                 UpperLabel(text: "Descanso", p: p)
@@ -839,6 +861,7 @@ struct PulsoRestTimer: View {
                     .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("timer.extend")
 
             Button {
                 HapticManager.shared.timerStopped()
@@ -852,7 +875,9 @@ struct PulsoRestTimer: View {
                     .background(Capsule().fill(p.soft))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("timer.stop")
         }
+        .accessibilityIdentifier("timer.card")
         .padding(.leading, 18)
         .padding(.trailing, 12)
         .padding(.vertical, 12)

@@ -19,6 +19,23 @@ struct Routine: Codable, Identifiable, Equatable {
     var activeDays: [WorkoutDay]
     var updatedAt = Date()
 
+    init(id: UUID = UUID(), name: String, plan: [WorkoutDay: [WorkoutExercise]],
+         dayLabels: [WorkoutDay: String], activeDays: [WorkoutDay], updatedAt: Date = Date()) {
+        self.id = id; self.name = name; self.plan = plan
+        self.dayLabels = dayLabels; self.activeDays = activeDays; self.updatedAt = updatedAt
+    }
+
+    /// Tolerante con copias antiguas o campos que falten: nunca tira todas las rutinas.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Rutina"
+        plan = try c.decodeIfPresent([WorkoutDay: [WorkoutExercise]].self, forKey: .plan) ?? [:]
+        dayLabels = try c.decodeIfPresent([WorkoutDay: String].self, forKey: .dayLabels) ?? [:]
+        activeDays = try c.decodeIfPresent([WorkoutDay].self, forKey: .activeDays) ?? WorkoutDay.allCases
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
+
     /// Ejercicios distintos y series totales de la semana, para la lista.
     var summary: String {
         let records = plan.values.flatMap { $0 }
@@ -41,11 +58,18 @@ extension WorkoutViewModel {
     /// Las rutinas guardadas que NO están activas.
     var savedRoutines: [Routine] {
         get {
-            guard let data = userDefaults.data(forKey: Self.routinesKey),
-                  let list = try? JSONDecoder().decode([Routine].self, from: data) else { return [] }
+            if let cached = routinesCache { return cached }
+            let list: [Routine]
+            if let data = userDefaults.data(forKey: Self.routinesKey) {
+                list = (try? JSONDecoder().decode([Routine].self, from: data)) ?? []
+            } else {
+                list = []
+            }
+            routinesCache = list
             return list
         }
         set {
+            routinesCache = newValue
             if let data = try? JSONEncoder().encode(newValue) { userDefaults.set(data, forKey: Self.routinesKey) }
             objectWillChange.send()
         }

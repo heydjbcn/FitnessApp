@@ -18,15 +18,18 @@ final class NotificationManager {
     /// Pide permiso solo si nunca se ha decidido. Si el usuario dijo que no,
     /// no insiste: el descanso sigue funcionando dentro de la app.
     func ensurePermission() {
+        // En pruebas no se pide: la hoja del sistema taparía la app.
+        guard !AppDefaults.isTesting else { return }
         let center = UNUserNotificationCenter.current()
-        center.getNotificationSettings { settings in
+        Task {
+            let settings = await center.notificationSettings()
             guard settings.authorizationStatus == .notDetermined else { return }
-            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
         }
     }
 
     func scheduleRestNotification(after seconds: TimeInterval) {
-        let defaults = UserDefaults.standard
+        let defaults = AppDefaults.store
         // Avisos apagados desde la hoja de Notificaciones: no se programa nada.
         guard defaults.object(forKey: "NotificationsEnabled") as? Bool ?? true else { return }
 

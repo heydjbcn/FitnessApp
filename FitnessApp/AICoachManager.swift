@@ -14,11 +14,16 @@ final class AICoachManager: ObservableObject {
     static let shared = AICoachManager()
 
     @Published var apiKey: String {
-        didSet { UserDefaults.standard.set(apiKey, forKey: "anthropicAPIKey") }
+        didSet { Keychain.set(apiKey, for: "anthropicAPIKey") }
     }
 
     private init() {
-        apiKey = UserDefaults.standard.string(forKey: "anthropicAPIKey") ?? ""
+        // Las keys guardadas en UserDefaults por versiones anteriores pasan al llavero.
+        if let old = AppDefaults.store.string(forKey: "anthropicAPIKey"), !old.isEmpty {
+            Keychain.set(old, for: "anthropicAPIKey")
+            AppDefaults.store.removeObject(forKey: "anthropicAPIKey")
+        }
+        apiKey = Keychain.string(for: "anthropicAPIKey") ?? ""
     }
 
     var hasKey: Bool { !apiKey.trimmingCharacters(in: .whitespaces).isEmpty }

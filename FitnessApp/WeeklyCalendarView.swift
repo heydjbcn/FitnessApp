@@ -314,7 +314,9 @@ struct WeeklyCalendarView: View {
                                 if isReordering {
                                     VStack(spacing: 4) {
                                         arrow("chevron.up", enabled: i > 0) { viewModel.moveExercise(in: day, from: i, to: i - 1) }
+                                            .accessibilityIdentifier("reorder.up.\(i)")
                                         arrow("chevron.down", enabled: i < records.count - 1) { viewModel.moveExercise(in: day, from: i, to: i + 1) }
+                                            .accessibilityIdentifier("reorder.down.\(i)")
                                     }
                                 }
                             }

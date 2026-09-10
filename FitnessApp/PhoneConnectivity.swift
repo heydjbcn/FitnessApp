@@ -63,7 +63,8 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
     /// Envía el estado completo. `updateApplicationContext` llega aunque el
     /// reloj esté dormido; se queda con el último.
     func sendTodayContext() {
-        guard ready, let ctx = context() else { return }
+        // En pruebas el reloj real no recibe la sesión de mentira.
+        guard !AppDefaults.isTesting, ready, let ctx = context() else { return }
         try? WCSession.default.updateApplicationContext(ctx)
         // Si el reloj está despierto, un mensaje directo lo refresca al momento.
         if WCSession.default.isReachable {
@@ -92,36 +93,39 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
         }
     }
 
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
-        DispatchQueue.main.async {
+    // WatchConnectivity llama a los delegados en su propia cola: son
+    // `nonisolated` y saltan al hilo principal antes de tocar el modelo.
+
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        Task { @MainActor in
             self.handle(message)
             replyHandler(self.context() ?? [:])
         }
     }
 
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        DispatchQueue.main.async {
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        Task { @MainActor in
             self.handle(message)
             self.sendTodayContext()
         }
     }
 
     /// Cola de respaldo: lo que el reloj mandó sin cobertura llega aquí más tarde.
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        DispatchQueue.main.async {
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        Task { @MainActor in
             self.handle(userInfo)
             self.sendTodayContext()
         }
     }
 
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        DispatchQueue.main.async { self.sendTodayContext() }
+    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        Task { @MainActor in self.sendTodayContext() }
     }
 
-    func sessionReachabilityDidChange(_ session: WCSession) {
-        DispatchQueue.main.async { self.sendTodayContext() }
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        Task { @MainActor in self.sendTodayContext() }
     }
 
-    func sessionDidBecomeInactive(_ session: WCSession) {}
-    func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+    nonisolated func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
 }

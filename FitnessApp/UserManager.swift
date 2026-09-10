@@ -29,7 +29,7 @@ class UserManager: ObservableObject {
         get { userName }
         set { 
             userName = newValue
-            UserDefaults.standard.set(userName, forKey: userNameKey)
+            AppDefaults.store.set(userName, forKey: userNameKey)
         }
     }
     
@@ -38,11 +38,11 @@ class UserManager: ObservableObject {
     }
     
     private func loadUserData() {
-        userName = UserDefaults.standard.string(forKey: userNameKey) ?? ""
-        userAge = UserDefaults.standard.string(forKey: userAgeKey) ?? ""
-        userHeight = UserDefaults.standard.string(forKey: userHeightKey) ?? ""
-        userWeight = UserDefaults.standard.string(forKey: userWeightKey) ?? ""
-        profileImageData = UserDefaults.standard.data(forKey: profileImageKey)
+        userName = AppDefaults.store.string(forKey: userNameKey) ?? ""
+        userAge = AppDefaults.store.string(forKey: userAgeKey) ?? ""
+        userHeight = AppDefaults.store.string(forKey: userHeightKey) ?? ""
+        userWeight = AppDefaults.store.string(forKey: userWeightKey) ?? ""
+        profileImageData = AppDefaults.store.data(forKey: profileImageKey)
         showingNameInput = userName.isEmpty
     }
     
@@ -57,14 +57,14 @@ class UserManager: ObservableObject {
         userHeight = height.trimmingCharacters(in: .whitespacesAndNewlines)
         userWeight = weight.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        UserDefaults.standard.set(userName, forKey: userNameKey)
-        UserDefaults.standard.set(userAge, forKey: userAgeKey)
-        UserDefaults.standard.set(userHeight, forKey: userHeightKey)
-        UserDefaults.standard.set(userWeight, forKey: userWeightKey)
+        AppDefaults.store.set(userName, forKey: userNameKey)
+        AppDefaults.store.set(userAge, forKey: userAgeKey)
+        AppDefaults.store.set(userHeight, forKey: userHeightKey)
+        AppDefaults.store.set(userWeight, forKey: userWeightKey)
         
         if let imageData = imageData {
             profileImageData = imageData
-            UserDefaults.standard.set(imageData, forKey: profileImageKey)
+            AppDefaults.store.set(imageData, forKey: profileImageKey)
         }
         
         showingNameInput = false

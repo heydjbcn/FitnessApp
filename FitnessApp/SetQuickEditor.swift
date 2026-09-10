@@ -119,8 +119,8 @@ struct SetQuickEditor: View {
             ForEach(fine.indices, id: \.self) { i in
                 smallButton(fine[i].0, fine[i].1)
             }
-            bigButton("minus", minus)
-            bigButton("plus", plus)
+            bigButton("minus", minus).accessibilityIdentifier("quick.\(label).minus")
+            bigButton("plus", plus).accessibilityIdentifier("quick.\(label).plus")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

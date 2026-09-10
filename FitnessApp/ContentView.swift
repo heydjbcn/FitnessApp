@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var showingWelcome = false
     @State private var tutorialForm = false
 
-    @AppStorage("keepScreenOn") private var keepScreenOn = false
+    @AppStorage("keepScreenOn", store: AppDefaults.store) private var keepScreenOn = false
     @ObservedObject private var spotify = SpotifyManager.shared
 
     private var p: Palette { themeManager.p }
@@ -115,8 +115,16 @@ struct ContentView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.prCelebration)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: spotify.presentation)
         .sheet(isPresented: $spotify.expanded) { SpotifyExpandedSheet(spotify: spotify, p: p) }
+        .alert("Datos guardados ilegibles", isPresented: Binding(
+            get: { viewModel.loadWarning != nil },
+            set: { if !$0 { viewModel.loadWarning = nil } })) {
+            Button("Entendido", role: .cancel) {}
+        } message: {
+            Text(viewModel.loadWarning ?? "")
+        }
         .onAppear {
             PhoneConnectivity.shared.viewModel = viewModel
+            viewModel.seedForUITestsIfRequested()
             syncStyle()
             viewModel.trainingDay = homeDay
             PhoneConnectivity.shared.sendTodayContext()

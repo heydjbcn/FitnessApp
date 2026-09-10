@@ -433,7 +433,10 @@ struct ExerciseFormSheet: View {
 
     // MARK: - Paso 5: descanso y resumen
 
-    private var restPreview: String { String(format: "%d:%02d", restMin, restSec) }
+    /// 0:00 = sin descanso: el temporizador no arranca para este ejercicio.
+    private var restPreview: String {
+        restMin == 0 && restSec == 0 ? "Sin descanso" : String(format: "%d:%02d", restMin, restSec)
+    }
 
     private var stepRest: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -495,9 +498,9 @@ struct ExerciseFormSheet: View {
 
     private func restColumn(value: String, unit: String, up: @escaping () -> Void, down: @escaping () -> Void) -> some View {
         VStack(spacing: 6) {
-            chevron("chevron.up", up)
+            chevron("chevron.up", up).accessibilityIdentifier("rest.\(unit).up")
             Text(value).font(.bri(40)).foregroundColor(p.ink).frame(minWidth: 56)
-            chevron("chevron.down", down)
+            chevron("chevron.down", down).accessibilityIdentifier("rest.\(unit).down")
             Text(unit.uppercased()).font(.fig(11, .medium)).tracking(0.66).foregroundColor(p.mute)
         }
     }
@@ -538,14 +541,19 @@ struct ExerciseFormSheet: View {
             icon = ExerciseSymbols.symbol(for: ex)
             imageData = ex.imageData
             params = FormParams(exercise: ex)
-            restMin = ex.restDuration / 60
-            restSec = Int((Double(ex.restDuration % 60) / 15).rounded()) * 15 % 60
+            (restMin, restSec) = Self.restParts(ex.restDuration)
         } else {
             if let d = prefillDay { days = [d] }
-            // Descanso por defecto de Configuración, redondeado a los pasos de 15 s.
-            restMin = viewModel.defaultRestDuration / 60
-            restSec = Int((Double(viewModel.defaultRestDuration % 60) / 15).rounded()) * 15 % 60
+            (restMin, restSec) = Self.restParts(viewModel.defaultRestDuration)
         }
+    }
+
+    /// Minutos y segundos del control (0–10 min, pasos de 15 s). Un valor que no
+    /// caiga en un paso se lleva al más cercano sin pasarse de 10:00.
+    static func restParts(_ seconds: Int) -> (Int, Int) {
+        let clamped = min(600, max(0, seconds))
+        let rounded = min(600, Int((Double(clamped) / 15).rounded()) * 15)
+        return (rounded / 60, rounded % 60)
     }
 
     private func applyCatalog(_ c: CatalogExercise) {

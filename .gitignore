@@ -4,3 +4,6 @@ build_dd/
 # Artefactos de compilación
 build/
 DerivedData/
+
+# Datos reales del iPhone usados como fixtures de compatibilidad (no se suben)
+FitnessAppTests/Fixtures/*.plist

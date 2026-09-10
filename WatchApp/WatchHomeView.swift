@@ -93,7 +93,8 @@ struct WatchHomeView: View {
                     .font(.system(size: 10, weight: .bold)).tracking(0.8)
                     .foregroundColor(onAcc.opacity(0.8))
                 Spacer()
-                Text(timerInterval: Date()...end, countsDown: true)
+                // El descanso puede vencer entre dos evaluaciones: el rango nunca se invierte.
+                Text(timerInterval: min(Date(), end)...end, countsDown: true)
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundColor(onAcc)
@@ -158,7 +159,7 @@ struct WatchHomeView: View {
                 }
                 Spacer(minLength: 4)
                 if ex.superset >= 0 {
-                    Text("SS \(String(UnicodeScalar(UInt8(65 + ex.superset))))")
+                    Text("SS \(String(UnicodeScalar(UInt8(65 + min(25, max(0, ex.superset))))))")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundColor(a2)
                         .padding(.horizontal, 5).padding(.vertical, 2)
