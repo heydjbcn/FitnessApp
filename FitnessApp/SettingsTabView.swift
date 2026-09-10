@@ -24,6 +24,7 @@ struct SettingsTabView: View {
     @AppStorage("hapticsEnabled", store: AppDefaults.store) private var hapticsEnabled = true
     @AppStorage("voiceCues", store: AppDefaults.store) private var voiceCues = true
     @ObservedObject private var spotify = SpotifyManager.shared
+    @ObservedObject private var health = HealthManager.shared
 
     @State private var showingProfile = false
     @State private var showingNotifications = false
@@ -175,6 +176,26 @@ struct SettingsTabView: View {
                       isOn: Binding(get: { themeManager.isTimerEnabled },
                                     set: { themeManager.isTimerEnabled = $0; viewModel.updateTimerEnabledState($0) }),
                       divider: true)
+            HStack(spacing: 12) {
+                IconTile(symbol: "target", p: p)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sesiones por semana").font(.fig(15, .semibold)).foregroundColor(p.ink)
+                    Text("Tu objetivo: el anillo de Inicio").font(.fig(12, .medium)).foregroundColor(p.mute)
+                }
+                Spacer(minLength: 8)
+                HStack(spacing: 10) {
+                    Button { viewModel.weeklySessionGoal -= 1 } label: { Image(systemName: "minus") }
+                        .accessibilityIdentifier("goal.week.minus")
+                    Text("\(viewModel.weeklySessionGoal)").font(.bri(18)).foregroundColor(p.ink).frame(minWidth: 18)
+                        .accessibilityIdentifier("goal.week.value")
+                    Button { viewModel.weeklySessionGoal += 1 } label: { Image(systemName: "plus") }
+                        .accessibilityIdentifier("goal.week.plus")
+                }
+                .font(.system(size: 14, weight: .bold)).foregroundColor(p.acc)
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 12)
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
             toggleRow(icon: "sun.max.fill", title: "Mantener pantalla encendida",
                       sub: "Evita que se apague durante el entreno", isOn: $keepScreenOn, divider: true)
             toggleRow(icon: "moon.zzz.fill", title: "Modo de enfoque automático",
@@ -444,6 +465,29 @@ struct SettingsTabView: View {
 
     private var iphoneCard: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if health.isAvailable {
+                HStack(spacing: 12) {
+                    IconTile(symbol: "heart.text.square.fill", p: p)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Salud").font(.fig(15, .semibold)).foregroundColor(p.ink)
+                        Text(health.connected ? "Sueño, pulsaciones, pasos y peso · entrenos guardados"
+                                              : "Conecta para ver tu recuperación y guardar entrenos")
+                            .font(.fig(12, .medium)).foregroundColor(p.mute).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 4)
+                    if health.connected {
+                        PulsoToggle(isOn: Binding(get: { health.saveWorkouts }, set: { health.saveWorkouts = $0 }), p: p)
+                            .accessibilityIdentifier("toggle.Guardar en Salud")
+                    } else {
+                        Button { Task { await health.requestAccess() } } label: {
+                            Text("Conectar").font(.fig(12, .bold)).foregroundColor(p.onacc)
+                                .padding(.horizontal, 12).frame(height: 32).background(Capsule().fill(p.hgrad))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                Rectangle().fill(p.line).frame(height: 1)
+            }
             guideRow("button.horizontal.top.press", "Botón de Acción",
                      "Ajustes › Botón de Acción › Atajo › ChamaFit › «Marcar serie». Marca la serie con el móvil bloqueado.")
             guideRow("mic.fill", "Siri",
@@ -673,6 +717,10 @@ struct NotificationsSheet: View {
             }
             .padding(.horizontal, 22)
             .padding(.top, 24)
+
+            RemindersCard(p: p)
+                .padding(.horizontal, 22)
+                .padding(.top, 14)
 
             if !viewModel.notifications.isEmpty {
                 HStack(spacing: 8) {

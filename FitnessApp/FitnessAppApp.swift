@@ -16,6 +16,8 @@ struct FitnessAppApp: App {
         // también cuando la app arranca en segundo plano sin pantalla.
         AppActionBridge.shared.handler = { WorkoutViewModel.shared.handle($0) }
         AppActionBridge.shared.flushPending()
+        // Al terminar el modo entreno, el entreno va a Salud.
+        HealthManager.shared.install(on: WorkoutViewModel.shared)
     }
 
     var body: some Scene {

@@ -53,7 +53,8 @@ struct HistoryView: View {
                         .padding(.top, 6)
 
                         dayItems
-                        recordsCard.padding(.top, 18)
+                        HealthWeekCard(p: p).padding(.top, 18)
+                        recordsCard.padding(.top, 10)
                         muscleCard.padding(.top, 10)
                     }
                     .padding(.horizontal, 20)
@@ -67,6 +68,12 @@ struct HistoryView: View {
         .onChange(of: date) { _, _ in
             editingWeight = false
             editingNote = false
+        }
+        .task {
+            // El peso de la báscula (vía Salud) entra solo si hoy no hay uno apuntado.
+            if let w = await HealthManager.shared.latestBodyWeight(), Calendar.current.isDateInToday(w.date) {
+                viewModel.importBodyWeight((w.kg * 10).rounded() / 10, date: w.date)
+            }
         }
         .sheet(item: $detail) { ex in
             ExerciseDetailSheet(exerciseId: ex.id)
@@ -435,7 +442,7 @@ struct HistoryView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "figure.strengthtraining.traditional")
                             .font(.system(size: 14, weight: .semibold)).foregroundColor(p.acc)
-                        Text("Series por grupo muscular").font(.fig(16, .bold)).foregroundColor(p.ink)
+                        Text("Músculos esta semana").font(.fig(16, .bold)).foregroundColor(p.ink)
                     }
                     Spacer()
                     Text(volumeText)
@@ -443,6 +450,8 @@ struct HistoryView: View {
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Capsule().fill(p.soft))
                 }
+                MuscleMapView(sets: Dictionary(uniqueKeysWithValues: groups.map { ($0.group, $0.sets) }), p: p)
+                    .padding(.top, 14)
                 VStack(spacing: 10) {
                     ForEach(groups, id: \.group) { g in
                         HStack(spacing: 10) {

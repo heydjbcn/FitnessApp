@@ -50,6 +50,7 @@ struct ExerciseDetailSheet: View {
                         if ex.segundos == 0 {
                             WarmupCard(work: viewModel.proposedSet(for: ex, record: todayRecord).weight, p: p)
                                 .padding(.top, 12)
+                            GoalCard(exercise: ex, p: p).padding(.top, 12)
                         }
                         if let rec = todayRecord { todaySets(rec).padding(.top, 20) }
                         platesButton.padding(.top, 12)

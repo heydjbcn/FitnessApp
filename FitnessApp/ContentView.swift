@@ -211,6 +211,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             viewModel.saveNow()
+            Reminders.reschedule(for: viewModel)
         }
         .fullScreenCover(isPresented: $showingWelcome) {
             PulsoWelcomeView {

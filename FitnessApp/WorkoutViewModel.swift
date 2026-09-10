@@ -396,6 +396,15 @@ final class WorkoutViewModel: ObservableObject {
         bodyWeightHistory[Calendar.current.startOfDay(for: date)] = weight
         HapticManager.shared.success()
         scheduleSave()
+        if Calendar.current.isDateInToday(date) { HealthManager.shared.saveBodyWeight(weight) }
+    }
+
+    /// Peso que llega de Salud (báscula): se apunta sin volver a escribirlo en Salud.
+    func importBodyWeight(_ kg: Double, date: Date) {
+        let key = Calendar.current.startOfDay(for: date)
+        guard kg > 0, bodyWeightHistory[key] == nil else { return }
+        bodyWeightHistory[key] = kg
+        scheduleSave()
     }
 
     func bodyWeightForDate(_ date: Date) -> Double? {

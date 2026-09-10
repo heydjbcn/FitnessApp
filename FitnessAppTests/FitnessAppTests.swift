@@ -950,3 +950,101 @@ struct IntentActionTests {
         box.vm.stopTimer(silent: true)
     }
 }
+
+// MARK: - Fase 4: recuperación, objetivos, avisos y mapa muscular
+
+@Suite(.serialized) @MainActor
+struct HealthGoalsRemindersTests {
+
+    @Test func recoveryLevels() {
+        #expect(Recovery().level == nil)
+        #expect(Recovery(sleepHours: 7.5, restingHR: 55, restingHRAvg: 56, hrv: 60, hrvAvg: 58).level == .good)
+        #expect(Recovery(sleepHours: 6.5, restingHR: 59, restingHRAvg: 55).level == .normal, "dos avisos")
+        #expect(Recovery(sleepHours: 5.2).level == .normal, "una señal mala sola")
+        #expect(Recovery(sleepHours: 5.2, restingHR: 62, restingHRAvg: 55).level == .easy)
+        #expect(Recovery(sleepHours: 8, hrv: 40, hrvAvg: 60).level == .normal, "VFC muy baja")
+        #expect(Recovery(sleepHours: 8).headline == "Día para apretar")
+    }
+
+    @Test func etaFromTrend() {
+        let now = Date()
+        let pts: [(Date, Double)] = (0..<5).map { (now.addingTimeInterval(Double($0 - 4) * 7 * 86_400), 60 + Double($0) * 2.5) }
+        let eta = WorkoutViewModel.linearETA(points: pts, target: 80, now: now)
+        #expect(eta != nil)
+        // 2,5 kg por semana: de 70 a 80 son unas 4 semanas.
+        let weeks = (eta!.timeIntervalSince(now)) / (7 * 86_400)
+        #expect(weeks > 3.5 && weeks < 4.5)
+        let flat: [(Date, Double)] = (0..<5).map { (now.addingTimeInterval(Double($0) * -86_400 * 5), 60) }
+        #expect(WorkoutViewModel.linearETA(points: flat, target: 80, now: now) == nil)
+        #expect(WorkoutViewModel.linearETA(points: Array(pts.prefix(2)), target: 80, now: now) == nil)
+        let slow: [(Date, Double)] = (0..<5).map { (now.addingTimeInterval(Double($0 - 4) * 7 * 86_400), 60 + Double($0) * 0.1) }
+        #expect(WorkoutViewModel.linearETA(points: slow, target: 100, now: now) == nil, "más de un año: sin fecha")
+    }
+
+    @Test func goalProgressAndWeeklyGoal() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, rec) = box.add("Press", sets: 3, weight: 60, on: .monday)
+        #expect(box.vm.goalProgress(for: ex) == nil)
+        box.vm.setGoalWeight(80, for: ex.id)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 70, reps: 5)
+        box.vm.stopTimer(silent: true)
+        let g = box.vm.goalProgress(for: box.vm.getExercise(by: ex.id)!)
+        #expect(g?.goal == 80 && g?.best == 70 && g?.reached == false)
+        #expect(abs((g?.fraction ?? 0) - 0.875) < 0.001)
+        box.vm.setGoalWeight(65, for: ex.id)
+        #expect(box.vm.goalProgress(for: box.vm.getExercise(by: ex.id)!)?.reached == true)
+        box.vm.setGoalWeight(nil, for: ex.id)
+        #expect(box.vm.getExercise(by: ex.id)?.goalWeight == nil)
+        #expect(box.vm.weeklySessionGoal == 3)
+        box.vm.weeklySessionGoal = 12
+        #expect(box.vm.weeklySessionGoal == 7)
+        box.vm.weeklySessionGoal = 0
+        #expect(box.vm.weeklySessionGoal == 1)
+        #expect(GoalCard.startDraft(72) == 80)
+    }
+
+    @Test func importedWeightDoesNotOverwrite() {
+        let box = TestBox(); defer { box.tearDown() }
+        box.vm.importBodyWeight(81.2, date: Date())
+        #expect(box.vm.bodyWeightForDate(Date()) == 81.2)
+        box.vm.importBodyWeight(90, date: Date())
+        #expect(box.vm.bodyWeightForDate(Date()) == 81.2, "lo apuntado manda")
+    }
+
+    @Test func reminderPlan() {
+        let box = TestBox(); defer { box.tearDown() }
+        let keys = ["reminderEnabled", "weeklySummaryEnabled", "reminderMinutes"]
+        let saved = keys.map { AppDefaults.store.object(forKey: $0) }
+        defer { for (k, v) in zip(keys, saved) { AppDefaults.store.set(v, forKey: k) } }
+
+        let cal = Calendar.current
+        // Un lunes a las 10:00, con rutina lunes y miércoles.
+        var comps = DateComponents(); comps.weekday = 2; comps.hour = 10
+        let monday = cal.nextDate(after: Date(), matching: comps, matchingPolicy: .nextTime)!
+        box.add("Press", sets: 3, on: .monday)
+        box.add("Remo", sets: 4, on: .wednesday)
+        Reminders.enabled = true
+        Reminders.weeklyEnabled = false
+        Reminders.minutes = 18 * 60
+        var plan = Reminders.plan(for: box.vm, now: monday)
+        #expect(plan.count == 2, "lunes y miércoles")
+        #expect(plan.first?.title == "Hoy toca Lunes")
+        #expect(cal.component(.hour, from: plan[0].date) == 18)
+        Reminders.minutes = 8 * 60
+        plan = Reminders.plan(for: box.vm, now: monday)
+        #expect(plan.map { cal.component(.weekday, from: $0.date) } == [4], "hoy ya pasó la hora: solo el miércoles")
+        Reminders.enabled = false
+        Reminders.weeklyEnabled = true
+        plan = Reminders.plan(for: box.vm, now: monday)
+        #expect(plan.count == 1 && plan[0].title == "Tu semana en ChamaFit")
+        #expect(cal.component(.weekday, from: plan[0].date) == 2 && cal.component(.hour, from: plan[0].date) == 9)
+        #expect(plan[0].body.contains("Semana sin entrenos"))
+    }
+
+    @Test func muscleVerdicts() {
+        #expect(MuscleZone.verdict(0) == "sin trabajar esta semana")
+        #expect(MuscleZone.verdict(6).hasPrefix("por debajo"))
+        #expect(MuscleZone.verdict(14).hasPrefix("en el rango"))
+        #expect(MuscleZone.verdict(25).hasPrefix("por encima"))
+    }
+}

@@ -35,6 +35,7 @@ struct HomeView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         sessionCard
+                        RecoveryCard(p: p).padding(.top, 12)
                         daysStrip.padding(.top, 14)
                         quote
                         exercisesHeader
@@ -75,6 +76,7 @@ struct HomeView: View {
                     .foregroundColor(p.mute)
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                WeekGoalRing(done: viewModel.weekStats().sessions, goal: viewModel.weeklySessionGoal, p: p)
                 HStack(spacing: 6) {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 12, weight: .semibold))
