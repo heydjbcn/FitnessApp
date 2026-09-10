@@ -1,8 +1,9 @@
 //
 //  CoachAIView.swift
-//  FitnessApp
+//  ChamaFit
 //
-//  Pantalla del Coach IA: pide ajustes/consejos sobre la rutina usando Claude.
+//  Coach IA en estilo «Pulso»: pregunta sobre tu rutina, técnica o progresión
+//  a Claude, con tu rutina y tus últimas marcas como contexto.
 //
 
 import SwiftUI
@@ -13,13 +14,15 @@ struct CoachAIView: View {
     @StateObject private var coach = AICoachManager.shared
     @Environment(\.dismiss) private var dismiss
 
-    @State private var prompt: String = ""
-    @State private var answer: String = ""
+    @State private var prompt = ""
+    @State private var thread: [(question: String, answer: String)] = []
     @State private var loading = false
     @State private var errorMsg: String?
-    @State private var keyDraft: String = ""
+    @State private var keyDraft = ""
+    @State private var showingKey = false
+    @FocusState private var focused: Bool
 
-    private var isDark: Bool { themeManager.isDarkMode }
+    private var p: Palette { themeManager.p }
 
     private let suggestions = [
         "Ajusta mi rutina del lunes para ganar fuerza",
@@ -29,126 +32,183 @@ struct CoachAIView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AppColors.background(isDark: isDark).ignoresSafeArea()
-                if !coach.hasKey {
-                    keyEntry
-                } else {
-                    chat
+        PulsoSheet(p: p) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    UpperLabel(text: "Claude", p: p)
+                    Text("Coach IA").font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
                 }
-            }
-            .navigationTitle("Coach IA")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cerrar") { dismiss() }
-                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                Spacer()
+                if coach.hasKey {
+                    Button { showingKey = true } label: {
+                        Image(systemName: "key.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(p.mute)
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(p.soft))
+                            .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 8)
                 }
+                CloseCircle(p: p) { dismiss() }
             }
+            .padding(.horizontal, 22)
+            .padding(.top, 22)
+
+            if coach.hasKey && !showingKey { chat } else { keyEntry }
         }
     }
 
-    // MARK: - Entrada de API key
+    // MARK: - API key
+
     private var keyEntry: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 40))
-                    .foregroundColor(AppColors.primary(themeManager: themeManager))
+            VStack(alignment: .leading, spacing: 0) {
+                IconTile(symbol: "sparkles", size: 56, radius: 18, gradient: true, glow: true, p: p)
                 Text("Activa el Coach IA")
-                    .font(AppFonts.title2)
-                    .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                Text("Pega tu API key de Anthropic (Claude). Es de pago por uso y se guarda solo en este dispositivo.")
-                    .font(AppFonts.body)
-                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
-                SecureField("sk-ant-...", text: $keyDraft)
-                    .padding(.horizontal, 14).frame(height: 48)
-                    .background(AppColors.cardBackground(isDark: isDark)).cornerRadius(12)
-                    .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                Button(action: { coach.apiKey = keyDraft }) { Text("Guardar y activar") }
-                    .buttonStyle(PrimaryButtonStyle(themeManager: themeManager))
-                    .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .font(.bri(20)).em(-0.02, size: 20).foregroundColor(p.ink)
+                    .padding(.top, 16)
+                Text("Pega tu API key de Anthropic. Es de pago por uso y se guarda solo en este iPhone.")
+                    .font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
+                    .padding(.top, 6)
+                UpperLabel(text: "API key", p: p).padding(.top, 18).padding(.bottom, 6)
+                SecureField("", text: $keyDraft, prompt: Text("sk-ant-…").foregroundColor(p.mute.opacity(0.8)))
+                    .font(.fig(15, .semibold))
+                    .foregroundColor(p.ink)
+                    .padding(.horizontal, 16)
+                    .frame(height: 50)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+                PrimaryButton(title: "Guardar y activar", height: 50,
+                              enabled: !keyDraft.trimmingCharacters(in: .whitespaces).isEmpty, p: p) {
+                    coach.apiKey = keyDraft.trimmingCharacters(in: .whitespaces)
+                    showingKey = false
+                    HapticManager.shared.success()
+                }
+                .padding(.top, 14)
+                if coach.hasKey {
+                    SoftButton(title: "Quitar la key", height: 44, color: p.danger, filled: false, p: p) {
+                        coach.apiKey = ""
+                        keyDraft = ""
+                        showingKey = false
+                    }
+                    .padding(.top, 8)
+                }
             }
-            .padding()
+            .padding(.horizontal, 22)
+            .padding(.top, 18)
+            .padding(.bottom, 30)
         }
+        .onAppear { keyDraft = coach.apiKey }
     }
 
     // MARK: - Chat
+
     private var chat: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if answer.isEmpty && !loading {
-                        Text("PRUEBA A PREGUNTAR")
-                            .font(AppFonts.label).tracking(1.0)
-                            .foregroundColor(AppColors.textSecondary(isDark: isDark))
-                        ForEach(suggestions, id: \.self) { s in
-                            Button { prompt = s } label: {
-                                HStack {
-                                    Text(s).font(AppFonts.body)
-                                        .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                                        .multilineTextAlignment(.leading)
-                                    Spacer()
-                                    Image(systemName: "arrow.up.left")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(AppColors.textTertiary(isDark: isDark))
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if thread.isEmpty && !loading {
+                            UpperLabel(text: "Prueba a preguntar", p: p).padding(.top, 6)
+                            ForEach(suggestions, id: \.self) { s in
+                                Button { prompt = s; send() } label: {
+                                    HStack {
+                                        Text(s).font(.fig(14, .medium)).foregroundColor(p.ink)
+                                            .multilineTextAlignment(.leading)
+                                        Spacer()
+                                        Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundColor(p.acc)
+                                    }
+                                    .padding(.horizontal, 14).padding(.vertical, 12)
+                                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
                                 }
-                                .padding(14).cardStyle(isDarkMode: isDark)
+                                .buttonStyle(.plain)
                             }
                         }
-                    }
-                    if loading {
-                        HStack(spacing: 8) {
-                            ProgressView().tint(AppColors.primary(themeManager: themeManager))
-                            Text("Pensando…").font(AppFonts.body)
-                                .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                        ForEach(Array(thread.enumerated()), id: \.offset) { i, turn in
+                            bubble(turn.question, mine: true)
+                            bubble(turn.answer, mine: false).id(i)
+                        }
+                        if loading {
+                            HStack(spacing: 8) {
+                                ProgressView().tint(p.acc)
+                                Text("Pensando…").font(.fig(13, .medium)).foregroundColor(p.mute)
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 12)
+                            .id("loading")
+                        }
+                        if let e = errorMsg {
+                            Text(e).font(.fig(13, .medium)).foregroundColor(p.danger)
+                                .padding(.horizontal, 14).padding(.vertical, 10)
+                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.danger.opacity(0.12)))
                         }
                     }
-                    if let e = errorMsg {
-                        Text(e).font(AppFonts.caption).foregroundColor(AppColors.danger)
-                    }
-                    if !answer.isEmpty {
-                        Text(answer)
-                            .font(AppFonts.body)
-                            .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(16)
-                            .cardStyle(isDarkMode: isDark)
-                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 14)
+                    .padding(.bottom, 12)
                 }
-                .padding()
+                .onChange(of: thread.count) { _, n in withAnimation { proxy.scrollTo(n - 1, anchor: .bottom) } }
+                .onChange(of: loading) { _, l in if l { withAnimation { proxy.scrollTo("loading", anchor: .bottom) } } }
             }
-            // Barra de entrada
-            HStack(spacing: 10) {
-                TextField("Pregunta a tu coach…", text: $prompt, axis: .vertical)
+            .scrollDismissesKeyboard(.interactively)
+
+            Rectangle().fill(p.line).frame(height: 1)
+            HStack(alignment: .bottom, spacing: 10) {
+                TextField("", text: $prompt, prompt: Text("Pregunta a tu coach…").foregroundColor(p.mute.opacity(0.8)), axis: .vertical)
                     .lineLimit(1...4)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(AppColors.cardBackground(isDark: isDark)).cornerRadius(14)
-                    .foregroundColor(AppColors.textPrimary(isDark: isDark))
+                    .font(.fig(15, .medium))
+                    .foregroundColor(p.ink)
+                    .focused($focused)
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(p.soft))
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(p.line, lineWidth: 1))
                 Button(action: send) {
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(AppColors.primary(themeManager: themeManager)))
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(p.onacc)
+                        .frame(width: 46, height: 46)
+                        .background(Circle().fill(p.grad))
+                        .shadow(color: p.glow1, radius: 10, y: 6)
                 }
+                .buttonStyle(.plain)
                 .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty || loading)
+                .opacity(prompt.trimmingCharacters(in: .whitespaces).isEmpty || loading ? 0.5 : 1)
             }
-            .padding()
+            .padding(.horizontal, 22)
+            .padding(.vertical, 12)
+        }
+    }
+
+    private func bubble(_ text: String, mine: Bool) -> some View {
+        HStack {
+            if mine { Spacer(minLength: 40) }
+            Text(text)
+                .font(.fig(14, mine ? .semibold : .medium))
+                .lineSpacing(4)
+                .foregroundColor(mine ? p.onacc : p.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 14).padding(.vertical, 11)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(mine ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft))
+                )
+            if !mine { Spacer(minLength: 24) }
         }
     }
 
     private func send() {
         let q = prompt.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return }
-        loading = true; errorMsg = nil; answer = ""
+        guard !q.isEmpty, !loading else { return }
+        prompt = ""
+        loading = true
+        errorMsg = nil
+        focused = false
         let ctx = buildContext()
         Task {
             do {
                 let res = try await coach.ask(q, context: ctx)
-                answer = res
+                thread.append((q, res))
             } catch {
                 errorMsg = error.localizedDescription
             }
@@ -156,20 +216,31 @@ struct CoachAIView: View {
         }
     }
 
+    /// Rutina, marcas y semana en curso: lo que el coach necesita para responder con datos.
     private func buildContext() -> String {
-        var lines: [String] = []
-        for day in viewModel.activeDays {
+        var lines: [String] = ["RUTINA SEMANAL:"]
+        for day in WorkoutDay.allCases.sorted(by: { $0.weekOrder < $1.weekOrder }) {
             let recs = viewModel.dailyWorkoutRecords[day] ?? []
             guard !recs.isEmpty else { continue }
-            lines.append("\(day.rawValue):")
+            let label = viewModel.label(for: day).map { " (\($0))" } ?? ""
+            lines.append("\(day.rawValue)\(label):")
             for r in recs {
-                if let ex = viewModel.getExercise(by: r.exerciseId) {
-                    let grp = ex.muscleGroup.map { " (\($0))" } ?? ""
-                    lines.append("  - \(ex.name)\(grp): \(ex.totalSets)x\(ex.repetitions) @ \(Int(ex.weight))kg")
+                guard let ex = viewModel.getExercise(by: r.exerciseId) else { continue }
+                let grp = ex.muscleGroup.map { " [\($0)]" } ?? ""
+                var line = "  - \(ex.name)\(grp): \(viewModel.meta(for: ex)), descanso \(WorkoutViewModel.restText(ex.restDuration))"
+                if let pr = viewModel.personalRecord(for: ex.id), pr.weight > 0 {
+                    line += ", récord \(WorkoutViewModel.kg(pr.weight)) (1RM est. \(Int(pr.oneRepMax)) kg)"
                 }
+                if let last = viewModel.lastPerformance(for: ex.id) {
+                    line += ", última serie \(String(format: "%g", last.weight)) kg × \(last.reps)"
+                }
+                lines.append(line)
             }
         }
-        if lines.isEmpty { return "El usuario aún no tiene ejercicios en su rutina." }
+        if lines.count == 1 { lines.append("(sin ejercicios todavía)") }
+        let w = viewModel.weekStats(), prev = viewModel.weekStats(offset: -1)
+        lines.append("ESTA SEMANA: \(w.sessions) sesiones, \(w.sets) series, \(Int(w.volume)) kg de volumen. Semana anterior: \(prev.sessions) sesiones, \(prev.sets) series, \(Int(prev.volume)) kg.")
+        lines.append("Racha: \(viewModel.consecutiveWorkoutDays()) días.")
         return lines.joined(separator: "\n")
     }
 }

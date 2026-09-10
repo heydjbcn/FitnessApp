@@ -143,7 +143,8 @@ struct ExerciseDetailSheet: View {
         rows.append(("Descanso", WorkoutViewModel.restText(ex.restDuration)))
         if let g = ex.muscleGroup { rows.append(("Grupo muscular", g)) }
         if let pr = viewModel.personalRecord(for: exerciseId), pr.weight > 0 {
-            rows.append(("Récord personal", WorkoutViewModel.kg(pr.weight)))
+            let when = viewModel.recordDate(for: exerciseId).map { " · \(Self.shortDate($0))" } ?? ""
+            rows.append(("Récord personal", WorkoutViewModel.kg(pr.weight) + when))
             rows.append(("1RM estimado", WorkoutViewModel.kg((pr.oneRepMax * 10).rounded() / 10)))
         }
 
@@ -251,6 +252,27 @@ struct ExerciseDetailSheet: View {
                             Spacer()
                             Text(e.text).font(.fig(12, .semibold)).foregroundColor(p.mute)
                         }
+                        // Cada serie de ese día: kg × reps, con su tipo y RPE si los tiene.
+                        if !e.logs.isEmpty {
+                            HStack(spacing: 6) {
+                                ForEach(Array(e.logs.enumerated()), id: \.element.id) { _, log in
+                                    HStack(spacing: 3) {
+                                        if let tag = log.type.shortTag {
+                                            Text(tag).font(.fig(9, .bold)).foregroundColor(p.acc)
+                                        }
+                                        Text("\(String(format: "%g", log.weight))×\(log.reps)")
+                                            .font(.fig(11, .semibold)).foregroundColor(p.ink)
+                                        if let rpe = log.rpe {
+                                            Text("@\(rpe)").font(.fig(9, .medium)).foregroundColor(p.mute)
+                                        }
+                                    }
+                                    .padding(.horizontal, 7).padding(.vertical, 4)
+                                    .background(Capsule().fill(p.card))
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.top, 8)
+                        }
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 Capsule().fill(p.card)
@@ -268,20 +290,31 @@ struct ExerciseDetailSheet: View {
         }
     }
 
-    private func historyEntries(_ ex: Exercise) -> [(date: Date, text: String, pct: Double)] {
+    private func historyEntries(_ ex: Exercise) -> [(date: Date, text: String, pct: Double, logs: [SetLog])] {
         viewModel.workoutHistory
             .sorted { $0.key > $1.key }
             .prefix(30)
             .compactMap { date, byDay in
                 let recs = byDay.values.flatMap { $0 }.filter { $0.exerciseId == ex.id && $0.completedSets > 0 }
                 guard let r = recs.max(by: { $0.completedSets < $1.completedSets }) else { return nil }
-                let kg = r.setLogs.map(\.weight).max() ?? ex.weight
-                let text = "\(r.completedSets)/\(ex.totalSets) series" + (kg > 0 ? " · \(WorkoutViewModel.kg(kg))" : "")
-                return (date, text, min(1, Double(r.completedSets) / Double(max(1, ex.totalSets))))
+                let kg = r.setLogs.map(\.weight).max() ?? 0
+                let volume = r.setLogs.reduce(0) { $0 + $1.volume }
+                var text = "\(r.completedSets)/\(ex.totalSets) series"
+                if kg > 0 { text += " · máx \(WorkoutViewModel.kg(kg))" }
+                if volume > 0 { text += " · \(Int(volume)) kg" }
+                return (date, text, min(1, Double(r.completedSets) / Double(max(1, ex.totalSets))), r.setLogs)
             }
     }
 
     static func ssLetter(_ g: Int) -> String { String(UnicodeScalar(UInt8(65 + max(0, g)))) }
+
+    /// "3 jun"
+    static func shortDate(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "es_ES")
+        f.dateFormat = "d MMM"
+        return f.string(from: date).replacingOccurrences(of: ".", with: "")
+    }
 
     private func setSuperset(_ g: Int?) {
         if let wid = workoutExerciseId, let d = day {

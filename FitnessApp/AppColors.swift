@@ -23,12 +23,6 @@ extension Color {
     }
 }
 
-// Enum para el tema
-enum AppTheme: String, CaseIterable {
-    case light = "light"
-    case dark = "dark"
-}
-
 /// Fachada de color de la app. Mantiene la API que ya usan las vistas, pero
 /// por dentro resuelve todo contra los tokens de `Pulso`.
 struct AppColors {
@@ -77,12 +71,6 @@ struct AppColors {
     static func textSecondary(isDark: Bool) -> Color { Pulso.mute(isDark: isDark) }
     static func textTertiary(isDark: Bool) -> Color { Pulso.faint(isDark: isDark) }
     static func hairline(isDark: Bool) -> Color { Pulso.line(isDark: isDark) }
-
-    // MARK: - Compatibilidad con AppTheme
-    static func background(for theme: AppTheme) -> Color { background(isDark: theme == .dark) }
-    static func cardBackground(for theme: AppTheme) -> Color { cardBackground(isDark: theme == .dark) }
-    static func textPrimary(for theme: AppTheme) -> Color { textPrimary(isDark: theme == .dark) }
-    static func textSecondary(for theme: AppTheme) -> Color { textSecondary(isDark: theme == .dark) }
 
     // MARK: - Colores estáticos / estado
     static let secondaryGray = Color(hex: "#6E6C86")

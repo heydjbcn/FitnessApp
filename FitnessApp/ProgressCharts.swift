@@ -1,159 +1,115 @@
 //
 //  ProgressCharts.swift
-//  FitnessApp
+//  ChamaFit
 //
-//  Gráficas de progreso con Swift Charts (nativo iOS 16+):
-//  peso máx por ejercicio en el tiempo y peso corporal.
+//  Gráfica de progreso de un ejercicio (Swift Charts) en estilo «Pulso»:
+//  peso máximo, volumen o 1RM estimado por sesión, a elegir.
 //
 
 import SwiftUI
 import Charts
 
-/// Gráfica de progreso (peso máximo por fecha) de un ejercicio.
 struct ExerciseProgressChart: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     let exerciseId: UUID
 
-    private var isDark: Bool { themeManager.isDarkMode }
+    @State private var mode = 0   // 0 peso máx · 1 volumen · 2 1RM
+    private var p: Palette { themeManager.p }
 
-    var body: some View {
-        let data = viewModel.exerciseDailyMaxWeight(for: exerciseId)
-        VStack(alignment: .leading, spacing: 10) {
-            Text("PROGRESO · PESO MÁX")
-                .font(AppFonts.label).tracking(1.0)
-                .foregroundColor(AppColors.textSecondary(isDark: isDark))
+    private struct Point: Identifiable {
+        let date: Date
+        let value: Double
+        var id: Date { date }
+    }
 
-            if data.count >= 2 {
-                Chart {
-                    ForEach(data, id: \.date) { p in
-                        LineMark(x: .value("Fecha", p.date), y: .value("kg", p.weight))
-                            .interpolationMethod(.catmullRom)
-                            .foregroundStyle(AppColors.primary(themeManager: themeManager))
-                        PointMark(x: .value("Fecha", p.date), y: .value("kg", p.weight))
-                            .foregroundStyle(AppColors.primary(themeManager: themeManager))
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks { _ in
-                        AxisGridLine().foregroundStyle(AppColors.hairline(isDark: isDark))
-                        AxisValueLabel()
-                    }
-                }
-                .frame(height: 170)
-            } else {
-                Text("Registra al menos 2 sesiones para ver tu progreso.")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 12)
-            }
+    private var points: [Point] {
+        switch mode {
+        case 1: return viewModel.exerciseDailyVolume(for: exerciseId).map { Point(date: $0.date, value: $0.volume) }
+        case 2: return viewModel.exerciseDailyOneRepMax(for: exerciseId).map { Point(date: $0.date, value: $0.oneRepMax) }
+        default: return viewModel.exerciseDailyMaxWeight(for: exerciseId).map { Point(date: $0.date, value: $0.weight) }
         }
-        .padding(16)
-        .cardStyle(isDarkMode: isDark)
     }
-}
 
-/// Resumen semanal: volumen total + series por grupo muscular (barras).
-struct WeeklyMuscleSummary: View {
-    @EnvironmentObject var viewModel: WorkoutViewModel
-    @EnvironmentObject var themeManager: ThemeManager
-    private var isDark: Bool { themeManager.isDarkMode }
+    private var unit: String { mode == 1 ? "kg" : "kg" }
 
-    private func volStr(_ v: Double) -> String {
-        v >= 1000 ? String(format: "%.1ft", v / 1000) : "\(Int(v)) kg"
+    private func format(_ v: Double) -> String {
+        if mode == 1 && v >= 1000 { return String(format: "%.1f t", v / 1000).replacingOccurrences(of: ".", with: ",") }
+        return WorkoutViewModel.kg(v)
     }
 
     var body: some View {
-        let groups = viewModel.setsByMuscleGroup()
-        let maxSets = max(groups.map { $0.sets }.max() ?? 1, 1)
-        let vol = viewModel.weeklyVolume()
+        let data = points
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("ESTA SEMANA · POR MÚSCULO")
-                    .font(AppFonts.label).tracking(1.0)
-                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
+                PulsoSegmented(options: ["Peso máx", "Volumen", "1RM"], selection: $mode, onCard: false, p: p)
                 Spacer()
-                if vol > 0 {
-                    Text(volStr(vol))
-                        .font(AppFonts.caption)
-                        .foregroundColor(AppColors.primary(themeManager: themeManager))
+                if let last = data.last {
+                    Text(format(last.value))
+                        .font(.bri(16))
+                        .foregroundStyle(p.hgrad)
                 }
             }
-            if groups.isEmpty {
-                Text("Registra series para ver tu reparto por grupo muscular.")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
-            } else {
-                ForEach(groups, id: \.group) { g in
-                    HStack(spacing: 10) {
-                        Text(g.group)
-                            .font(AppFonts.caption)
-                            .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                            .frame(width: 78, alignment: .leading)
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(AppColors.hairline(isDark: isDark))
-                                Capsule().fill(AppColors.primary(themeManager: themeManager))
-                                    .frame(width: max(8, geo.size.width * CGFloat(g.sets) / CGFloat(maxSets)))
-                            }
-                        }
-                        .frame(height: 10)
-                        Text("\(g.sets)")
-                            .font(AppFonts.caption)
-                            .foregroundColor(AppColors.textSecondary(isDark: isDark))
-                            .frame(width: 26, alignment: .trailing)
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .cardStyle(isDarkMode: isDark)
-    }
-}
-
-/// Gráfica de evolución del peso corporal.
-struct BodyWeightChart: View {
-    @EnvironmentObject var viewModel: WorkoutViewModel
-    @EnvironmentObject var themeManager: ThemeManager
-
-    private var isDark: Bool { themeManager.isDarkMode }
-
-    var body: some View {
-        let data = viewModel.bodyWeightSeries()
-        VStack(alignment: .leading, spacing: 10) {
-            Text("PESO CORPORAL")
-                .font(AppFonts.label).tracking(1.0)
-                .foregroundColor(AppColors.textSecondary(isDark: isDark))
 
             if data.count >= 2 {
-                Chart {
-                    ForEach(data, id: \.date) { p in
-                        LineMark(x: .value("Fecha", p.date), y: .value("kg", p.weight))
+                Chart(data) { pt in
+                    if mode == 1 {
+                        BarMark(x: .value("Fecha", pt.date, unit: .day), y: .value(unit, pt.value))
+                            .foregroundStyle(p.hgrad)
+                            .cornerRadius(4)
+                    } else {
+                        AreaMark(x: .value("Fecha", pt.date), y: .value(unit, pt.value))
                             .interpolationMethod(.catmullRom)
-                            .foregroundStyle(AppColors.primary(themeManager: themeManager))
-                        AreaMark(x: .value("Fecha", p.date), y: .value("kg", p.weight))
+                            .foregroundStyle(LinearGradient(colors: [p.acc.opacity(0.25), .clear],
+                                                            startPoint: .top, endPoint: .bottom))
+                        LineMark(x: .value("Fecha", pt.date), y: .value(unit, pt.value))
                             .interpolationMethod(.catmullRom)
-                            .foregroundStyle(AppColors.primary(themeManager: themeManager).opacity(0.12))
+                            .foregroundStyle(p.hgrad)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        PointMark(x: .value("Fecha", pt.date), y: .value(unit, pt.value))
+                            .foregroundStyle(p.acc)
+                            .symbolSize(30)
                     }
                 }
-                .chartYScale(domain: .automatic(includesZero: false))
+                .chartYScale(domain: .automatic(includesZero: mode == 1))
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                        AxisGridLine().foregroundStyle(p.line)
+                        AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                            .foregroundStyle(p.mute)
+                            .font(.fig(10, .medium))
+                    }
+                }
                 .chartYAxis {
-                    AxisMarks { _ in
-                        AxisGridLine().foregroundStyle(AppColors.hairline(isDark: isDark))
-                        AxisValueLabel()
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                        AxisGridLine().foregroundStyle(p.line)
+                        AxisValueLabel().foregroundStyle(p.mute).font(.fig(10, .medium))
                     }
                 }
                 .frame(height: 170)
+                .padding(.top, 4)
+
+                if let first = data.first?.value, let last = data.last?.value, first > 0 {
+                    let delta = (last - first) / first * 100
+                    Text(delta >= 0 ? "▲ \(Int(delta.rounded())) % desde la primera sesión" : "▼ \(Int((-delta).rounded())) % desde la primera sesión")
+                        .font(.fig(12, .semibold))
+                        .foregroundColor(delta >= 0 ? Pulso.ok(isDark: p.dark) : p.danger)
+                }
             } else {
-                Text("Registra tu peso en Historial para ver la evolución.")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.textSecondary(isDark: isDark))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 12)
+                Text(data.isEmpty
+                     ? "Aún no hay series registradas. La gráfica aparece con dos sesiones."
+                     : "Una sesión registrada. Con la siguiente verás la tendencia.")
+                    .font(.fig(13, .medium))
+                    .lineSpacing(3)
+                    .foregroundColor(p.mute)
+                    .frame(maxWidth: .infinity)
+                    .padding(16)
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(p.line, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
             }
         }
-        .padding(16)
-        .cardStyle(isDarkMode: isDark)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .pulsoCard(p, radius: 20)
     }
 }

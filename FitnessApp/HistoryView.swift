@@ -32,6 +32,7 @@ struct HistoryView: View {
                 ScreenHeader(title: "Historial", subtitle: "Progreso, peso corporal, notas y récords", p: p)
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
+                        weekCard.padding(.bottom, 8)
                         statsGrid
                         MonthGrid(month: $month, selected: $date,
                                   hasWorkout: { viewModel.hasWorkoutForDate($0) }, p: p)
@@ -77,6 +78,62 @@ struct HistoryView: View {
         } message: {
             Text("Se borran las series registradas, el peso y la nota de \(WeeklyCalendarView.longDate(date).lowercased()).")
         }
+    }
+
+    // MARK: - Esta semana contra la anterior
+
+    private var weekCard: some View {
+        let now = viewModel.weekStats()
+        let prev = viewModel.weekStats(offset: -1)
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Esta semana").font(.fig(16, .bold)).foregroundColor(p.ink)
+                Spacer()
+                Text("vs. anterior")
+                    .font(.fig(10, .bold)).tracking(0.8).foregroundColor(p.mute)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Capsule().fill(p.soft))
+            }
+            HStack(spacing: 8) {
+                weekTile("Sesiones", "\(now.sessions)", delta: Double(now.sessions - prev.sessions), unit: "")
+                weekTile("Series", "\(now.sets)", delta: Double(now.sets - prev.sets), unit: "")
+                weekTile("Tonelaje", tonelaje(now.volume), delta: now.volume - prev.volume, unit: "kg")
+                weekTile("Minutos", "\(now.minutes)", delta: Double(now.minutes - prev.minutes), unit: "")
+            }
+            .padding(.top, 12)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .pulsoCard(p, radius: 22)
+    }
+
+    private func weekTile(_ label: String, _ value: String, delta: Double, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(.fig(11, .medium)).foregroundColor(p.mute)
+            Text(value).font(.bri(18)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
+            Group {
+                if delta == 0 {
+                    Text("=").foregroundColor(p.mute)
+                } else {
+                    let up = delta > 0
+                    let abs = Swift.abs(delta)
+                    let text = unit == "kg"
+                        ? (abs >= 1000 ? String(format: "%.1f t", abs / 1000).replacingOccurrences(of: ".", with: ",") : "\(Int(abs.rounded())) kg")
+                        : "\(Int(abs.rounded()))"
+                    Text("\(up ? "▲" : "▼") \(text)")
+                        .foregroundColor(up ? Pulso.ok(isDark: p.dark) : p.danger)
+                }
+            }
+            .font(.fig(11, .bold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
+    }
+
+    private func tonelaje(_ kg: Double) -> String {
+        kg >= 1000 ? String(format: "%.1f t", kg / 1000).replacingOccurrences(of: ".", with: ",") : "\(Int(kg.rounded())) kg"
     }
 
     // MARK: - Cifras

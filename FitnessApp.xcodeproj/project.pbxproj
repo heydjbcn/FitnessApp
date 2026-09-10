@@ -123,15 +123,11 @@
 		};
 		54FF56C92E272C090011485E /* FitnessAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = FitnessAppTests;
 			sourceTree = "<group>";
 		};
 		54FF56D32E272C090011485E /* FitnessAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = FitnessAppUITests;
 			sourceTree = "<group>";
 		};
@@ -195,7 +191,6 @@
 				38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */,
 				4FC221B1CDFF3C3256B16C38 /* Watch.entitlements */,
 			);
-			name = WatchApp;
 			path = WatchApp;
 			sourceTree = "<group>";
 		};
@@ -208,7 +203,6 @@
 				89295C9FFD4744E36409A06F /* Info.plist */,
 				786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */,
 			);
-			name = ChamaFitWidgets;
 			path = ChamaFitWidgets;
 			sourceTree = "<group>";
 		};
@@ -253,7 +247,6 @@
 				009C7D8848F4D553FFDB4435 /* RestActivity.swift */,
 				43DEE2203B6080FA0954AB99 /* TodaySummary.swift */,
 			);
-			name = Shared;
 			path = Shared;
 			sourceTree = "<group>";
 		};

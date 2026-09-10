@@ -314,6 +314,17 @@ final class WorkoutViewModel: ObservableObject {
         return byDay.map { (date: $0.key, volume: $0.value) }.sorted { $0.date < $1.date }
     }
 
+    /// Mejor 1RM estimado por sesión.
+    func exerciseDailyOneRepMax(for exerciseId: UUID) -> [(date: Date, oneRepMax: Double)] {
+        let cal = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for log in allSetLogs(for: exerciseId) where log.weight > 0 {
+            let d = cal.startOfDay(for: log.date)
+            byDay[d] = Swift.max(byDay[d] ?? 0, (log.estimatedOneRepMax * 10).rounded() / 10)
+        }
+        return byDay.map { (date: $0.key, oneRepMax: $0.value) }.sorted { $0.date < $1.date }
+    }
+
     func bodyWeightSeries() -> [(date: Date, weight: Double)] {
         bodyWeightHistory.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
     }

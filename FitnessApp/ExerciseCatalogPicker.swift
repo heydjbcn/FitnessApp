@@ -1,9 +1,9 @@
 //
 //  ExerciseCatalogPicker.swift
-//  FitnessApp
+//  ChamaFit
 //
-//  Selector del catálogo de ejercicios (buscable + filtro por grupo) con
-//  opción de crear uno personalizado.
+//  Catálogo de ejercicios en estilo «Pulso»: buscador, chips por grupo
+//  muscular y la lista, con opción de crear uno desde cero.
 //
 
 import SwiftUI
@@ -14,104 +14,115 @@ struct ExerciseCatalogPicker: View {
     /// nil = crear personalizado.
     let onSelect: (CatalogExercise?) -> Void
 
-    @State private var query: String = ""
+    @State private var query = ""
     @State private var group: String? = nil
+    @FocusState private var searching: Bool
 
-    private var isDark: Bool { themeManager.isDarkMode }
+    private var p: Palette { themeManager.p }
     private var results: [CatalogExercise] { ExerciseCatalog.filtered(group: group, query: query) }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AppColors.background(isDark: isDark).ignoresSafeArea()
-                VStack(spacing: 12) {
-                    // Buscador
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(AppColors.textSecondary(isDark: isDark))
-                        TextField("Buscar ejercicio", text: $query)
-                            .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                    }
-                    .padding(.horizontal, 14).frame(height: 44)
-                    .background(AppColors.cardBackground(isDark: isDark)).cornerRadius(12)
-                    .padding(.horizontal)
+        PulsoSheet(p: p) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    UpperLabel(text: "\(ExerciseCatalog.all.count) ejercicios", p: p)
+                    Text("Catálogo").font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
+                }
+                Spacer()
+                CloseCircle(p: p) { dismiss() }
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 22)
 
-                    // Filtro por grupo (chips)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            chip(title: "Todos", active: group == nil) { group = nil }
-                            ForEach(MuscleGroup.all, id: \.self) { g in
-                                chip(title: g, active: group == g) { group = (group == g ? nil : g) }
-                            }
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).foregroundColor(p.mute)
+                TextField("", text: $query, prompt: Text("Buscar ejercicio").foregroundColor(p.mute.opacity(0.8)))
+                    .font(.fig(15, .medium))
+                    .foregroundColor(p.ink)
+                    .focused($searching)
+                    .submitLabel(.search)
+                if !query.isEmpty {
+                    Button { query = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundColor(p.mute)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 48)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(searching ? p.acc : p.line, lineWidth: 1))
+            .padding(.horizontal, 22)
+            .padding(.top, 14)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    chip("Todos", active: group == nil) { group = nil }
+                    ForEach(MuscleGroup.all, id: \.self) { g in
+                        chip(g, active: group == g) { group = (group == g ? nil : g) }
+                    }
+                }
+                .padding(.horizontal, 22)
+            }
+            .padding(.top, 10)
+
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 6) {
+                    Button { onSelect(nil); dismiss() } label: {
+                        HStack(spacing: 12) {
+                            IconTile(symbol: "plus", size: 40, radius: 13, gradient: true, p: p)
+                            Text("Crear ejercicio desde cero")
+                                .font(.fig(15, .bold)).foregroundColor(p.ink)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(p.mute)
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .pulsoCard(p, radius: 16)
                     }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 4)
 
-                    // Lista
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            // Crear personalizado
-                            Button { onSelect(nil) } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "plus")
-                                        .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                                        .frame(width: 40, height: 40)
-                                        .background(RoundedRectangle(cornerRadius: 10).fill(AppColors.primary(themeManager: themeManager)))
-                                    Text("Crear ejercicio personalizado")
-                                        .font(AppFonts.subtitle)
-                                        .foregroundColor(AppColors.textPrimary(isDark: isDark))
-                                    Spacer()
+                    if results.isEmpty {
+                        Text("Nada con «\(query)». Créalo desde cero.")
+                            .font(.fig(13, .medium)).foregroundColor(p.mute)
+                            .frame(maxWidth: .infinity).padding(20)
+                    }
+                    ForEach(results) { ex in
+                        Button { onSelect(ex); dismiss() } label: {
+                            HStack(spacing: 12) {
+                                IconTile(symbol: ex.icon, size: 40, radius: 13, p: p)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(ex.name).font(.fig(14, .semibold)).foregroundColor(p.ink)
+                                    Text("\(ex.muscleGroup) · \(ex.sets) × \(ex.reps > 0 ? "\(ex.reps)" : "tiempo")\(ex.weight > 0 ? " · \(Int(ex.weight)) kg" : "")")
+                                        .font(.fig(12, .medium)).foregroundColor(p.mute)
                                 }
-                                .padding(12).cardStyle(isDarkMode: isDark)
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(p.mute)
                             }
-
-                            ForEach(results) { ex in
-                                Button { onSelect(ex) } label: { row(ex) }
-                            }
+                            .padding(.horizontal, 12).padding(.vertical, 10)
+                            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 24)
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 22)
+                .padding(.top, 12)
+                .padding(.bottom, 30)
             }
-            .navigationTitle("Añadir ejercicio")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cerrar") { dismiss() }
-                        .foregroundColor(AppColors.primary(themeManager: themeManager))
-                }
-            }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
-    @ViewBuilder
-    private func row(_ ex: CatalogExercise) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: ex.icon)
-                .foregroundColor(AppColors.primary(themeManager: themeManager))
-                .frame(width: 40, height: 40)
-                .background(RoundedRectangle(cornerRadius: 10).fill(AppColors.primary(themeManager: themeManager).opacity(0.12)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ex.name).font(AppFonts.bodyMedium).foregroundColor(AppColors.textPrimary(isDark: isDark))
-                Text(ex.muscleGroup).font(AppFonts.caption).foregroundColor(AppColors.textSecondary(isDark: isDark))
-            }
-            Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 12)).foregroundColor(AppColors.textTertiary(isDark: isDark))
-        }
-        .padding(12).cardStyle(isDarkMode: isDark)
-    }
-
-    @ViewBuilder
-    private func chip(title: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func chip(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button { action(); HapticManager.shared.selectionFeedback() } label: {
             Text(title)
-                .font(AppFonts.caption)
-                .foregroundColor(active ? AppColors.onPrimary(themeManager: themeManager) : AppColors.textPrimary(isDark: isDark))
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(
-                    Capsule().fill(active ? AppColors.primary(themeManager: themeManager) : AppColors.cardBackground(isDark: isDark))
-                )
+                .font(.fig(13, active ? .bold : .semibold))
+                .foregroundColor(active ? p.onacc : p.mute)
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background(Capsule().fill(active ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
+                .overlay(Capsule().strokeBorder(active ? .clear : p.line, lineWidth: 1))
         }
+        .buttonStyle(.plain)
     }
 }
