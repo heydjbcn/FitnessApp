@@ -119,6 +119,12 @@ class ChamaFitUITests: XCTestCase {
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
+    /// Cierra un menú abierto tocando la cabecera (fuera del menú).
+    func closeMenu() {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.1)).tap()
+        sleep(1)
+    }
+
     /// El menú de rutinas del Calendario.
     var routineMenu: XCUIElement { app.descendants(matching: .any)["routine.menu"].firstMatch }
 
@@ -500,7 +506,7 @@ class ChamaFitUITests: XCTestCase {
         confirm("Eliminar rutina")
         tap(routineMenu)
         XCTAssertFalse(app.buttons["Fuerza"].waitForExistence(timeout: 2))
-        app.tap()                                              // cerrar el menú
+        closeMenu()
         snap("calendario-semana")
 
         // Mes.
@@ -656,7 +662,7 @@ class ChamaFitUITests: XCTestCase {
 
         // Coach IA sin key: guardar y quitar.
         tap(app.staticTexts["Coach IA"])
-        XCTAssertTrue(exists(app.staticTexts["Activa el Coach IA"]))
+        XCTAssertTrue(exists(app.staticTexts["Activa el Coach con Claude"]))
         XCTAssertFalse(app.buttons["Guardar y activar"].isEnabled)
         let key = app.secureTextFields.firstMatch
         type("sk-ant-prueba", into: key)
@@ -666,7 +672,7 @@ class ChamaFitUITests: XCTestCase {
         closeSheet()
         tap(app.staticTexts["Coach IA"])
         // Con key el chat sale directo; el botón de la llave vuelve a la pantalla de la key.
-        if !app.staticTexts["Activa el Coach IA"].exists {
+        if !app.staticTexts["Activa el Coach con Claude"].exists {
             let keyButton = app.buttons.matching(NSPredicate(format: "label == 'key' OR label == 'key.fill' OR label == 'Key'")).firstMatch
             if keyButton.exists { keyButton.tap() }
         }
@@ -787,7 +793,7 @@ class ChamaFitUITests: XCTestCase {
         // La anterior sigue guardada.
         tap(routineMenu)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mi rutina'")).firstMatch.waitForExistence(timeout: 5))
-        app.tap()
+        closeMenu()
 
         // Técnica en el detalle.
         tab("Ejercicios")
