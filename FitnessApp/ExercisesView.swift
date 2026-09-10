@@ -21,7 +21,7 @@ struct ExercisesView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            p.bg.ignoresSafeArea()
+            PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHeader(title: "Ejercicios",
                              subtitle: "\(viewModel.availableExercises.count) en tu biblioteca", p: p) {

@@ -37,7 +37,7 @@ struct WeeklyCalendarView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            p.bg.ignoresSafeArea()
+            PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHeader(title: "Calendario", size: 26,
                              subtitle: "Tu semana de entrenamiento · toca un día para ver su sesión", p: p) {
@@ -328,6 +328,12 @@ struct WeeklyCalendarView: View {
                             ExerciseListRow(exercise: exercise, meta: viewModel.meta(for: exercise), p: p) {
                                 detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id, day: weekday)
                             }
+                        }
+                    }
+                    if planned.isEmpty {
+                        SoftButton(title: "+ Añadir ejercicio al \(weekday.displayName.lowercased())",
+                                   height: 44, p: p) {
+                            formDay = HomeView.FormTarget(day: weekday)
                         }
                     }
                 }

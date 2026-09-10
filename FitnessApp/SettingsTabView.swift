@@ -28,7 +28,7 @@ struct SettingsTabView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            p.bg.ignoresSafeArea()
+            PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHeader(title: "Configuración", p: p)
                 ScrollView(showsIndicators: false) {

@@ -27,7 +27,7 @@ struct HistoryView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            p.bg.ignoresSafeArea()
+            PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHeader(title: "Historial", subtitle: "Progreso, peso corporal, notas y récords", p: p)
                 ScrollView(showsIndicators: false) {

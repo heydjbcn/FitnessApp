@@ -105,10 +105,12 @@ class WorkoutViewModel: ObservableObject {
         return workoutHistory[key]
     }
     
+    /// True si ese día se hizo al menos una serie. Antes bastaba con que hubiera
+    /// registro, y un día abierto sin marcar nada (0 series) salía como entrenado.
     func hasWorkoutForDate(_ date: Date) -> Bool {
         let key = Calendar.current.startOfDay(for: date)
         guard let historyForDate = workoutHistory[key] else { return false }
-        return !historyForDate.values.allSatisfy { $0.isEmpty }
+        return historyForDate.values.contains { day in day.contains { $0.completedSets > 0 } }
     }
     
     /// Guarda todo el estado (para las extensiones, que no ven `saveData`).

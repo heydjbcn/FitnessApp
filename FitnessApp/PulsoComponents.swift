@@ -40,6 +40,26 @@ extension ThemeManager {
     var p: Palette { Palette(dark: isDarkMode, accent: selectedAccentColor) }
 }
 
+// MARK: - Fondo
+
+/// Fondo de todas las pantallas del prototipo: el color base con dos
+/// resplandores del acento, violeta arriba a la izquierda y cian a la derecha.
+struct PulsoBackground: View {
+    let p: Palette
+
+    var body: some View {
+        ZStack {
+            p.bg
+            Circle().fill(p.glow1).frame(width: 380, height: 380).blur(radius: 100)
+                .offset(x: -110, y: -330)
+            Circle().fill(p.glow2).frame(width: 320, height: 320).blur(radius: 110)
+                .offset(x: 190, y: 40)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}
+
 // MARK: - Tarjeta de cristal
 
 extension View {
@@ -583,7 +603,8 @@ struct MonthGrid: View {
         let days = calendar.range(of: .day, in: .month, for: month)?.count ?? 30
         var out: [Date?] = Array(repeating: nil, count: lead)
         for d in 0..<days { out.append(calendar.date(byAdding: .day, value: d, to: first)) }
-        while out.count % 7 != 0 { out.append(nil) }
+        // Siempre seis filas, como el prototipo: la tarjeta no cambia de alto al pasar de mes.
+        while out.count < 42 { out.append(nil) }
         return out
     }
 
@@ -650,26 +671,32 @@ struct MonthGrid: View {
             selected = date
             HapticManager.shared.selectionFeedback()
         } label: {
-            VStack(spacing: 3) {
-                Text("\(calendar.component(.day, from: date))")
-                    .font(isSel ? .bri(14) : .fig(14, isToday ? .bold : .medium))
-                    .foregroundColor(isSel ? p.onacc : p.ink)
-                Circle()
-                    .fill(isSel ? p.onacc : p.acc)
-                    .frame(width: 5, height: 5)
-                    .opacity(worked ? 1 : 0)
-            }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSel ? AnyShapeStyle(p.grad) : AnyShapeStyle(Color.clear))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(isToday && !isSel ? p.acc : .clear, lineWidth: 1.5)
-            )
-            .shadow(color: isSel ? p.glow1 : .clear, radius: 8, y: 6)
+            // El cuadrado lo marca un Color.clear con proporción 1:1 que ocupa
+            // todo el ancho de la columna: así todas las celdas miden igual y las
+            // filas no bailan según haya huecos o no (antes el número mandaba en
+            // el tamaño y el día elegido salía como una pastilla pequeña).
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(isSel ? AnyShapeStyle(p.grad) : AnyShapeStyle(Color.clear))
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(isToday && !isSel ? p.acc : .clear, lineWidth: 1.5)
+                        VStack(spacing: 3) {
+                            Text("\(calendar.component(.day, from: date))")
+                                .font(isSel ? .bri(14) : .fig(14, isToday ? .bold : .medium))
+                                .foregroundColor(isSel ? p.onacc : p.ink)
+                            if worked {
+                                Circle()
+                                    .fill(isSel ? p.onacc : p.acc)
+                                    .frame(width: 5, height: 5)
+                            }
+                        }
+                    }
+                }
+                .shadow(color: isSel ? p.glow1 : .clear, radius: 8, y: 6)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

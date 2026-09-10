@@ -27,8 +27,7 @@ struct HomeView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            p.bg.ignoresSafeArea()
-            glow
+            PulsoBackground(p: p)
 
             VStack(alignment: .leading, spacing: 0) {
                 header
@@ -58,19 +57,6 @@ struct HomeView: View {
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
-    }
-
-    /// Los dos resplandores del fondo del prototipo (violeta arriba, cian a la derecha).
-    private var glow: some View {
-        ZStack {
-            Circle().fill(p.glow1).frame(width: 360, height: 360).blur(radius: 90)
-                .offset(x: -90, y: -210)
-            Circle().fill(p.glow2).frame(width: 300, height: 300).blur(radius: 100)
-                .offset(x: 170, y: 120)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
     }
 
     // MARK: - Cabecera fija
