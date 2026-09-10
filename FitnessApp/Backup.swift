@@ -23,6 +23,9 @@ struct ChamaFitBackup: Codable {
     var dayLabels: [WorkoutDay: String]
     var notes: [Date: String]
     var profile: [String: String]
+    /// Rutinas guardadas y nombre de la activa (opcionales: copias antiguas no los traen).
+    var routines: [Routine]? = nil
+    var activeRoutineName: String? = nil
 }
 
 extension WorkoutViewModel {
@@ -37,7 +40,8 @@ extension WorkoutViewModel {
         return ChamaFitBackup(exercises: availableExercises, plan: dailyWorkoutRecords,
                               history: workoutHistory, bodyWeight: bodyWeightHistory,
                               activeDays: activeDays, dayLabels: dayLabels,
-                              notes: sessionNotes, profile: profile)
+                              notes: sessionNotes, profile: profile,
+                              routines: savedRoutines, activeRoutineName: activeRoutineName)
     }
 
     func backupData() throws -> Data {
@@ -76,6 +80,8 @@ extension WorkoutViewModel {
         for (key, value) in backup.profile where Self.profileKeys.contains(key) {
             userDefaults.set(value, forKey: key)
         }
+        savedRoutines = backup.routines ?? []
+        activeRoutineName = backup.activeRoutineName ?? "Mi rutina"
         // Las series que traiga la plantilla pertenecen al día en que se hizo la copia.
         userDefaults.set(Calendar.current.startOfDay(for: backup.exportedAt), forKey: "LastSessionDate")
         saveNow()

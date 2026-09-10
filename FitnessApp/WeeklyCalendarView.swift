@@ -26,6 +26,58 @@ struct WeeklyCalendarView: View {
     @State private var selectedDate = Date()
     @State private var detail: DetailTarget? = nil
     @State private var formDay: HomeView.FormTarget? = nil
+    @State private var reordering: WorkoutDay? = nil
+    @State private var namingNew = false
+    @State private var renaming = false
+    @State private var routineName = ""
+    @State private var routineToDelete: Routine? = nil
+
+    // MARK: - Rutinas guardadas
+
+    /// "Rutina: Fuerza ▾" — cambiar, crear, renombrar o eliminar rutinas.
+    private var routineRow: some View {
+        let saved = viewModel.savedRoutines
+        return Menu {
+            Section("Rutinas") {
+                Label(viewModel.activeRoutineName, systemImage: "checkmark").disabled(true)
+                ForEach(saved) { r in
+                    Button { viewModel.activate(r) } label: {
+                        Label("\(r.name) · \(r.summary)", systemImage: "arrow.right.circle")
+                    }
+                }
+            }
+            Section {
+                Button { routineName = ""; namingNew = true } label: { Label("Nueva rutina…", systemImage: "plus") }
+                Button { routineName = viewModel.activeRoutineName; renaming = true } label: { Label("Renombrar la actual…", systemImage: "pencil") }
+            }
+            if !saved.isEmpty {
+                Section("Eliminar") {
+                    ForEach(saved) { r in
+                        Button(role: .destructive) { routineToDelete = r } label: { Label(r.name, systemImage: "trash") }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                IconTile(symbol: "list.bullet.rectangle.portrait", size: 34, radius: 11, p: p)
+                VStack(alignment: .leading, spacing: 1) {
+                    UpperLabel(text: "Rutina activa", p: p)
+                    Text(viewModel.activeRoutineName).font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
+                }
+                Spacer()
+                if !saved.isEmpty {
+                    Text("+\(saved.count)").font(.fig(11, .bold)).foregroundColor(p.acc)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Capsule().fill(p.soft))
+                }
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold)).foregroundColor(p.mute)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .pulsoCard(p, radius: 18)
+            .padding(.top, 10)
+        }
+        .buttonStyle(.plain)
+    }
 
     private var p: Palette { themeManager.p }
     private var today: WorkoutDay { Self.getCurrentDay() }
@@ -45,7 +97,12 @@ struct WeeklyCalendarView: View {
                 }
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        if mode == 0 { weekList } else { monthView }
+                        if mode == 0 {
+                            routineRow
+                            weekList
+                        } else {
+                            monthView
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
@@ -55,6 +112,27 @@ struct WeeklyCalendarView: View {
             }
         }
         .onAppear { viewModel.updateTimerEnabledState(themeManager.isTimerEnabled) }
+        .alert("Nueva rutina", isPresented: $namingNew) {
+            TextField("Nombre (Fuerza, Hipertrofia…)", text: $routineName)
+            Button("Vacía") { viewModel.createRoutine(named: routineName, copyingCurrent: false) }
+            Button("Copiar la actual") { viewModel.createRoutine(named: routineName, copyingCurrent: true) }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("La rutina de ahora se guarda con su nombre y la nueva pasa a ser la activa.")
+        }
+        .alert("Renombrar rutina", isPresented: $renaming) {
+            TextField("Nombre", text: $routineName)
+            Button("Guardar") { viewModel.renameActiveRoutine(routineName) }
+            Button("Cancelar", role: .cancel) {}
+        }
+        .confirmationDialog("¿Eliminar «\(routineToDelete?.name ?? "")»?", isPresented: Binding(get: { routineToDelete != nil },
+                                                                                            set: { if !$0 { routineToDelete = nil } }),
+                            titleVisibility: .visible) {
+            Button("Eliminar rutina", role: .destructive) {
+                if let r = routineToDelete { viewModel.deleteRoutine(r) }
+                routineToDelete = nil
+            }
+        }
         .sheet(item: $detail) { target in
             ExerciseDetailSheet(exerciseId: target.exerciseId,
                                 workoutExerciseId: target.workoutExerciseId,
@@ -223,16 +301,45 @@ struct WeeklyCalendarView: View {
             }
 
             if !records.isEmpty {
+                let isReordering = reordering == day
                 VStack(spacing: 6) {
-                    ForEach(records) { record in
+                    ForEach(Array(records.enumerated()), id: \.element.id) { i, record in
                         if let exercise = viewModel.getExercise(by: record.exerciseId) {
-                            ExerciseListRow(exercise: exercise, meta: viewModel.meta(for: exercise), p: p) {
-                                detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id, day: day)
+                            HStack(spacing: 6) {
+                                ExerciseListRow(exercise: exercise, meta: viewModel.meta(for: exercise), p: p) {
+                                    if !isReordering {
+                                        detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id, day: day)
+                                    }
+                                }
+                                if isReordering {
+                                    VStack(spacing: 4) {
+                                        arrow("chevron.up", enabled: i > 0) { viewModel.moveExercise(in: day, from: i, to: i - 1) }
+                                        arrow("chevron.down", enabled: i < records.count - 1) { viewModel.moveExercise(in: day, from: i, to: i + 1) }
+                                    }
+                                }
                             }
                         }
                     }
                 }
                 .padding(.top, 12)
+                .animation(.spring(response: 0.3, dampingFraction: 0.85), value: records.map(\.id))
+
+                if records.count > 1 {
+                    Button {
+                        withAnimation { reordering = isReordering ? nil : day }
+                        HapticManager.shared.buttonTapped()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: isReordering ? "checkmark" : "arrow.up.arrow.down").font(.system(size: 11, weight: .bold))
+                            Text(isReordering ? "Listo" : "Reordenar").font(.fig(12, .semibold))
+                        }
+                        .foregroundColor(isReordering ? p.onacc : p.acc)
+                        .padding(.horizontal, 12).frame(height: 30)
+                        .background(Capsule().fill(isReordering ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+                }
             }
 
             HStack(spacing: 8) {
@@ -271,6 +378,19 @@ struct WeeklyCalendarView: View {
         .padding(.top, 12)
         .padding(.bottom, 16)
         .overlay(alignment: .top) { Rectangle().fill(p.line).frame(height: 1) }
+    }
+
+    private func arrow(_ symbol: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(p.ink)
+                .frame(width: 30, height: 26)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.soft))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.3)
     }
 
     private func saveLabel(_ day: WorkoutDay) {
