@@ -2,23 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Lo que el Info.plist generado por Xcode no puede llevar. El resto de
-	     claves salen de los INFOPLIST_KEY_* del proyecto. -->
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
-	<false/>
-	<key>NSHealthShareUsageDescription</key>
-	<string>ChamaFit lee tu ritmo cardíaco y las calorías del entrenamiento que registra el Apple Watch.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud.</string>
-	<!-- Client ID de la app registrada en developer.spotify.com (Redirect URI chamafit-spotify://callback) -->
-	<key>SpotifyClientID</key>
-	<string>PON_AQUI_EL_CLIENT_ID</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>spotify</string>
-	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -30,6 +13,20 @@
 			</array>
 		</dict>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>ChamaFit lee tu ritmo cardíaco y las calorías del entrenamiento que registra el Apple Watch.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<false/>
+	<key>SpotifyClientID</key>
+	<string>8b16bbe7e91f4629b136a75ed9027890</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
