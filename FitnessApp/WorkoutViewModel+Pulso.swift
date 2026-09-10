@@ -30,10 +30,15 @@ extension WorkoutViewModel {
 
     /// "82,5 kg" / "80 kg", como lo escribe el prototipo.
     static func kg(_ value: Double) -> String {
-        let text = value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(value))
-            : String(format: "%.1f", value).replacingOccurrences(of: ".", with: ",")
-        return "\(text) kg"
+        return "\(number(value)) kg"
+    }
+
+    /// 40 → "40", 42.5 → "42,5", 53.75 → "53,75" (discos de 1,25 kg).
+    static func number(_ value: Double) -> String {
+        var text = String(format: "%.2f", value)
+        while text.hasSuffix("0") { text.removeLast() }
+        if text.hasSuffix(".") { text.removeLast() }
+        return text.replacingOccurrences(of: ".", with: ",")
     }
 
     /// "2:00" / "45 s"

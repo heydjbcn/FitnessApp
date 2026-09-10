@@ -232,7 +232,7 @@ struct CoachAIView: View {
                     line += ", récord \(WorkoutViewModel.kg(pr.weight)) (1RM est. \(Int(pr.oneRepMax)) kg)"
                 }
                 if let last = viewModel.lastPerformance(for: ex.id) {
-                    line += ", última serie \(String(format: "%g", last.weight)) kg × \(last.reps)"
+                    line += ", última serie \(WorkoutViewModel.kg(last.weight)) × \(last.reps)"
                 }
                 lines.append(line)
             }

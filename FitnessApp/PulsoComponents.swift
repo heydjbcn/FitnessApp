@@ -745,6 +745,7 @@ struct PulsoSheet<Content: View, Footer: View>: View {
             footer
         }
         .background(p.sheet.ignoresSafeArea())
+        .keyboardDoneButton()
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(30)
         .presentationBackground(p.sheet)
@@ -877,6 +878,7 @@ struct PulsoRestTimer: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("timer.stop")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("timer.card")
         .padding(.leading, 18)
         .padding(.trailing, 12)
@@ -921,5 +923,24 @@ extension UIImage {
         guard scale < 1 else { return self }
         let target = CGSize(width: size.width * scale, height: size.height * scale)
         return UIGraphicsImageRenderer(size: target).image { _ in draw(in: CGRect(origin: .zero, size: target)) }
+    }
+}
+
+// MARK: - Teclado
+
+extension View {
+    /// "Listo" encima del teclado. Los teclados numéricos (kg, reps, peso,
+    /// edad…) no traen tecla para cerrarse y tapaban el pie de las hojas.
+    func keyboardDoneButton() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Listo") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                .font(.system(size: 16, weight: .semibold))
+                .accessibilityIdentifier("keyboard.done")
+            }
+        }
     }
 }

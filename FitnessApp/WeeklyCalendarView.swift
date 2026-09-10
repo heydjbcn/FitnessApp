@@ -77,6 +77,7 @@ struct WeeklyCalendarView: View {
             .padding(.top, 10)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("routine.menu")
     }
 
     private var p: Palette { themeManager.p }

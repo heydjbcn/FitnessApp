@@ -103,6 +103,7 @@ struct ExerciseCatalogPicker: View {
                             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("catalog.\(ex.name)")
                     }
                 }
                 .padding(.horizontal, 22)
@@ -124,5 +125,6 @@ struct ExerciseCatalogPicker: View {
                 .overlay(Capsule().strokeBorder(active ? .clear : p.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("catalog.chip.\(title)")
     }
 }

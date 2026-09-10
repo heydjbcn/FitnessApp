@@ -189,6 +189,10 @@ struct HistoryView: View {
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(p.soft))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.acc, lineWidth: 1))
                     .padding(.top, 10)
+                    // El teclado tapa "Guardar": cerrarlo con "Listo" ya guarda.
+                    .onChange(of: weightFocused) { _, focused in
+                        if !focused && editingWeight { saveWeight() }
+                    }
                 PrimaryButton(title: "Guardar", height: 38, fontSize: 13, p: p) { saveWeight() }
                     .padding(.top, 8)
             } else {
@@ -208,7 +212,7 @@ struct HistoryView: View {
                 }
                 Spacer(minLength: 8)
                 Button {
-                    weightInput = viewModel.bodyWeightForDate(date).map { String(format: "%g", $0).replacingOccurrences(of: ".", with: ",") } ?? ""
+                    weightInput = viewModel.bodyWeightForDate(date).map { WorkoutViewModel.number($0) } ?? ""
                     editingWeight = true
                     weightFocused = true
                 } label: {

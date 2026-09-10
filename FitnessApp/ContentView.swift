@@ -9,6 +9,8 @@ struct ContentView: View {
     @State private var selectedTab = 0
     /// Día que enseña Inicio; el Calendario lo cambia con "Entrenar este día".
     @State private var homeDay: WorkoutDay = WeeklyCalendarView.getCurrentDay()
+    /// Fecha en que se fijó `homeDay`: al volver del fondo otro día, Inicio salta a hoy.
+    @State private var homeDate = Calendar.current.startOfDay(for: Date())
     @State private var tutorial: TutorialStep? = nil
     @State private var showingWelcome = false
     @State private var tutorialForm = false
@@ -29,6 +31,7 @@ struct ContentView: View {
                 HomeView(selectedTab: $selectedTab, selectedDay: $homeDay)
                     .tabItem { Label("Inicio", systemImage: "house.fill") }
                     .tag(0)
+                    .keyboardDoneButton()
 
                 WeeklyCalendarView(onTrain: { day in
                     homeDay = day
@@ -36,20 +39,26 @@ struct ContentView: View {
                 })
                     .tabItem { Label("Calendario", systemImage: "calendar") }
                     .tag(1)
+                    .keyboardDoneButton()
 
                 ExercisesView()
                     .tabItem { Label("Ejercicios", systemImage: "dumbbell.fill") }
                     .tag(2)
+                    .keyboardDoneButton()
 
                 HistoryView()
                     .tabItem { Label("Historial", systemImage: "clock.fill") }
                     .tag(3)
+                    .keyboardDoneButton()
 
                 SettingsTabView(onStartTutorial: { startTutorial() })
                     .tabItem { Label("Ajustes", systemImage: "gearshape.fill") }
                     .tag(4)
+                    .keyboardDoneButton()
             }
             .tint(p.acc)
+            // En el TabView hace falta para las hojas; en cada pestaña, para sus campos.
+            .keyboardDoneButton()
             .environmentObject(viewModel)
             .environmentObject(themeManager)
             .environmentObject(userManager)
@@ -129,7 +138,8 @@ struct ContentView: View {
             viewModel.trainingDay = homeDay
             PhoneConnectivity.shared.sendTodayContext()
             viewModel.updateTimerEnabledState(themeManager.isTimerEnabled)
-            UIApplication.shared.isIdleTimerDisabled = keepScreenOn
+            // En pruebas, la pantalla no se apaga: un iPhone bloqueado tumba la batería.
+            UIApplication.shared.isIdleTimerDisabled = keepScreenOn || AppDefaults.isTesting
             // Primera vez: la pantalla "Entrena con pulso" pide el nombre.
             if userManager.userName.trimmingCharacters(in: .whitespaces).isEmpty {
                 showingWelcome = true
@@ -142,18 +152,22 @@ struct ContentView: View {
             viewModel.trainingDay = day
             PhoneConnectivity.shared.sendTodayContext()
         }
-        .onChange(of: keepScreenOn) { _, on in UIApplication.shared.isIdleTimerDisabled = on }
+        .onChange(of: keepScreenOn) { _, on in UIApplication.shared.isIdleTimerDisabled = on || AppDefaults.isTesting }
         .onChange(of: selectedTab) { _, _ in HapticManager.shared.tabChanged() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             // Si ha cambiado el día, la sesión de ayer se archiva y hoy empieza
             // a cero; el descanso en curso se recalcula contra el reloj de pared.
-            let wasToday = homeDay == WeeklyCalendarView.getCurrentDay()
             viewModel.ensureSession()
             viewModel.tick()
             NotificationManager.shared.clearDelivered()
             PhoneConnectivity.shared.sendTodayContext()
             spotify.reconnectIfNeeded()
-            if !wasToday || viewModel.sessionDate != Calendar.current.startOfDay(for: Date()) {
+            // Inicio vuelve a hoy solo si ha cambiado la fecha. Bloquear el
+            // móvil entre series no puede sacarte del día que estás entrenando
+            // (antes, entrenando la rutina del lunes un jueves, saltaba al jueves).
+            let now = Calendar.current.startOfDay(for: Date())
+            if now != homeDate {
+                homeDate = now
                 homeDay = WeeklyCalendarView.getCurrentDay()
             }
         }

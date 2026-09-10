@@ -183,6 +183,7 @@ struct ExerciseDetailSheet: View {
                         .font(.fig(12, .semibold))
                         .foregroundColor(p.acc)
                 }
+                .accessibilityIdentifier("detail.superset")
             }
 
             if rec.setLogs.isEmpty {
@@ -221,6 +222,7 @@ struct ExerciseDetailSheet: View {
             .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(p.soft))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("detail.plates")
     }
 
     private var progress: some View {
@@ -260,7 +262,7 @@ struct ExerciseDetailSheet: View {
                                         if let tag = log.type.shortTag {
                                             Text(tag).font(.fig(9, .bold)).foregroundColor(p.acc)
                                         }
-                                        Text("\(String(format: "%g", log.weight))×\(log.reps)")
+                                        Text("\(WorkoutViewModel.number(log.weight))×\(log.reps)")
                                             .font(.fig(11, .semibold)).foregroundColor(p.ink)
                                         if let rpe = log.rpe {
                                             Text("@\(rpe)").font(.fig(9, .medium)).foregroundColor(p.mute)
@@ -363,6 +365,8 @@ private struct SetLogRow: View {
                             .fill(type == .normal ? AnyShapeStyle(p.grad) : AnyShapeStyle(tagColor(type)))
                     )
             }
+            .accessibilityIdentifier("setlog.type.\(index)")
+            .accessibilityLabel("Tipo de la serie \(index): \(type.label)")
 
             field($weight, suffix: "kg", keyboard: .decimalPad, width: 46)
             Text("×").font(.fig(14, .semibold)).foregroundColor(p.mute)
@@ -387,7 +391,7 @@ private struct SetLogRow: View {
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
         .onAppear {
-            weight = String(format: "%g", log.weight)
+            weight = WorkoutViewModel.number(log.weight)
             reps = "\(log.reps)"
             type = log.type
             rpe = log.rpe.map { "\($0)" } ?? ""

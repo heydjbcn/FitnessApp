@@ -73,7 +73,7 @@ struct HomeView: View {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(p.acc)
-                    Text("\(viewModel.consecutiveWorkoutDays()) días")
+                    Text(Self.streakText(viewModel.consecutiveWorkoutDays()))
                         .font(.fig(12, .semibold))
                         .foregroundColor(p.ink)
                 }
@@ -123,6 +123,9 @@ struct HomeView: View {
         let nombre = userManager.userName.trimmingCharacters(in: .whitespaces)
         return nombre.isEmpty ? g : "\(g), \(nombre)"
     }
+
+    /// "1 día", "5 días".
+    static func streakText(_ n: Int) -> String { n == 1 ? "1 día" : "\(n) días" }
 
     // MARK: - Tarjeta de sesión
 

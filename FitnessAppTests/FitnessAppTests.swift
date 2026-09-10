@@ -671,6 +671,8 @@ struct TimerTests {
     @Test func helpersFormatting() {
         #expect(WorkoutViewModel.kg(42.5) == "42,5 kg")
         #expect(WorkoutViewModel.kg(40) == "40 kg")
+        #expect(WorkoutViewModel.kg(53.75) == "53,75 kg")
+        #expect(WorkoutViewModel.number(0.5) == "0,5")
         #expect(WorkoutViewModel.restText(90) == "1:30")
         #expect(WorkoutViewModel.restText(30) == "30 s")
         #expect(ExerciseDetailSheet.ssLetter(0) == "A")

@@ -97,7 +97,7 @@ struct PlateCalculatorView: View {
                             ForEach(perSide, id: \.plate) { item in
                                 HStack {
                                     plateChip(item.plate)
-                                    Text("\(String(format: "%g", item.plate)) kg")
+                                    Text(WorkoutViewModel.kg(item.plate))
                                         .font(.fig(15, .semibold)).foregroundColor(p.ink)
                                     Spacer()
                                     Text("× \(item.count)")
@@ -108,7 +108,7 @@ struct PlateCalculatorView: View {
                             }
                         }
                         if abs(residual) > 0.01 {
-                            Text("Aproximado: faltan \(String(format: "%g", abs(residual))) kg para el total exacto.")
+                            Text("Aproximado: faltan \(WorkoutViewModel.kg(abs(residual))) para el total exacto.")
                                 .font(.fig(12, .semibold))
                                 .foregroundColor(Pulso.warning(isDark: p.dark))
                                 .padding(.top, 10)
@@ -158,7 +158,7 @@ struct PlateCalculatorView: View {
     }
 
     private func plateChip(_ plate: Double) -> some View {
-        Text(String(format: "%g", plate))
+        Text(WorkoutViewModel.number(plate))
             .font(.bri(11))
             .foregroundColor(p.onacc)
             .frame(width: 34, height: 34)
