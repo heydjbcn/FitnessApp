@@ -411,6 +411,7 @@ struct HomeExerciseCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("info.\(exercise.name)")
+                    .accessibilityLabel("Detalle de \(exercise.name)")
                 }
             }
 
@@ -441,6 +442,7 @@ struct HomeExerciseCard: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("rest.\(exercise.name)")
+                .accessibilityLabel("Empezar descanso de \(WorkoutViewModel.restText(exercise.restDuration))")
                 .disabled(!themeManager.isTimerEnabled)
                 .opacity(themeManager.isTimerEnabled ? 1 : 0.4)
             }

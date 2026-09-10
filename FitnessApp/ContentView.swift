@@ -19,6 +19,7 @@ struct ContentView: View {
     /// Ficha abierta desde Spotlight.
     @State private var spotlightExercise: SpotlightTarget? = nil
     struct SpotlightTarget: Identifiable { let id: UUID }
+    struct ImportTarget: Identifiable { let routine: SharedRoutine; var id: String { routine.name } }
 
     @AppStorage("keepScreenOn", store: AppDefaults.store) private var keepScreenOn = false
     @ObservedObject private var spotify = SpotifyManager.shared
@@ -187,6 +188,12 @@ struct ContentView: View {
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
+        .sheet(item: Binding(get: { viewModel.pendingRoutineImport.map { ImportTarget(routine: $0) } },
+                             set: { if $0 == nil { viewModel.pendingRoutineImport = nil } })) { target in
+            ImportRoutineSheet(routine: target.routine)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
         .fullScreenCover(isPresented: $intentWorkout) {
             WorkoutSessionView(day: homeDay)
                 .environmentObject(viewModel)
@@ -212,6 +219,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             viewModel.saveNow()
             Reminders.reschedule(for: viewModel)
+            AutoBackup.runIfDue(viewModel)
         }
         .fullScreenCover(isPresented: $showingWelcome) {
             PulsoWelcomeView {

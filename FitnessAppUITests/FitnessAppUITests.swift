@@ -797,6 +797,25 @@ class ChamaFitUITests: XCTestCase {
         snap("tecnica")
         closeSheet()
     }
+
+    // MARK: - 13. Letra grande y compartir rutina
+
+    func test13_LargeTextAndShare() {
+        launch(["--named", "--seed-history", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"])
+        for t in ["Inicio", "Calendario", "Ejercicios", "Historial", "Ajustes"] {
+            tab(t)
+            sleep(1)
+            snap("letra-grande-\(t)")
+        }
+        tab("Inicio")
+        selectDay("Lunes")
+        XCTAssertTrue(exists(app.buttons["set.Press de banca.1"]), "Inicio usable con letra grande")
+        tab("Calendario")
+        tap(routineMenu)
+        tap(app.buttons["Compartir esta rutina…"])
+        dismissShareSheet()
+        XCTAssertTrue(exists(app.tabBars.firstMatch), "sigue viva tras compartir")
+    }
 }
 
 /// Toda la batería otra vez en modo claro (repaso visual: las capturas quedan adjuntas).

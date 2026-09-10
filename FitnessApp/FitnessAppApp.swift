@@ -29,9 +29,17 @@ struct FitnessAppApp: App {
             .environmentObject(themeManager)
             .environmentObject(userManager)
             .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             // La vuelta de Spotify tras autorizar (chamafit-spotify://callback)
             .onOpenURL { url in
-                if url.scheme == "chamafit-spotify" { SpotifyManager.shared.handle(url: url) }
+                if url.scheme == "chamafit-spotify" { SpotifyManager.shared.handle(url: url); return }
+                // Una rutina .chamafit recibida por AirDrop, WhatsApp o Archivos.
+                guard url.isFileURL, url.pathExtension.lowercased() == "chamafit" else { return }
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                if let data = try? Data(contentsOf: url), let r = try? WorkoutViewModel.readSharedRoutine(from: data) {
+                    workoutViewModel.pendingRoutineImport = r
+                }
             }
         }
     }

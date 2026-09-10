@@ -98,6 +98,8 @@ final class WorkoutViewModel: ObservableObject {
     @Published var pendingWorkoutOpen = false
     /// Spotlight / Atajos han pedido abrir la ficha de un ejercicio.
     @Published var pendingExerciseOpen: UUID? = nil
+    /// Rutina .chamafit recibida, pendiente de confirmar.
+    @Published var pendingRoutineImport: SharedRoutine? = nil
 
     // MARK: - Ciclo de vida
 

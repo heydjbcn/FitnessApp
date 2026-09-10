@@ -387,7 +387,7 @@ struct SettingsTabView: View {
 
             ShareLink(item: BackupFile(make: { [viewModel] in try viewModel.backupData() }),
                       preview: SharePreview("Copia de seguridad de ChamaFit")) {
-                navRow(icon: "square.and.arrow.up", title: "Copia de seguridad", sub: "Todo (ejercicios, rutina, historial, peso, notas) en un fichero")
+                navRow(icon: "square.and.arrow.up", title: "Copia de seguridad", sub: backupSub)
             }
             .buttonStyle(.plain)
             .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
@@ -459,6 +459,14 @@ struct SettingsTabView: View {
         }
         .padding(.vertical, 12)
         .contentShape(Rectangle())
+    }
+
+    /// "Todo en un fichero · automática cada semana (última: 3 sep)".
+    private var backupSub: String {
+        let base = "Todo en un fichero. Además, copia automática semanal en Archivos › ChamaFit"
+        guard let last = AutoBackup.lastDate else { return base }
+        let f = DateFormatter(); f.locale = Locale(identifier: "es_ES"); f.dateFormat = "d MMM"
+        return base + " (última: \(f.string(from: last)))"
     }
 
     // MARK: - iPhone y Apple Watch

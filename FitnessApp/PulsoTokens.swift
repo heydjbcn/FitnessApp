@@ -123,12 +123,26 @@ extension Font {
         case .medium: name = "Figtree-Medium"
         default: name = "Figtree-Regular"
         }
-        return .custom(name, fixedSize: size)
+        return .custom(name, size: size, relativeTo: style(for: size))
     }
 
     /// Bricolage Grotesque, la de titulares y cifras.
     static func bri(_ size: CGFloat, extraBold: Bool = false) -> Font {
-        .custom(extraBold ? "BricolageGrotesque-ExtraBold" : "BricolageGrotesque-Bold", fixedSize: size)
+        .custom(extraBold ? "BricolageGrotesque-ExtraBold" : "BricolageGrotesque-Bold", size: size, relativeTo: style(for: size))
+    }
+
+    /// El estilo del sistema con el que escala cada tamaño del prototipo: así
+    /// los textos crecen con Ajustes › Pantalla › Tamaño del texto.
+    private static func style(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 30...: return .largeTitle
+        case 22..<30: return .title2
+        case 18..<22: return .title3
+        case 16..<18: return .body
+        case 14..<16: return .subheadline
+        case 12..<14: return .footnote
+        default: return .caption2
+        }
     }
 }
 

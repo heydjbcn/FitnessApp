@@ -51,6 +51,12 @@ struct WeeklyCalendarView: View {
                 Button { routineName = ""; namingNew = true } label: { Label("Nueva rutina…", systemImage: "plus") }
                 Button { routineName = viewModel.activeRoutineName; renaming = true } label: { Label("Renombrar la actual…", systemImage: "pencil") }
                 Button { generating = true } label: { Label("Crear rutina con IA…", systemImage: "wand.and.stars") }
+                ShareLink(item: RoutineFile(make: { [viewModel, userManager] in
+                              (viewModel.activeRoutineName, try viewModel.routineFileData(author: userManager.userName))
+                          }),
+                          preview: SharePreview("Rutina \(viewModel.activeRoutineName)")) {
+                    Label("Compartir esta rutina…", systemImage: "square.and.arrow.up")
+                }
             }
             if !saved.isEmpty {
                 Section("Eliminar") {
@@ -323,8 +329,10 @@ struct WeeklyCalendarView: View {
                                     VStack(spacing: 4) {
                                         arrow("chevron.up", enabled: i > 0) { viewModel.moveExercise(in: day, from: i, to: i - 1) }
                                             .accessibilityIdentifier("reorder.up.\(i)")
+                                            .accessibilityLabel("Subir")
                                         arrow("chevron.down", enabled: i < records.count - 1) { viewModel.moveExercise(in: day, from: i, to: i + 1) }
                                             .accessibilityIdentifier("reorder.down.\(i)")
+                                            .accessibilityLabel("Bajar")
                                     }
                                 }
                             }

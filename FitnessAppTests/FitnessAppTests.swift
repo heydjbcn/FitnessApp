@@ -1136,3 +1136,75 @@ struct AITests {
         }
     }
 }
+
+// MARK: - Fase 6: compartir rutinas y copia automática
+
+@Suite(.serialized) @MainActor
+struct SharingBackupTests {
+
+    @Test func shareAndImportRoutine() throws {
+        let a = TestBox(); defer { a.tearDown() }
+        let (_, pb) = a.add("Press de banca", sets: 4, weight: 60, reps: 8, rest: 120, on: .monday, group: "Pecho")
+        let (_, ap) = a.add("Aperturas", sets: 3, weight: 12, reps: 12, on: .monday)
+        a.vm.setSupersetGroup(0, for: pb.id, in: .monday)
+        a.vm.setSupersetGroup(0, for: ap.id, in: .monday)
+        a.vm.completeSet(for: pb.id, in: .monday)
+        a.vm.stopTimer(silent: true)
+        a.vm.setLabel("Pecho", for: .monday)
+        a.vm.renameActiveRoutine("Torso de Jordi")
+        let data = try a.vm.routineFileData(author: "Jordi")
+        let shared = try WorkoutViewModel.readSharedRoutine(from: data)
+        #expect(shared.name == "Torso de Jordi" && shared.author == "Jordi")
+        #expect(shared.summary == "1 días · 2 ejercicios" || shared.summary.contains("2 ejercicios"))
+        #expect(!String(decoding: data, as: UTF8.self).contains("setLogs"), "sin progreso ni historial")
+
+        let b = TestBox(); defer { b.tearDown() }
+        let (existing, _) = b.add("Press de banca", sets: 5, weight: 80, on: .friday)
+        let added = b.vm.importSharedRoutine(shared)
+        #expect(added == 2)
+        #expect(b.vm.activeRoutineName == "Torso de Jordi")
+        #expect(b.vm.savedRoutines.count == 1, "la suya queda guardada")
+        let monday = b.vm.dailyWorkoutRecords[.monday] ?? []
+        #expect(monday.count == 2 && monday.allSatisfy { $0.supersetGroup == 0 })
+        #expect(monday.first?.exerciseId == existing.id, "enlaza por nombre")
+        #expect(b.vm.availableExercises.first { $0.name == "Aperturas" }?.repetitions == 12)
+        #expect(b.vm.label(for: .monday) == "Pecho")
+        #expect(monday.allSatisfy { $0.completedSets == 0 })
+        // Importar otra vez con el mismo nombre no pisa: añade el autor.
+        b.vm.importSharedRoutine(shared)
+        #expect(b.vm.activeRoutineName == "Torso de Jordi (Jordi)")
+
+        #expect(throws: WorkoutViewModel.RestoreError.self) { try WorkoutViewModel.readSharedRoutine(from: Data("{}".utf8)) }
+        #expect(throws: WorkoutViewModel.RestoreError.self) {
+            try WorkoutViewModel.readSharedRoutine(from: Data(#"{"version":3,"name":"x","labels":{},"days":{}}"#.utf8))
+        }
+        #expect(UTType.chamafitRoutine.identifier == "mauri.chamafit.routine")
+    }
+
+    @Test func autoBackupWeeklyAndPrunes() throws {
+        let box = TestBox(); defer { box.tearDown() }
+        let saved = AutoBackup.lastDate
+        defer { AutoBackup.lastDate = saved }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("chamafit-backup-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        AutoBackup.lastDate = nil
+        #expect(AutoBackup.runIfDue(box.vm, in: dir) == nil, "sin datos no hay copia")
+        box.add("Press", on: .monday)
+        let start = Date()
+        let first = AutoBackup.runIfDue(box.vm, now: start, in: dir)
+        #expect(first != nil)
+        #expect(AutoBackup.runIfDue(box.vm, now: start.addingTimeInterval(3 * 86_400), in: dir) == nil, "aún no toca")
+        for w in 1...10 {
+            #expect(AutoBackup.runIfDue(box.vm, now: start.addingTimeInterval(Double(w) * 7 * 86_400 + 60), in: dir) != nil)
+        }
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".json") }
+        #expect(files.count == AutoBackup.keep)
+        // Lo escrito es una copia restaurable.
+        let latest = files.sorted().last!
+        let other = TestBox(); defer { other.tearDown() }
+        try other.vm.restore(from: Data(contentsOf: dir.appendingPathComponent(latest)))
+        #expect(other.vm.availableExercises.first?.name == "Press")
+    }
+}
+
+import UniformTypeIdentifiers
