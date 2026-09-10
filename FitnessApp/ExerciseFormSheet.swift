@@ -540,8 +540,11 @@ struct ExerciseFormSheet: View {
             params = FormParams(exercise: ex)
             restMin = ex.restDuration / 60
             restSec = Int((Double(ex.restDuration % 60) / 15).rounded()) * 15 % 60
-        } else if let d = prefillDay {
-            days = [d]
+        } else {
+            if let d = prefillDay { days = [d] }
+            // Descanso por defecto de Configuración, redondeado a los pasos de 15 s.
+            restMin = viewModel.defaultRestDuration / 60
+            restSec = Int((Double(viewModel.defaultRestDuration % 60) / 15).rounded()) * 15 % 60
         }
     }
 

@@ -104,11 +104,17 @@ struct ContentView: View {
         .onChange(of: keepScreenOn) { _, on in UIApplication.shared.isIdleTimerDisabled = on }
         .onChange(of: selectedTab) { _, _ in HapticManager.shared.tabChanged() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            // Al volver a la app se empieza por Inicio, en el día de hoy.
-            if tutorial == nil {
-                selectedTab = 0
+            // Si ha cambiado el día, la sesión de ayer se archiva y hoy empieza
+            // a cero; el descanso en curso se recalcula contra el reloj de pared.
+            let wasToday = homeDay == WeeklyCalendarView.getCurrentDay()
+            viewModel.ensureSession()
+            viewModel.tick()
+            if !wasToday || viewModel.sessionDate != Calendar.current.startOfDay(for: Date()) {
                 homeDay = WeeklyCalendarView.getCurrentDay()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            viewModel.saveNow()
         }
         .fullScreenCover(isPresented: $showingWelcome) {
             PulsoWelcomeView {

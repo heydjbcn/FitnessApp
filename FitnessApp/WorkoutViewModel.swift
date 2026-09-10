@@ -1,396 +1,184 @@
 //
 //  WorkoutViewModel.swift
-//  FitnessApp
+//  ChamaFit
 //
-//  Created by Jordi Mauri on 16/7/25.
+//  Estado de la app: biblioteca de ejercicios, plantilla semanal con el progreso
+//  de HOY, historial por fecha, peso corporal y temporizador de descanso.
+//
+//  Modelo de sesión: `dailyWorkoutRecords` es la plantilla (qué toca cada día)
+//  y lleva las series marcadas de la sesión de HOY. Cada cambio se refleja en
+//  `workoutHistory[fechaDeHoy]`. Al abrir la app en un día nuevo, el progreso
+//  se archiva bajo su fecha y la plantilla vuelve a cero. Todas las cifras de
+//  progreso (semana, récords, gráficas) salen del historial.
 //
 
 import SwiftUI
 import Combine
 import Foundation
-import AudioToolbox
 
-class WorkoutViewModel: ObservableObject {
+final class WorkoutViewModel: ObservableObject {
+
+    // MARK: - Estado
+
     @Published var activeDays: [WorkoutDay] = WorkoutDay.allCases
-    
-    // Almacena las DEFINICIONES ÚNICAS de los ejercicios
+    /// Biblioteca: las definiciones únicas de cada ejercicio.
     @Published var availableExercises: [Exercise] = []
-    
-    // Almacena el progreso diario. Cada WorkoutExercise se refiere a un Exercise por su ID
+    /// Plantilla semanal + progreso de la sesión de hoy.
     @Published var dailyWorkoutRecords: [WorkoutDay: [WorkoutExercise]] = [:]
-    
+    /// Lo hecho cada fecha: qué día de rutina se entrenó y con qué series.
     @Published var workoutHistory: [Date: [WorkoutDay: [WorkoutExercise]]] = [:]
     @Published var bodyWeightHistory: [Date: Double] = [:]
-    @Published var timerActive = false
-    @Published var timeRemaining = 120
-    @Published var currentTimerDuration: Int = 120 // Duración del timer actual
-    /// Qué descanso es: "Press militar · siguiente serie 3 de 4".
-    @Published var timerLabel: String = ""
-    @Published var isTimerEnabled = true // Estado del timer desde ThemeManager
-    @Published var restDuration: Int = 120 { // Tiempo de descanso personalizable (por defecto 2 minutos)
-        didSet {
-            UserDefaults.standard.set(restDuration, forKey: "RestDuration")
-            print("WorkoutViewModel: restDuration actualizado y guardado: \(restDuration) segundos")
-        }
-    }
-    
-    // Onboarding Manager
-    @Published var onboardingManager = OnboardingManager()
 
     /// Nombre que el usuario le pone a cada día ("Hombro y core", "Pierna"…).
-    /// Lo introduce el rediseño «Pulso»; si está vacío, la UI enseña solo el día.
     @Published var dayLabels: [WorkoutDay: String] = [:] {
-        didSet {
-            if let enc = try? JSONEncoder().encode(dayLabels) {
-                userDefaults.set(enc, forKey: "DayLabels")
-            }
-        }
+        didSet { persistSmall(dayLabels, key: "DayLabels") }
     }
-
-    /// Nota libre de cada sesión, por fecha ("¿Cómo fue la sesión?").
+    /// Nota libre de cada sesión, por fecha.
     @Published var sessionNotes: [Date: String] = [:] {
-        didSet {
-            if let enc = try? JSONEncoder().encode(sessionNotes) {
-                userDefaults.set(enc, forKey: "SessionNotes")
-            }
-        }
+        didSet { persistSmall(sessionNotes, key: "SessionNotes") }
     }
-
     /// Centro de avisos: fin de descanso, récords, recordatorios.
     @Published var notifications: [AppNotification] = [] {
-        didSet {
-            if let enc = try? JSONEncoder().encode(notifications) {
-                userDefaults.set(enc, forKey: "AppNotifications")
-            }
-        }
+        didSet { persistSmall(notifications, key: "AppNotifications") }
     }
-
     @Published var notificationsEnabled: Bool = true {
         didSet { userDefaults.set(notificationsEnabled, forKey: "NotificationsEnabled") }
     }
-
-    private var timer: Timer?
-    private let userDefaults = UserDefaults.standard
-    
-    // LiveActivityManager opcional para evitar errores en versiones anteriores
-    @MainActor
-    private var liveActivityManager: LiveActivityManager? = {
-        if #available(iOS 16.1, *) {
-            return LiveActivityManager()
-        }
-        return nil
-    }()
-
-    init() {
-        WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
-        loadData()
-        print("WorkoutViewModel: Inicialización completada con restDuration: \(restDuration) segundos")
-    }
-    
-    // Helper para obtener un Exercise base por su ID
-    func getExercise(by id: UUID) -> Exercise? {
-        return availableExercises.first(where: { $0.id == id })
-    }
-    
-    private func recordHistory(for day: WorkoutDay) {
-        let key = Calendar.current.startOfDay(for: Date())
-        var historyForToday = workoutHistory[key] ?? [:]
-        historyForToday[day] = self.dailyWorkoutRecords[day]
-        workoutHistory[key] = historyForToday
-        saveData()
+    /// Descanso con el que nacen los ejercicios nuevos (Configuración).
+    @Published var defaultRestDuration: Int = 120 {
+        didSet { userDefaults.set(defaultRestDuration, forKey: "RestDuration") }
     }
 
-    func exercisesForDate(_ date: Date) -> [WorkoutDay: [WorkoutExercise]]? {
-        let key = Calendar.current.startOfDay(for: date)
-        return workoutHistory[key]
-    }
-    
-    /// True si ese día se hizo al menos una serie. Antes bastaba con que hubiera
-    /// registro, y un día abierto sin marcar nada (0 series) salía como entrenado.
-    func hasWorkoutForDate(_ date: Date) -> Bool {
-        let key = Calendar.current.startOfDay(for: date)
-        guard let historyForDate = workoutHistory[key] else { return false }
-        return historyForDate.values.contains { day in day.contains { $0.completedSets > 0 } }
-    }
-    
-    /// Guarda todo el estado (para las extensiones, que no ven `saveData`).
-    func persistAll() { saveData() }
-
-    private func saveData() {
-        DispatchQueue.global(qos: .background).async {
-            // Limpiar datos antiguos antes de guardar
-            self.cleanupOldData()
-            
-            let encoder = JSONEncoder()
-            do {
-                // Guardar availableExercises
-                if let enc = try? encoder.encode(self.availableExercises) {
-                    let dataSize = enc.count
-                    print("WorkoutViewModel: Guardando availableExercises - \(dataSize) bytes")
-                    if dataSize < 1_000_000 { // Límite de 1MB por entrada
-                        UserDefaults.standard.set(enc, forKey: "AvailableExercises")
-                    } else {
-                        print("WorkoutViewModel: ERROR - availableExercises excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar dailyWorkoutRecords
-                if let encD = try? encoder.encode(self.dailyWorkoutRecords) {
-                    let dataSize = encD.count
-                    print("WorkoutViewModel: Guardando dailyWorkoutRecords - \(dataSize) bytes")
-                    if dataSize < 1_000_000 {
-                        UserDefaults.standard.set(encD, forKey: "DailyWorkoutRecords")
-                    } else {
-                        print("WorkoutViewModel: ERROR - dailyWorkoutRecords excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar workoutHistory (limitado)
-                if let encH = try? encoder.encode(self.workoutHistory) {
-                    let dataSize = encH.count
-                    print("WorkoutViewModel: Guardando workoutHistory - \(dataSize) bytes")
-                    if dataSize < 1_000_000 {
-                        UserDefaults.standard.set(encH, forKey: "WorkoutHistory")
-                    } else {
-                        print("WorkoutViewModel: ERROR - workoutHistory excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar bodyWeightHistory (limitado)
-                if let encW = try? encoder.encode(self.bodyWeightHistory) {
-                    let dataSize = encW.count
-                    print("WorkoutViewModel: Guardando bodyWeightHistory - \(dataSize) bytes")
-                    if dataSize < 1_000_000 {
-                        UserDefaults.standard.set(encW, forKey: "BodyWeightHistory")
-                    } else {
-                        print("WorkoutViewModel: ERROR - bodyWeightHistory excede el límite de tamaño")
-                    }
-                }
-                
-                // Guardar activeDays
-                if let encA = try? encoder.encode(self.activeDays) {
-                    let dataSize = encA.count
-                    print("WorkoutViewModel: Guardando activeDays - \(dataSize) bytes")
-                    if dataSize < 100_000 {
-                        UserDefaults.standard.set(encA, forKey: "ActiveDays")
-                    } else {
-                        print("WorkoutViewModel: ERROR - activeDays excede el límite de tamaño")
-                    }
-                }
-                
-                UserDefaults.standard.set(self.restDuration, forKey: "RestDuration")
-                print("WorkoutViewModel: Datos guardados exitosamente")
-                
-            } catch {
-                print("WorkoutViewModel: Error al guardar datos: \(error)")
-            }
-        }
-    }
-    
-    private func cleanupOldData() {
-        let calendar = Calendar.current
-        let sixMonthsAgo = calendar.date(byAdding: .month, value: -6, to: Date()) ?? Date()
-        
-        // Limpiar workoutHistory - mantener solo los últimos 6 meses
-        let oldHistoryKeys = workoutHistory.keys.filter { $0 < sixMonthsAgo }
-        for key in oldHistoryKeys {
-            workoutHistory.removeValue(forKey: key)
-        }
-        
-        // Limpiar bodyWeightHistory - mantener solo los últimos 6 meses
-        let oldWeightKeys = bodyWeightHistory.keys.filter { $0 < sixMonthsAgo }
-        for key in oldWeightKeys {
-            bodyWeightHistory.removeValue(forKey: key)
-        }
-        
-        print("WorkoutViewModel: Limpieza completada - removidos \(oldHistoryKeys.count) registros de historial y \(oldWeightKeys.count) registros de peso")
-    }
-    
-    func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
-        guard let recordIndex = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }),
-              let baseExercise = getExercise(by: dailyWorkoutRecords[day]![recordIndex].exerciseId) else { return }
-        
-        var record = dailyWorkoutRecords[day]![recordIndex]
-        if record.completedSets < baseExercise.totalSets {
-            // Registrar la serie con el peso/reps por defecto (última vez o plantilla)
-            let last = lastPerformance(for: baseExercise.id)
-            let log = SetLog(reps: last?.reps ?? baseExercise.repetitions,
-                             weight: last?.weight ?? baseExercise.weight)
-            record.setLogs.append(log)
-            record.completedSets += 1
-            record.lastSetCompletedAt = Date()
-            dailyWorkoutRecords[day]![recordIndex] = record
-            recordHistory(for: day)
-            checkRecord(weight: log.weight, exerciseId: baseExercise.id, excluding: log.id, name: baseExercise.name)
-
-            // Haptic feedback para completar serie
-            HapticManager.shared.setCompleted()
-
-            if record.completedSets < baseExercise.totalSets {
-                timerLabel = "\(baseExercise.name) · siguiente serie \(record.completedSets + 1) de \(baseExercise.totalSets)"
-                startTimer(duration: baseExercise.restDuration, isEnabled: isTimerEnabled)
-            }
-        }
-    }
-    
-    func addExercise(name: String, reps: Int, weight: Double, sets: Int, info: String, imageData: Data?, restDuration: Int, toDays selectedDays: Set<WorkoutDay>, sfSymbolIcon: String? = nil, iconColor: String = "blue", segundos: Int = 0, rir: Int = 0, muscleGroup: String? = nil) {
-        let newBaseExercise = Exercise(
-            id: UUID(),
-            name: name,
-            repetitions: reps,
-            weight: weight,
-            totalSets: sets,
-            info: info,
-            imageData: imageData,
-            restDuration: restDuration,
-            sfSymbolIcon: sfSymbolIcon,
-            iconColor: iconColor,
-            segundos: segundos,
-            rir: rir,
-            muscleGroup: (muscleGroup?.isEmpty == false) ? muscleGroup : nil
-        )
-        availableExercises.append(newBaseExercise)
-        
-        // Asignar este ejercicio a los días seleccionados
-        for day in selectedDays {
-            let newWorkoutRecord = WorkoutExercise(
-                id: UUID(),
-                exerciseId: newBaseExercise.id,
-                completedSets: 0,
-                lastSetCompletedAt: nil
-            )
-            dailyWorkoutRecords[day, default: []].append(newWorkoutRecord)
-        }
-        
-        // Haptic feedback para añadir ejercicio
-        HapticManager.shared.exerciseAdded()
-        
-        // Iniciar onboarding si es el primer ejercicio
-        if onboardingManager.isFirstExercise {
-            onboardingManager.startOnboarding()
-        }
-        
-        saveData()
-    }
-    
-    func toggleDay(_ day: WorkoutDay) { 
-        if let idx = activeDays.firstIndex(of: day) { 
-            activeDays.remove(at: idx) 
-        } else { 
-            activeDays.append(day)
-            activeDays.sort { WorkoutDay.allCases.firstIndex(of: $0)! < WorkoutDay.allCases.firstIndex(of: $1)! } 
-        }
-        
-        // Haptic feedback para cambiar día
-        HapticManager.shared.selectionFeedback()
-        
-        saveData() 
-    }
-    
-    func removeExercise(recordId: UUID, from day: WorkoutDay) {
-        dailyWorkoutRecords[day]?.removeAll { $0.id == recordId }
-        recordHistory(for: day)
-    }
-    
-    func undoLastSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
-        guard let recordIndex = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
-        
-        var record = dailyWorkoutRecords[day]![recordIndex]
-        if record.completedSets > 0 {
-            record.completedSets -= 1
-            if !record.setLogs.isEmpty { record.setLogs.removeLast() }
-            if record.completedSets == 0 { record.lastSetCompletedAt = nil }
-            dailyWorkoutRecords[day]![recordIndex] = record
-            recordHistory(for: day)
-
-            // Haptic feedback para deshacer set
-            HapticManager.shared.warning()
-        }
-    }
-
-    // MARK: - Registro por serie / rendimiento (Fase 1)
+    // Temporizador de descanso
+    @Published var timerActive = false
+    @Published var timeRemaining = 120
+    @Published var currentTimerDuration: Int = 120
+    /// Qué descanso es: "Press militar · siguiente serie 3 de 4".
+    @Published var timerLabel: String = ""
+    @Published var isTimerEnabled = true
+    /// Hora a la que termina el descanso. La cuenta se hace contra el reloj de
+    /// pared, así que sobrevive a que la app se vaya al fondo.
+    @Published private(set) var timerEndDate: Date? = nil
 
     /// Mensaje de celebración cuando se bate un récord (lo observa la UI).
     @Published var prCelebration: String? = nil
 
-    // MARK: - Onboarding de bienvenida (carrusel)
-    /// Controla la presentación del carrusel de bienvenida.
-    @Published var showWelcome = false
-    private let welcomeKey = "hasSeenWelcomeV2"
-    /// True si nunca se ha visto el carrusel.
-    var needsWelcome: Bool { !UserDefaults.standard.bool(forKey: welcomeKey) }
-    /// Marca el carrusel como visto (no vuelve a salir solo).
-    func markWelcomeSeen() {
-        UserDefaults.standard.set(true, forKey: welcomeKey)
-        showWelcome = false
-    }
-    /// Muestra el carrusel (desde Ajustes ▸ "Ver tutorial").
-    func showTutorial() {
-        showWelcome = true
-        HapticManager.shared.buttonTapped()
+    /// Fecha (inicio de día) de la sesión que lleva la plantilla.
+    private(set) var sessionDate: Date
+
+    private var timer: Timer?
+    let userDefaults = UserDefaults.standard
+    private var pendingSave: DispatchWorkItem?
+    private let saveQueue = DispatchQueue(label: "chamafit.save", qos: .utility)
+
+    @MainActor
+    private lazy var liveActivityManager: LiveActivityManager? = LiveActivityManager()
+
+    // MARK: - Ciclo de vida
+
+    init() {
+        sessionDate = Calendar.current.startOfDay(for: Date())
+        WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
+        loadData()
+        ensureSession()
     }
 
-    /// Mejor peso registrado de un ejercicio, opcionalmente excluyendo una serie.
-    func bestWeight(for exerciseId: UUID, excluding logId: UUID? = nil) -> Double {
-        allSetLogs(for: exerciseId).filter { logId == nil || $0.id != logId }.map { $0.weight }.max() ?? 0
+    /// Si ha cambiado el día desde la última sesión, archiva el progreso bajo
+    /// su fecha y deja la plantilla a cero. Se llama al arrancar, al volver del
+    /// fondo y antes de cualquier cambio en las series.
+    func ensureSession() {
+        let today = Calendar.current.startOfDay(for: Date())
+        guard sessionDate < today else { return }
+        for day in WorkoutDay.allCases {
+            mirrorToHistory(day, on: sessionDate)
+            dailyWorkoutRecords[day] = (dailyWorkoutRecords[day] ?? []).map { $0.resettingProgress() }
+        }
+        sessionDate = today
+        userDefaults.set(today, forKey: "LastSessionDate")
+        scheduleSave()
     }
 
-    /// Comprueba si un peso supera el récord previo y dispara la celebración.
-    private func checkRecord(weight: Double, exerciseId: UUID, excluding logId: UUID?, name: String) {
-        guard weight > 0 else { return }
-        let previous = bestWeight(for: exerciseId, excluding: logId)
-        if weight > previous && previous > 0 {
-            prCelebration = "¡Nuevo récord en \(name)! \(String(format: "%g", weight)) kg"
-            HapticManager.shared.goalAchieved()
-            notify(.achievement, title: "¡Nuevo récord!",
-                   message: "\(name): \(Self.kg(weight)). Superaste tu marca anterior de \(Self.kg(previous)).")
+    func getExercise(by id: UUID) -> Exercise? {
+        availableExercises.first { $0.id == id }
+    }
+
+    // MARK: - Historial
+
+    /// Copia la sesión de un día de rutina al historial de una fecha. Si ese
+    /// día no tiene ninguna serie hecha, no deja rastro (así tocar una
+    /// superserie o quitar un ejercicio no marca el día como entrenado).
+    private func mirrorToHistory(_ day: WorkoutDay, on date: Date) {
+        var byDay = workoutHistory[date] ?? [:]
+        let records = dailyWorkoutRecords[day] ?? []
+        if records.contains(where: { $0.completedSets > 0 }) {
+            byDay[day] = records
+        } else {
+            byDay.removeValue(forKey: day)
+        }
+        if byDay.isEmpty { workoutHistory.removeValue(forKey: date) } else { workoutHistory[date] = byDay }
+    }
+
+    private func recordHistory(for day: WorkoutDay) {
+        ensureSession()
+        mirrorToHistory(day, on: sessionDate)
+        scheduleSave()
+    }
+
+    func exercisesForDate(_ date: Date) -> [WorkoutDay: [WorkoutExercise]]? {
+        workoutHistory[Calendar.current.startOfDay(for: date)]
+    }
+
+    /// True si ese día se hizo al menos una serie.
+    func hasWorkoutForDate(_ date: Date) -> Bool {
+        guard let byDay = exercisesForDate(date) else { return false }
+        return byDay.values.contains { $0.contains { $0.completedSets > 0 } }
+    }
+
+    // MARK: - Series
+
+    func completeSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
+        ensureSession()
+        guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }),
+              let exercise = getExercise(by: dailyWorkoutRecords[day]![idx].exerciseId) else { return }
+
+        var record = dailyWorkoutRecords[day]![idx]
+        guard record.completedSets < exercise.totalSets else { return }
+
+        // La serie nace con lo de la última vez (o con la plantilla).
+        let last = lastPerformance(for: exercise.id)
+        let log = SetLog(reps: last?.reps ?? exercise.repetitions,
+                         weight: last?.weight ?? exercise.weight)
+        record.setLogs.append(log)
+        record.completedSets += 1
+        record.lastSetCompletedAt = Date()
+        dailyWorkoutRecords[day]![idx] = record
+        recordHistory(for: day)
+        checkRecord(weight: log.weight, exerciseId: exercise.id, excluding: log.id, name: exercise.name)
+        HapticManager.shared.setCompleted()
+
+        if record.completedSets < exercise.totalSets {
+            timerLabel = "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
+            startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
         }
     }
 
-    /// Última serie registrada de un ejercicio (la más reciente entre hoy y el historial).
-    func lastPerformance(for exerciseId: UUID) -> SetLog? {
-        allSetLogs(for: exerciseId).max(by: { $0.date < $1.date })
-    }
-
-    /// Todas las series registradas de un ejercicio (hoy + historial). Para PRs/gráficas.
-    func allSetLogs(for exerciseId: UUID) -> [SetLog] {
-        var logs: [SetLog] = []
-        for (_, records) in dailyWorkoutRecords {
-            for r in records where r.exerciseId == exerciseId { logs.append(contentsOf: r.setLogs) }
-        }
-        for (_, byDay) in workoutHistory {
-            for (_, records) in byDay {
-                for r in records where r.exerciseId == exerciseId { logs.append(contentsOf: r.setLogs) }
-            }
-        }
-        return logs
-    }
-
-    /// Volumen (peso × reps) registrado en un día.
-    func volume(for day: WorkoutDay) -> Double {
-        (dailyWorkoutRecords[day] ?? []).reduce(0) { acc, r in
-            acc + r.setLogs.reduce(0) { $0 + $1.volume }
-        }
-    }
-
-    /// Volumen total de la semana (días activos).
-    func weeklyVolume() -> Double {
-        activeDays.reduce(0) { $0 + volume(for: $1) }
-    }
-
-    /// Récord personal de un ejercicio: mejor peso y mejor 1RM estimado (Epley).
-    func personalRecord(for exerciseId: UUID) -> (weight: Double, oneRepMax: Double)? {
-        let logs = allSetLogs(for: exerciseId)
-        guard !logs.isEmpty else { return nil }
-        let maxW = logs.map { $0.weight }.max() ?? 0
-        let max1RM = logs.map { $0.estimatedOneRepMax }.max() ?? 0
-        return (maxW, max1RM)
-    }
-
-    /// Actualiza el peso/reps de una serie concreta ya registrada (edición manual).
-    func updateSetLog(_ updated: SetLog, for workoutExerciseId: UUID, in day: WorkoutDay) {
+    func undoLastSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
+        ensureSession()
         guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
-        guard let logIdx = dailyWorkoutRecords[day]![idx].setLogs.firstIndex(where: { $0.id == updated.id }) else { return }
+        var record = dailyWorkoutRecords[day]![idx]
+        guard record.completedSets > 0 else { return }
+        record.completedSets -= 1
+        if !record.setLogs.isEmpty { record.setLogs.removeLast() }
+        if record.completedSets == 0 { record.lastSetCompletedAt = nil }
+        dailyWorkoutRecords[day]![idx] = record
+        recordHistory(for: day)
+        HapticManager.shared.warning()
+    }
+
+    /// Edición manual de una serie ya hecha (peso, reps, tipo, RPE).
+    func updateSetLog(_ updated: SetLog, for workoutExerciseId: UUID, in day: WorkoutDay) {
+        guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }),
+              let logIdx = dailyWorkoutRecords[day]![idx].setLogs.firstIndex(where: { $0.id == updated.id }) else { return }
         dailyWorkoutRecords[day]![idx].setLogs[logIdx] = updated
         recordHistory(for: day)
         if let ex = getExercise(by: dailyWorkoutRecords[day]![idx].exerciseId) {
@@ -398,139 +186,135 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Extras (Fase 13): export CSV + duplicar rutina
-
-    /// Exporta el historial de entrenamientos a CSV.
-    func exportCSV() -> String {
-        var rows = ["fecha,dia,ejercicio,series_completadas,series_totales,peso_kg,reps"]
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-        for (date, byDay) in workoutHistory.sorted(by: { $0.key < $1.key }) {
-            for (day, recs) in byDay {
-                for r in recs {
-                    let ex = getExercise(by: r.exerciseId)
-                    let name = (ex?.name ?? "?").replacingOccurrences(of: "\"", with: "'")
-                    rows.append("\(df.string(from: date)),\(day.rawValue),\"\(name)\",\(r.completedSets),\(ex?.totalSets ?? 0),\(ex?.weight ?? 0),\(ex?.repetitions ?? 0)")
-                }
-            }
-        }
-        return rows.joined(separator: "\n")
-    }
-
-    /// Duplica los ejercicios de un día a otro (sin progreso).
-    func duplicateRoutine(from src: WorkoutDay, to dst: WorkoutDay) {
-        let copies = (dailyWorkoutRecords[src] ?? []).map { WorkoutExercise(exerciseId: $0.exerciseId, supersetGroup: $0.supersetGroup) }
-        dailyWorkoutRecords[dst, default: []].append(contentsOf: copies)
-        saveData()
-        HapticManager.shared.success()
-    }
-
-    /// Asigna (o quita) el grupo de superserie a un ejercicio del día.
     func setSupersetGroup(_ group: Int?, for workoutExerciseId: UUID, in day: WorkoutDay) {
         guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
         dailyWorkoutRecords[day]![idx].supersetGroup = group
         recordHistory(for: day)
     }
 
-    // MARK: - Series temporales para gráficas (Fase 3)
+    func removeExercise(recordId: UUID, from day: WorkoutDay) {
+        dailyWorkoutRecords[day]?.removeAll { $0.id == recordId }
+        recordHistory(for: day)
+    }
 
-    /// Peso máximo por día de un ejercicio (ordenado por fecha).
+    // MARK: - Rendimiento y récords
+
+    /// Todas las series registradas de un ejercicio. Salen del historial, que
+    /// incluye la sesión de hoy: cada serie cuenta una sola vez.
+    func allSetLogs(for exerciseId: UUID) -> [SetLog] {
+        workoutHistory.values.flatMap { byDay in
+            byDay.values.flatMap { records in
+                records.filter { $0.exerciseId == exerciseId }.flatMap(\.setLogs)
+            }
+        }
+    }
+
+    /// Última serie de trabajo de un ejercicio. Ignora calentamientos y drops
+    /// para no arrastrar un peso bajo a la siguiente serie.
+    func lastPerformance(for exerciseId: UUID) -> SetLog? {
+        let logs = allSetLogs(for: exerciseId)
+        let work = logs.filter { $0.type == .normal || $0.type == .failure }
+        return (work.isEmpty ? logs : work).max { $0.date < $1.date }
+    }
+
+    func bestWeight(for exerciseId: UUID, excluding logId: UUID? = nil) -> Double {
+        allSetLogs(for: exerciseId).filter { $0.id != logId }.map(\.weight).max() ?? 0
+    }
+
+    /// Récord personal: mejor peso y mejor 1RM estimado (Epley).
+    func personalRecord(for exerciseId: UUID) -> (weight: Double, oneRepMax: Double)? {
+        let logs = allSetLogs(for: exerciseId).filter { $0.weight > 0 }
+        guard !logs.isEmpty else { return nil }
+        return (logs.map(\.weight).max() ?? 0, logs.map(\.estimatedOneRepMax).max() ?? 0)
+    }
+
+    /// Fecha en la que se hizo el mejor peso de un ejercicio.
+    func recordDate(for exerciseId: UUID) -> Date? {
+        allSetLogs(for: exerciseId).filter { $0.weight > 0 }.max { $0.weight < $1.weight }?.date
+    }
+
+    private func checkRecord(weight: Double, exerciseId: UUID, excluding logId: UUID?, name: String) {
+        guard weight > 0 else { return }
+        let previous = bestWeight(for: exerciseId, excluding: logId)
+        guard weight > previous else { return }
+        if previous > 0 {
+            prCelebration = "¡Nuevo récord en \(name)! \(Self.kg(weight))"
+            notify(.achievement, title: "¡Nuevo récord!",
+                   message: "\(name): \(Self.kg(weight)). Superaste tu marca anterior de \(Self.kg(previous)).")
+        } else {
+            prCelebration = "Primera marca en \(name): \(Self.kg(weight))"
+            notify(.achievement, title: "Primera marca",
+                   message: "\(name): \(Self.kg(weight)). A partir de aquí, a superarla.")
+        }
+        HapticManager.shared.goalAchieved()
+    }
+
+    // MARK: - Series temporales para gráficas
+
     func exerciseDailyMaxWeight(for exerciseId: UUID) -> [(date: Date, weight: Double)] {
         let cal = Calendar.current
         var byDay: [Date: Double] = [:]
-        for log in allSetLogs(for: exerciseId) {
+        for log in allSetLogs(for: exerciseId) where log.weight > 0 {
             let d = cal.startOfDay(for: log.date)
             byDay[d] = Swift.max(byDay[d] ?? 0, log.weight)
         }
         return byDay.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
     }
 
-    /// Volumen por día de un ejercicio (peso×reps sumado, ordenado por fecha).
     func exerciseDailyVolume(for exerciseId: UUID) -> [(date: Date, volume: Double)] {
         let cal = Calendar.current
         var byDay: [Date: Double] = [:]
         for log in allSetLogs(for: exerciseId) {
             let d = cal.startOfDay(for: log.date)
-            byDay[d] = (byDay[d] ?? 0) + log.volume
+            byDay[d, default: 0] += log.volume
         }
         return byDay.map { (date: $0.key, volume: $0.value) }.sorted { $0.date < $1.date }
     }
 
-    /// Serie temporal de peso corporal (ordenada por fecha).
     func bodyWeightSeries() -> [(date: Date, weight: Double)] {
         bodyWeightHistory.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
     }
 
-    /// Series totales por grupo muscular en la semana (días activos), ordenado desc.
-    func setsByMuscleGroup() -> [(group: String, sets: Int)] {
-        var counts: [String: Int] = [:]
-        for day in activeDays {
-            for r in dailyWorkoutRecords[day] ?? [] {
-                let g = getExercise(by: r.exerciseId)?.muscleGroup ?? ""
-                let key = g.isEmpty ? "Otros" : g
-                counts[key, default: 0] += r.completedSets
-            }
-        }
-        return counts.map { (group: $0.key, sets: $0.value) }
-            .filter { $0.sets > 0 }
-            .sorted { $0.sets > $1.sets }
-    }
-    
-    func updateBodyWeight(for date: Date, weight: Double) { 
-        let key = Calendar.current.startOfDay(for: date)
-        bodyWeightHistory[key] = weight
-        
-        // Haptic feedback para actualizar peso
+    func updateBodyWeight(for date: Date, weight: Double) {
+        bodyWeightHistory[Calendar.current.startOfDay(for: date)] = weight
         HapticManager.shared.success()
-        
-        saveData()
+        scheduleSave()
     }
-    
-    func bodyWeightForDate(_ date: Date) -> Double? { 
-        let key = Calendar.current.startOfDay(for: date)
-        return bodyWeightHistory[key] 
-    }
-    
-    func progressForDay(_ day: WorkoutDay) -> Double {
-        guard let records = dailyWorkoutRecords[day], !records.isEmpty else { return 0 }
-        
-        var totalSets = 0
-        var completedSets = 0
-        
-        for record in records {
-            if let baseExercise = getExercise(by: record.exerciseId) {
-                totalSets += baseExercise.totalSets
-                completedSets += record.completedSets
-            }
-        }
-        return totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0
-    }
-    // MARK: - Cifras de la sesión de un día (cabecera de Inicio)
 
-    /// Series ya marcadas ese día.
+    func bodyWeightForDate(_ date: Date) -> Double? {
+        bodyWeightHistory[Calendar.current.startOfDay(for: date)]
+    }
+
+    // MARK: - Cifras de la sesión de un día (Inicio)
+
+    /// Volumen (peso × reps) marcado hoy en un día de rutina.
+    func volume(for day: WorkoutDay) -> Double {
+        (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + $1.setLogs.reduce(0) { $0 + $1.volume } }
+    }
+
     func completedSets(for day: WorkoutDay) -> Int {
         (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + $1.completedSets }
     }
 
-    /// Series que tiene la sesión de ese día.
     func totalSets(for day: WorkoutDay) -> Int {
-        (dailyWorkoutRecords[day] ?? []).reduce(0) { acc, record in
-            acc + (getExercise(by: record.exerciseId)?.totalSets ?? 0)
-        }
+        (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + (getExercise(by: $1.exerciseId)?.totalSets ?? 0) }
     }
 
-    /// Minutos que faltan para terminar la sesión: 3 por serie pendiente, la
-    /// misma cuenta que usa el prototipo (y los minutos de la semana).
+    func progressForDay(_ day: WorkoutDay) -> Double {
+        let total = totalSets(for: day)
+        return total > 0 ? Double(completedSets(for: day)) / Double(total) : 0
+    }
+
+    /// Minutos que faltan: 3 por serie pendiente, como el prototipo.
     func remainingMinutes(for day: WorkoutDay) -> Int {
         max(0, totalSets(for: day) - completedSets(for: day)) * 3
     }
 
-    /// True si ese día no queda ninguna serie pendiente (y había alguna).
     func isDayComplete(_ day: WorkoutDay) -> Bool {
         let total = totalSets(for: day)
         return total > 0 && completedSets(for: day) >= total
     }
 
-    /// Nombre de la sesión de un día, si el usuario le ha puesto uno.
     func label(for day: WorkoutDay) -> String? {
         guard let l = dayLabels[day]?.trimmingCharacters(in: .whitespaces), !l.isEmpty else { return nil }
         return l
@@ -541,955 +325,324 @@ class WorkoutViewModel: ObservableObject {
         if clean.isEmpty { dayLabels.removeValue(forKey: day) } else { dayLabels[day] = clean }
     }
 
-    func updateRestDuration(_ duration: Int) {
-        restDuration = duration
-        timeRemaining = duration
-        print("WorkoutViewModel: restDuration actualizado a \(duration) segundos")
-        saveData()
-    }
-    
-    func updateExerciseRestDuration(_ exerciseId: UUID, newDuration: Int) {
-        if let index = availableExercises.firstIndex(where: { $0.id == exerciseId }) {
-            availableExercises[index].restDuration = newDuration
-            saveData()
-        }
-    }
-    
-    func updateBaseExercise(_ updatedBaseExercise: Exercise) {
-        if let index = availableExercises.firstIndex(where: { $0.id == updatedBaseExercise.id }) {
-            availableExercises[index] = updatedBaseExercise
-            saveData()
-        }
-    }
-    
-    func reassignExercise(exerciseId: UUID, toDays newDays: Set<WorkoutDay>) {
-        guard let _ = getExercise(by: exerciseId) else { return }
+    // MARK: - Cifras de la semana (del historial)
 
-        // 1. Eliminar todas las ocurrencias actuales de este ejercicio de todos los días
-        for day in WorkoutDay.allCases {
-            dailyWorkoutRecords[day]?.removeAll { $0.exerciseId == exerciseId }
-        }
-
-        // 2. Añadir nuevas ocurrencias solo a los newDays
-        for day in newDays {
-            let newWorkoutRecord = WorkoutExercise(
-                id: UUID(),
-                exerciseId: exerciseId,
-                completedSets: 0,
-                lastSetCompletedAt: nil
-            )
-            dailyWorkoutRecords[day]?.append(newWorkoutRecord)
-        }
-        saveData()
+    struct WeekStats {
+        var sessions = 0
+        var sets = 0
+        var volume: Double = 0
+        var minutes: Int { sets * 3 }
     }
-    
+
+    /// Semana natural (lunes a domingo) desplazada `offset` semanas desde la actual.
+    func weekInterval(offset: Int = 0) -> DateInterval {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let base = cal.date(byAdding: .weekOfYear, value: offset, to: Date()) ?? Date()
+        return cal.dateInterval(of: .weekOfYear, for: base) ?? DateInterval(start: base, duration: 7 * 86_400)
+    }
+
+    private func history(in interval: DateInterval) -> [(date: Date, byDay: [WorkoutDay: [WorkoutExercise]])] {
+        workoutHistory.filter { interval.contains($0.key) }
+            .map { (date: $0.key, byDay: $0.value) }
+            .sorted { $0.date < $1.date }
+    }
+
+    func weekStats(offset: Int = 0) -> WeekStats {
+        var s = WeekStats()
+        for entry in history(in: weekInterval(offset: offset)) {
+            let records = entry.byDay.values.flatMap { $0 }
+            let done = records.reduce(0) { $0 + $1.completedSets }
+            guard done > 0 else { continue }
+            s.sessions += 1
+            s.sets += done
+            s.volume += records.flatMap(\.setLogs).reduce(0) { $0 + $1.volume }
+        }
+        return s
+    }
+
+    /// Volumen de la semana en curso.
+    func weeklyVolume() -> Double { weekStats().volume }
+
+    /// Series por grupo muscular en la semana en curso, ordenado de más a menos.
+    func setsByMuscleGroup(weekOffset: Int = 0) -> [(group: String, sets: Int)] {
+        var counts: [String: Int] = [:]
+        for entry in history(in: weekInterval(offset: weekOffset)) {
+            for record in entry.byDay.values.flatMap({ $0 }) where record.completedSets > 0 {
+                let g = getExercise(by: record.exerciseId)?.muscleGroup ?? ""
+                counts[g.isEmpty ? "Otros" : g, default: 0] += record.completedSets
+            }
+        }
+        return counts.map { (group: $0.key, sets: $0.value) }.sorted { $0.sets > $1.sets }
+    }
+
+    /// El día de rutina mejor completado esta semana.
+    func bestWorkoutDay() -> (day: WorkoutDay, pct: Double)? {
+        var best: (WorkoutDay, Double)? = nil
+        for entry in history(in: weekInterval()) {
+            for (day, records) in entry.byDay {
+                let total = records.reduce(0) { $0 + (getExercise(by: $1.exerciseId)?.totalSets ?? 0) }
+                let done = records.reduce(0) { $0 + $1.completedSets }
+                guard total > 0 else { continue }
+                let pct = Double(done) / Double(total)
+                if best == nil || pct > best!.1 { best = (day, pct) }
+            }
+        }
+        return best.map { (day: $0.0, pct: $0.1) }
+    }
+
+    /// Días de entrenamiento seguidos. Un día sin rutina (descanso) no rompe la
+    /// racha; un día con rutina y sin ninguna serie, sí.
+    func consecutiveWorkoutDays() -> Int {
+        let cal = Calendar.current
+        var date = cal.startOfDay(for: Date())
+        if !hasWorkoutForDate(date) { date = cal.date(byAdding: .day, value: -1, to: date)! }
+        var streak = 0
+        for _ in 0..<400 {
+            if hasWorkoutForDate(date) {
+                streak += 1
+            } else if let day = WorkoutDay.from(date: date), !(dailyWorkoutRecords[day] ?? []).isEmpty {
+                break
+            }
+            date = cal.date(byAdding: .day, value: -1, to: date)!
+        }
+        return streak
+    }
+
+    // MARK: - Biblioteca y plantilla
+
+    func updateBaseExercise(_ updated: Exercise) {
+        guard let i = availableExercises.firstIndex(where: { $0.id == updated.id }) else { return }
+        availableExercises[i] = updated
+        scheduleSave()
+    }
+
+    /// Quita el ejercicio de la biblioteca y de la plantilla. Lo ya hecho sigue
+    /// en el historial, referenciado por id.
     func removeExercise(baseExercise: Exercise) {
-        // Eliminar de availableExercises
         availableExercises.removeAll { $0.id == baseExercise.id }
-        
-        // Eliminar todas las ocurrencias diarias de este ejercicio
         for day in WorkoutDay.allCases {
             dailyWorkoutRecords[day]?.removeAll { $0.exerciseId == baseExercise.id }
         }
-        
-        // Haptic feedback para eliminar ejercicio
         HapticManager.shared.exerciseDeleted()
-        
-        saveData()
+        scheduleSave()
     }
-    
-    func startRestTimer() { 
-        timerActive = true
-        timeRemaining = restDuration
-        currentTimerDuration = restDuration
-        print("WorkoutViewModel: Timer iniciado con duración: \(restDuration) segundos")
-        
-        // Iniciar Live Activity si está disponible
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: restDuration)
-            }
-        }
-        
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in 
-            if self.timeRemaining > 0 { 
-                self.timeRemaining -= 1
-                
-                // Actualizar Live Activity
-                Task { @MainActor in
-                    if #available(iOS 16.1, *) {
-                        self.liveActivityManager?.updateTimerActivity(
-                            timeRemaining: self.timeRemaining,
-                            totalTime: self.restDuration,
-                            isActive: true
-                        )
-                    }
-                }
-            } else { 
-                self.stopTimer()
-                AudioServicesPlaySystemSound(1057)
-            }
-        }
+
+    /// Duplica los ejercicios de un día a otro (sin progreso).
+    func duplicateRoutine(from src: WorkoutDay, to dst: WorkoutDay) {
+        let copies = (dailyWorkoutRecords[src] ?? []).map { WorkoutExercise(exerciseId: $0.exerciseId, supersetGroup: $0.supersetGroup) }
+        dailyWorkoutRecords[dst, default: []].append(contentsOf: copies)
+        scheduleSave()
+        HapticManager.shared.success()
     }
-    
-    func stopTimer() { 
-        timer?.invalidate()
-        timer = nil
-        timerActive = false
-        timeRemaining = currentTimerDuration // Restaurar al valor original
-        
-        // Haptic feedback para detener timer
-        HapticManager.shared.timerStopped()
-        
-        // Cancelar notificación programada
-        NotificationManager.shared.cancelRestNotification()
-        
-        // Terminar Live Activity
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.endTimerActivity()
-            }
-        }
-    }
-    private func loadData() {
-        let decoder = JSONDecoder()
 
-        // Verificar si es la primera vez que se abre la app
-        let isFirstLaunch = !userDefaults.bool(forKey: "HasLaunchedBefore")
-
-        // Nombres de las sesiones por día
-        if let data = userDefaults.data(forKey: "DayLabels"),
-           let decoded = try? decoder.decode([WorkoutDay: String].self, from: data) {
-            dayLabels = decoded
-        }
-
-        // Cargar availableExercises
-        if let data = userDefaults.data(forKey: "AvailableExercises") {
-            print("WorkoutViewModel: Cargando availableExercises - \(data.count) bytes")
-            if let decoded = try? decoder.decode([Exercise].self, from: data) {
-                availableExercises = decoded
-            }
-        } else if isFirstLaunch {
-            // Primera vez - configurar datos por defecto
-            setupDefaultData()
-            userDefaults.set(true, forKey: "HasLaunchedBefore")
-        }
-        
-        // Cargar dailyWorkoutRecords
-        if let data = userDefaults.data(forKey: "DailyWorkoutRecords") {
-            print("WorkoutViewModel: Cargando dailyWorkoutRecords - \(data.count) bytes")
-            if let decoded = try? decoder.decode([WorkoutDay: [WorkoutExercise]].self, from: data) {
-                dailyWorkoutRecords = decoded
-            }
-        }
-        // Los datos guardados antes del fin de semana solo traen lunes-viernes:
-        // sin esto, añadir un ejercicio al sábado o domingo no hacía nada.
-        for day in WorkoutDay.allCases where dailyWorkoutRecords[day] == nil {
-            dailyWorkoutRecords[day] = []
-        }
-
-        // Notas por sesión y centro de avisos (rediseño «Pulso»)
-        if let data = userDefaults.data(forKey: "SessionNotes"),
-           let decoded = try? decoder.decode([Date: String].self, from: data) {
-            sessionNotes = decoded
-        }
-        if let data = userDefaults.data(forKey: "AppNotifications"),
-           let decoded = try? decoder.decode([AppNotification].self, from: data) {
-            notifications = decoded
-        }
-        notificationsEnabled = userDefaults.object(forKey: "NotificationsEnabled") as? Bool ?? true
-
-        // Cargar workoutHistory
-        if let data = userDefaults.data(forKey: "WorkoutHistory") {
-            print("WorkoutViewModel: Cargando workoutHistory - \(data.count) bytes")
-            if data.count > 3_000_000 { // Si es mayor a 3MB, hay un problema
-                print("WorkoutViewModel: ADVERTENCIA - workoutHistory muy grande, ejecutando limpieza de emergencia")
-                // En lugar de cargar datos corruptos, limpiar
-                userDefaults.removeObject(forKey: "WorkoutHistory")
-                workoutHistory = [:]
-            } else if let decoded = try? decoder.decode([Date: [WorkoutDay: [WorkoutExercise]]].self, from: data) {
-                workoutHistory = decoded
-            }
-        }
-        
-        // Cargar bodyWeightHistory
-        if let data = userDefaults.data(forKey: "BodyWeightHistory") {
-            print("WorkoutViewModel: Cargando bodyWeightHistory - \(data.count) bytes")
-            if data.count > 1_000_000 { // Si es mayor a 1MB, limpiar
-                print("WorkoutViewModel: ADVERTENCIA - bodyWeightHistory muy grande, ejecutando limpieza")
-                userDefaults.removeObject(forKey: "BodyWeightHistory")
-                bodyWeightHistory = [:]
-            } else if let decoded = try? decoder.decode([Date: Double].self, from: data) {
-                bodyWeightHistory = decoded
-            }
-        }
-        
-        // Cargar días activos
-        if let data = userDefaults.data(forKey: "ActiveDays") {
-            print("WorkoutViewModel: Cargando activeDays - \(data.count) bytes")
-            if let decoded = try? decoder.decode([WorkoutDay].self, from: data) {
-                activeDays = decoded
-            }
-        }
-        
-        // Cargar duración del descanso
-        if let savedRestDuration = userDefaults.object(forKey: "RestDuration") as? Int {
-            restDuration = savedRestDuration
-            print("WorkoutViewModel: restDuration cargado de UserDefaults: \(restDuration) segundos")
-        } else {
-            print("WorkoutViewModel: No se encontró restDuration guardado. Usando valor por defecto: \(restDuration) segundos")
-        }
-        
-        // Mostrar información del tamaño de datos
-        print("WorkoutViewModel: Datos cargados exitosamente")
-        print(getDataSizeInfo())
-        
-        // Asegurarse de que todos los días tengan un array vacío si no hay records
-        WorkoutDay.allCases.forEach { day in
-            if dailyWorkoutRecords[day] == nil {
-                dailyWorkoutRecords[day] = []
-            }
-        }
-    }
-    
-    private func setupDefaultData() {
-        print("WorkoutViewModel: Configurando datos por defecto...")
-        
-        // Crear ejercicios por defecto basados en la rutina
-        let defaultExercises = createDefaultExercises()
-        availableExercises = defaultExercises
-        
-        // Configurar días activos (Lunes, Miércoles, Viernes)
-        activeDays = [.monday, .wednesday, .friday]
-        
-        // Configurar rutina diaria
-        setupDefaultWorkoutPlan(exercises: defaultExercises)
-        
-        // Crear historial de entrenamiento del último mes
-        createMonthlyWorkoutHistory()
-        
-        // Guardar datos
-        saveData()
-        
-        print("WorkoutViewModel: Datos por defecto configurados exitosamente")
-    }
-    
-    func createDefaultExercises() -> [Exercise] {
-        var exercises: [Exercise] = []
-        
-        // DÍA 1 - LUNES (Glúteos e Isquiosurales)
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "HIP THRUST MÁQUINA",
-            repetitions: 10,
-            weight: 65.0,
-            totalSets: 4,
-            info: "Enfoque en la contracción máxima del glúteo",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "pink"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "MÁQUINA DE ABDUCCIÓN",
-            repetitions: 20,
-            weight: 15.0,
-            totalSets: 4,
-            info: "Mantener tensión constante",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
-            iconColor: "pink"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "PESO MUERTO CON PESA RUSA",
-            repetitions: 10,
-            weight: 16.0,
-            totalSets: 4,
-            info: "Descenso controlado, activación de isquiosurales",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.strengthtraining.functional",
-            iconColor: "orange"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "FLEXIÓN DE RODILLA MÁQUINA TUMBADO",
-            repetitions: 12,
-            weight: 0,
-            totalSets: 4,
-            info: "Control en la fase excéntrica",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "red"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "FLEXIÓN DE RODILLA MÁQUINA SENTADO",
-            repetitions: 12,
-            weight: 0,
-            totalSets: 4,
-            info: "Máximo recorrido articular",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
-            iconColor: "red"
-        ))
-        
-        // DÍA 2 - MIÉRCOLES (Espalda y Deltoides)
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "JALÓN AL PECHO TOMA NEUTRA ANCHO HOMBROS",
-            repetitions: 12,
-            weight: 0,
-            totalSets: 4,
-            info: "Activación completa del dorsal ancho",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "blue"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "REMO EN POLEA BAJA AGARRE SUPINO",
-            repetitions: 10,
-            weight: 0,
-            totalSets: 4,
-            info: "Retracción escapular máxima",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.rowing",
-            iconColor: "blue"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "REMO UNILATERAL CON APOYO EN PECHO",
-            repetitions: 8,
-            weight: 0,
-            totalSets: 4,
-            info: "Trabajo unilateral para equilibrio muscular",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "cyan"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "VUELO POSTERIOR DE HOMBROS EN MÁQUINA",
-            repetitions: 10,
-            weight: 0,
-            totalSets: 4,
-            info: "Deltoides posterior y romboides",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "purple"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "ELEVACIÓN LATERAL SENTADO MANCUERNAS",
-            repetitions: 12,
-            weight: 0,
-            totalSets: 4,
-            info: "Deltoides medio, control del movimiento",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
-            iconColor: "purple"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "ELEVACIÓN FRONTAL MANCUERNAS DE PIE",
-            repetitions: 12,
-            weight: 0,
-            totalSets: 4,
-            info: "Deltoides anterior, evitar impulso",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "yellow"
-        ))
-        
-        // DÍA 3 - VIERNES (Cuádriceps)
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "HIP THRUST EN MÁQUINA",
-            repetitions: 8,
-            weight: 0,
-            totalSets: 4,
-            info: "Variante para activación previa",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "pink"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "SENTADILLA HACK",
-            repetitions: 8,
-            weight: 0,
-            totalSets: 4,
-            info: "Máxima profundidad, control de la carga",
-            imageData: nil,
-            restDuration: 120,
-            sfSymbolIcon: "figure.squat",
-            iconColor: "green"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "ZANCADA PIES EN SUELO",
-            repetitions: 10,
-            weight: 0,
-            totalSets: 4,
-            info: "Trabajo unilateral, estabilidad del core",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.strengthtraining.functional",
-            iconColor: "green"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "PRENSA DE PIERNA UNILATERAL",
-            repetitions: 10,
-            weight: 0,
-            totalSets: 4,
-            info: "Enfoque en cuádriceps, cada pierna por separado",
-            imageData: nil,
-            restDuration: 90,
-            sfSymbolIcon: "figure.strengthtraining.traditional",
-            iconColor: "green"
-        ))
-        
-        exercises.append(Exercise(
-            id: UUID(),
-            name: "EXTENSIÓN RODILLA EN SILLA LEG EXTENSION",
-            repetitions: 12,
-            weight: 0,
-            totalSets: 4,
-            info: "Aislamiento del cuádriceps, contracción máxima",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "figure.seated.side.air.upper.body.strengthtraining",
-            iconColor: "green"
-        ))
-        
-        return exercises
-    }
-    
-    func setupDefaultWorkoutPlan(exercises: [Exercise]) {
-        // Limpiar rutinas existentes
-        dailyWorkoutRecords = [:]
-        WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
-        
-        // DÍA 1 - LUNES (Glúteos e Isquiosurales)
-        let mondayExercises = exercises.filter { exercise in
-            ["HIP THRUST MÁQUINA", "MÁQUINA DE ABDUCCIÓN", "PESO MUERTO CON PESA RUSA", 
-             "FLEXIÓN DE RODILLA MÁQUINA TUMBADO", "FLEXIÓN DE RODILLA MÁQUINA SENTADO"].contains(exercise.name)
-        }
-        
-        dailyWorkoutRecords[.monday] = mondayExercises.map { exercise in
-            WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
-        }
-        
-        // DÍA 2 - MIÉRCOLES (Espalda y Deltoides)
-        let wednesdayExercises = exercises.filter { exercise in
-            ["JALÓN AL PECHO TOMA NEUTRA ANCHO HOMBROS", "REMO EN POLEA BAJA AGARRE SUPINO", 
-             "REMO UNILATERAL CON APOYO EN PECHO", "VUELO POSTERIOR DE HOMBROS EN MÁQUINA",
-             "ELEVACIÓN LATERAL SENTADO MANCUERNAS", "ELEVACIÓN FRONTAL MANCUERNAS DE PIE"].contains(exercise.name)
-        }
-        
-        dailyWorkoutRecords[.wednesday] = wednesdayExercises.map { exercise in
-            WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
-        }
-        
-        // DÍA 3 - VIERNES (Cuádriceps)
-        let fridayExercises = exercises.filter { exercise in
-            ["HIP THRUST EN MÁQUINA", "SENTADILLA HACK", "ZANCADA PIES EN SUELO", 
-             "PRENSA DE PIERNA UNILATERAL", "EXTENSIÓN RODILLA EN SILLA LEG EXTENSION"].contains(exercise.name)
-        }
-        
-        dailyWorkoutRecords[.friday] = fridayExercises.map { exercise in
-            WorkoutExercise(id: UUID(), exerciseId: exercise.id, completedSets: 0)
-        }
-    }
-    
-    private func createMonthlyWorkoutHistory() {
-        let calendar = Calendar.current
-        let today = Date()
-        
-        // Crear historial para las últimas 4 semanas
-        // Asumiendo que el último miércoles del mes fue el último entrenamiento
-        
-        var dates: [Date] = []
-        
-        // Generar fechas para los últimos entrenamientos (Lunes, Miércoles, Viernes)
-        for weekOffset in (1...4).reversed() {
-            if let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today) {
-                // Encontrar lunes, miércoles y viernes de esa semana
-                let weekdayOfWeekStart = calendar.component(.weekday, from: weekStart)
-                let daysToMonday = (weekdayOfWeekStart == 1) ? 1 : 8 - weekdayOfWeekStart + 1
-                
-                if let monday = calendar.date(byAdding: .day, value: daysToMonday, to: weekStart),
-                   let wednesday = calendar.date(byAdding: .day, value: 2, to: monday),
-                   let friday = calendar.date(byAdding: .day, value: 4, to: monday) {
-                    dates.append(contentsOf: [monday, wednesday, friday])
-                }
-            }
-        }
-        
-        // Crear registros completados para cada fecha
-        for date in dates {
-            let dateKey = calendar.startOfDay(for: date)
-
-            var historyForDate: [WorkoutDay: [WorkoutExercise]] = [:]
-
-            // El día natural manda: si esa fecha cae en un día con rutina, se da por completada.
-            if let day = WorkoutDay.from(date: date, calendar: calendar),
-               let workouts = dailyWorkoutRecords[day] {
-                historyForDate[day] = workouts.map { workout in
-                    var completed = workout
-                    if let exercise = getExercise(by: workout.exerciseId) {
-                        completed.completedSets = exercise.totalSets // Completar todas las series
-                        completed.lastSetCompletedAt = date
-                    }
-                    return completed
-                }
-            }
-
-            if !historyForDate.isEmpty {
-                workoutHistory[dateKey] = historyForDate
-            }
-        }
-        
-        // Simular algunos registros de peso corporal
-        for weekOffset in (1...4).reversed() {
-            if let date = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today) {
-                let weight = 70.0 + Double.random(in: -1.5...1.5) // Peso base con variaciones
-                bodyWeightHistory[calendar.startOfDay(for: date)] = weight
-            }
-        }
-        
-        print("WorkoutViewModel: Historial de entrenamiento creado para \(dates.count) días")
-    }
-    
+    /// Deja la app vacía: biblioteca, plantilla, historial, peso y notas.
+    /// No toca el perfil ni los ajustes.
     func resetAllData() {
-        self.availableExercises = []
-        self.dailyWorkoutRecords = [:]
-        WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
-        self.workoutHistory = [:]
-        self.bodyWeightHistory = [:]
-        self.activeDays = WorkoutDay.allCases
-        self.dayLabels = [:]
-        self.sessionNotes = [:]
-        self.notifications = []
-        userDefaults.removeObject(forKey: "AvailableExercises")
-        userDefaults.removeObject(forKey: "DailyWorkoutRecords")
-        userDefaults.removeObject(forKey: "WorkoutHistory")
-        userDefaults.removeObject(forKey: "BodyWeightHistory")
-        userDefaults.removeObject(forKey: "ActiveDays")
-        userDefaults.removeObject(forKey: "RestDuration")
-        userDefaults.removeObject(forKey: "HasLaunchedBefore")
+        availableExercises = []
+        dailyWorkoutRecords = Dictionary(uniqueKeysWithValues: WorkoutDay.allCases.map { ($0, []) })
+        workoutHistory = [:]
+        bodyWeightHistory = [:]
+        activeDays = WorkoutDay.allCases
+        dayLabels = [:]
+        sessionNotes = [:]
+        notifications = []
+        saveNow()
     }
-    
-    // MARK: - Weekly Statistics
-    
-    func weeklyProgress() -> Double {
-        var totalSets = 0
-        var completedSets = 0
-        
-        for day in activeDays {
-            if let records = dailyWorkoutRecords[day] {
-                for record in records {
-                    if let baseExercise = getExercise(by: record.exerciseId) {
-                        totalSets += baseExercise.totalSets
-                        completedSets += record.completedSets
+
+    // MARK: - Exportar
+
+    /// Una fila por serie hecha: lo que de verdad se levantó, no la plantilla.
+    func exportCSV() -> String {
+        var rows = ["fecha,dia,ejercicio,serie,tipo,kg,reps,rpe"]
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        for (date, byDay) in workoutHistory.sorted(by: { $0.key < $1.key }) {
+            for day in byDay.keys.sorted(by: { $0.weekOrder < $1.weekOrder }) {
+                for record in byDay[day] ?? [] where record.completedSets > 0 {
+                    let name = (getExercise(by: record.exerciseId)?.name ?? "Ejercicio borrado")
+                        .replacingOccurrences(of: "\"", with: "'")
+                    for (i, log) in record.setLogs.enumerated() {
+                        let kg = String(format: "%g", log.weight)
+                        rows.append("\(df.string(from: date)),\(day.rawValue),\"\(name)\",\(i + 1),\(log.type.rawValue),\(kg),\(log.reps),\(log.rpe.map(String.init) ?? "")")
                     }
-                }
-            }
-        }
-        return totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0
-    }
-    
-    func weeklyCompletedSets() -> Int {
-        var total = 0
-        for day in activeDays {
-            if let records = dailyWorkoutRecords[day] {
-                for record in records {
-                    total += record.completedSets
-                }
-            }
-        }
-        return total
-    }
-    
-    func weeklyTotalSets() -> Int {
-        var total = 0
-        for day in activeDays {
-            if let records = dailyWorkoutRecords[day] {
-                for record in records {
-                    if let baseExercise = getExercise(by: record.exerciseId) {
-                        total += baseExercise.totalSets
-                    }
-                }
-            }
-        }
-        return total
-    }
-    
-    func weeklyExercisesSummary() -> [(day: WorkoutDay, exercises: [(baseExercise: Exercise, record: WorkoutExercise)])] {
-        return WorkoutDay.allCases.compactMap { day -> (day: WorkoutDay, exercises: [(baseExercise: Exercise, record: WorkoutExercise)])? in
-            guard let records = dailyWorkoutRecords[day], !records.isEmpty else { return nil }
-            
-            let exercisesWithRecords = records.compactMap { record -> (baseExercise: Exercise, record: WorkoutExercise)? in
-                guard let baseExercise = getExercise(by: record.exerciseId) else { return nil }
-                return (baseExercise: baseExercise, record: record)
-            }
-            guard !exercisesWithRecords.isEmpty else { return nil }
-            return (day: day, exercises: exercisesWithRecords)
-        }.sorted { (d1, d2) in
-            WorkoutDay.allCases.firstIndex(of: d1.day)! < WorkoutDay.allCases.firstIndex(of: d2.day)!
-        }
-    }
-    
-    func consecutiveWorkoutDays() -> Int {
-        let sortedHistoryDates = workoutHistory.keys.sorted(by: >)
-        var consecutiveDays = 0
-        var currentDate = Calendar.current.startOfDay(for: Date())
-        
-        for historyDate in sortedHistoryDates {
-            if historyDate <= currentDate && historyDate >= Calendar.current.date(byAdding: .day, value: -consecutiveDays - 1, to: currentDate)! {
-                if let dayHistory = workoutHistory[historyDate] {
-                    let hasCompletedWorkout = dayHistory.values.contains { records in
-                        records.contains { record in
-                            record.completedSets > 0
+                    // Registros antiguos sin series detalladas: una fila por serie sin datos.
+                    if record.setLogs.isEmpty {
+                        for i in 0..<record.completedSets {
+                            rows.append("\(df.string(from: date)),\(day.rawValue),\"\(name)\",\(i + 1),normal,,,")
                         }
                     }
-                    if hasCompletedWorkout {
-                        consecutiveDays += 1
-                        currentDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
-                    } else {
-                        break
-                    }
-                } else {
-                    break
                 }
-            } else if historyDate > currentDate {
-                continue
-            } else {
-                break
             }
         }
-        
-        return consecutiveDays
+        return rows.joined(separator: "\n")
     }
-    
-    func bestWorkoutDay() -> WorkoutDay? {
-        var dayProgress: [WorkoutDay: Double] = [:]
-        
-        for day in WorkoutDay.allCases {
-            dayProgress[day] = progressForDay(day)
-        }
-        
-        return dayProgress.max(by: { $0.value < $1.value })?.key
-    }
-    
-    func totalUniqueExercises() -> Int {
-        return availableExercises.count
-    }
-    
-    func estimatedWeeklyWorkoutTime() -> Int {
-        // Estimate: 1 minute per set + 2 minutes rest between sets
-        let totalSets = weeklyTotalSets()
-        return totalSets > 0 ? totalSets * 3 : 0 // 3 minutes per set (1 for exercise + 2 for rest)
-    }
-    
-    // MARK: - Exercise Management Methods
-    
-    func addExercise(_ exercise: Exercise, to day: WorkoutDay) {
-        // Esta función se mantiene para compatibilidad, pero ahora usa la nueva estructura
-        if !availableExercises.contains(where: { $0.id == exercise.id }) {
-            availableExercises.append(exercise)
-        }
-        
-        let newWorkoutRecord = WorkoutExercise(
-            id: UUID(),
-            exerciseId: exercise.id,
-            completedSets: 0,
-            lastSetCompletedAt: nil
-        )
-        dailyWorkoutRecords[day]?.append(newWorkoutRecord)
-        saveData()
-    }
-    
-    func removeExercise(_ exercise: Exercise, from day: WorkoutDay) {
-        // Solo remover el record de ese día específico
-        dailyWorkoutRecords[day]?.removeAll { $0.exerciseId == exercise.id }
-        saveData()
-    }
-    
-    func removeExercise(withId id: UUID, from day: WorkoutDay) {
-        // Remover por ID de WorkoutExercise (no Exercise base)
-        dailyWorkoutRecords[day]?.removeAll { $0.id == id }
-        saveData()
-    }
-    
-    func updateExercise(_ updatedExercise: Exercise, in day: WorkoutDay) {
-        // Actualizar la definición base
-        if let index = availableExercises.firstIndex(where: { $0.id == updatedExercise.id }) {
-            availableExercises[index] = updatedExercise
-            saveData()
+
+    // MARK: - Temporizador de descanso
+
+    func startTimer(duration: Int, isEnabled: Bool = true) {
+        guard isEnabled, duration > 0 else { return }
+        stopTimer(silent: true)
+        let end = Date().addingTimeInterval(TimeInterval(duration))
+        timerEndDate = end
+        currentTimerDuration = duration
+        timeRemaining = duration
+        timerActive = true
+        HapticManager.shared.timerStarted()
+        NotificationManager.shared.scheduleRestNotification(after: TimeInterval(duration))
+        Task { @MainActor in liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration) }
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async { self?.tick() }
         }
     }
-    
-    // MARK: - Set Completion Methods
-    
-    func toggleSetCompletion(exercise: Exercise, setIndex: Int) {
-        // Esta función necesita ser actualizada para usar WorkoutExercise
-        // Por ahora, vamos a buscar el primer record de este ejercicio
-        for day in WorkoutDay.allCases {
-            if let recordIndex = dailyWorkoutRecords[day]?.firstIndex(where: { $0.exerciseId == exercise.id }) {
-                var record = dailyWorkoutRecords[day]![recordIndex]
-                
-                if setIndex == record.completedSets {
-                    // Completar la siguiente serie
-                    record.completedSets += 1
-                    record.lastSetCompletedAt = Date()
-                    
-                    // Iniciar timer automáticamente si no es el último set
-                    if record.completedSets < exercise.totalSets {
-                        startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
-                    }
-                } else if setIndex == record.completedSets - 1 {
-                    // Desmarcar la última serie completada
-                    record.completedSets -= 1
-                    if record.completedSets == 0 {
-                        record.lastSetCompletedAt = nil
-                    }
-                }
-                
-                dailyWorkoutRecords[day]![recordIndex] = record
-                recordHistory(for: day)
-                break
+
+    /// Recalcula lo que queda contra el reloj de pared (también al volver del fondo).
+    func tick() {
+        guard timerActive, let end = timerEndDate else { return }
+        let remaining = Int(ceil(end.timeIntervalSinceNow))
+        if remaining <= 0 {
+            completeTimer()
+        } else if remaining != timeRemaining {
+            timeRemaining = remaining
+            Task { @MainActor in
+                liveActivityManager?.updateTimerActivity(timeRemaining: remaining, totalTime: currentTimerDuration, isActive: true)
             }
         }
     }
-    
-    private func findDayForExercise(_ exercise: Exercise) -> WorkoutDay? {
-        for day in WorkoutDay.allCases {
-            if dailyWorkoutRecords[day]?.contains(where: { $0.exerciseId == exercise.id }) == true {
-                return day
-            }
-        }
-        return nil
-    }
-    
-    // MARK: - Timer Methods
-    
-    /// Alarga el descanso en curso (el botón "+30 s" del temporizador flotante).
-    /// Reprograma el aviso: si no, sonaría a la hora del descanso original.
+
+    /// Alarga el descanso en curso (+30 s) y reprograma el aviso.
     func extendTimer(by seconds: Int) {
-        guard timerActive else { return }
-        timeRemaining += seconds
+        guard timerActive, let end = timerEndDate else { return }
+        timerEndDate = end.addingTimeInterval(TimeInterval(seconds))
         currentTimerDuration += seconds
+        tick()
         NotificationManager.shared.cancelRestNotification()
         NotificationManager.shared.scheduleRestNotification(after: TimeInterval(timeRemaining))
         HapticManager.shared.buttonTapped()
     }
 
-    func startTimer(duration: Int, isEnabled: Bool = true) {
-        guard isEnabled else {
-            print("WorkoutViewModel: Timer desactivado por configuración")
-            return
-        }
-        
-        stopTimer() // Detener cualquier timer existente
-        timeRemaining = duration
-        currentTimerDuration = duration // Guardar la duración actual del timer
-        timerActive = true
-        
-        // Haptic feedback para iniciar timer
-        HapticManager.shared.timerStarted()
-        
-        // Programar notificación para cuando termine el timer
-        NotificationManager.shared.scheduleRestNotification(after: TimeInterval(duration))
-        
-        print("WorkoutViewModel: Timer iniciado con duración: \(duration) segundos")
-        
-        // Iniciar Live Activity si está disponible
-        Task { @MainActor in
-            if #available(iOS 16.1, *) {
-                liveActivityManager?.startTimerActivity(exerciseName: "Descanso", totalTime: duration)
-            }
-        }
-        
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            DispatchQueue.main.async {
-                if self.timeRemaining > 0 {
-                    self.timeRemaining -= 1
-                    
-                    // Actualizar Live Activity
-                    Task { @MainActor in
-                        if #available(iOS 16.1, *) {
-                            self.liveActivityManager?.updateTimerActivity(
-                                timeRemaining: self.timeRemaining,
-                                totalTime: duration,
-                                isActive: true
-                            )
-                        }
-                    }
-                } else {
-                    self.completeTimer()
-                }
-            }
-        }
+    func stopTimer(silent: Bool = false) {
+        timer?.invalidate()
+        timer = nil
+        timerActive = false
+        timerEndDate = nil
+        timeRemaining = currentTimerDuration
+        if !silent { HapticManager.shared.timerStopped() }
+        NotificationManager.shared.cancelRestNotification()
+        Task { @MainActor in liveActivityManager?.endTimerActivity() }
     }
-    
-    private func completeTimer() {
-        stopTimer()
 
-        // Haptic feedback mejorado para completar timer
+    private func completeTimer() {
+        stopTimer(silent: true)
         HapticManager.shared.timerCompleted()
         notify(.restTimer, title: "Descanso terminado", message: "Cuando quieras, a por la siguiente serie.")
-        
-        // Notificación local si la app está en background
-        scheduleTimerCompletionNotification()
     }
-    
-    private func scheduleTimerCompletionNotification() {
-        // Esta función podría implementar notificaciones locales
-        // Por ahora solo hacemos vibración
-    }
-    
-    // Función para actualizar el estado del timer desde las vistas
+
     func updateTimerEnabledState(_ isEnabled: Bool) {
         isTimerEnabled = isEnabled
     }
-    
-    // MARK: - Métodos de limpieza de datos
-    func clearAllData() {
-        // Limpiar todas las estructuras de datos
-        availableExercises.removeAll()
-        dailyWorkoutRecords.removeAll()
-        workoutHistory.removeAll()
-        bodyWeightHistory.removeAll()
-        activeDays = WorkoutDay.allCases
-        
-        // Limpiar UserDefaults
-        UserDefaults.standard.removeObject(forKey: "AvailableExercises")
-        UserDefaults.standard.removeObject(forKey: "DailyWorkoutRecords")
-        UserDefaults.standard.removeObject(forKey: "WorkoutHistory")
-        UserDefaults.standard.removeObject(forKey: "BodyWeightHistory")
-        UserDefaults.standard.removeObject(forKey: "ActiveDays")
-        
-        print("WorkoutViewModel: Todos los datos han sido limpiados")
+
+    // MARK: - Persistencia
+
+    /// Lo que se guarda en bloque. Se captura en el hilo principal y se
+    /// codifica en segundo plano: el estado @Published no se toca fuera de main.
+    private struct Snapshot: Encodable, Sendable {
+        let exercises: [Exercise]
+        let plan: [WorkoutDay: [WorkoutExercise]]
+        let history: [Date: [WorkoutDay: [WorkoutExercise]]]
+        let bodyWeight: [Date: Double]
+        let activeDays: [WorkoutDay]
     }
-    
-    func getDataSizeInfo() -> String {
+
+    private func snapshot() -> Snapshot {
+        Snapshot(exercises: availableExercises, plan: dailyWorkoutRecords,
+                 history: workoutHistory, bodyWeight: bodyWeightHistory, activeDays: activeDays)
+    }
+
+    /// Guarda todo el estado (para las extensiones).
+    func persistAll() { scheduleSave() }
+
+    /// Agrupa los guardados: escribir por cada pulsación de tecla era lo que
+    /// hacía la app antes.
+    private func scheduleSave() {
+        pendingSave?.cancel()
+        let snap = snapshot()
+        let work = DispatchWorkItem { Self.write(snap) }
+        pendingSave = work
+        saveQueue.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Guarda sin esperar (al irse la app al fondo, tras restaurar una copia…).
+    func saveNow() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        Self.write(snapshot())
+    }
+
+    nonisolated private static func write(_ snap: Snapshot) {
         let encoder = JSONEncoder()
-        var info = "Tamaño de datos guardados:\n"
-        
-        if let enc = try? encoder.encode(availableExercises) {
-            info += "- Ejercicios disponibles: \(enc.count) bytes\n"
+        let defaults = UserDefaults.standard
+        func put<T: Encodable>(_ value: T, _ key: String) {
+            if let data = try? encoder.encode(value) { defaults.set(data, forKey: key) }
         }
-        
-        if let enc = try? encoder.encode(dailyWorkoutRecords) {
-            info += "- Registros diarios: \(enc.count) bytes\n"
-        }
-        
-        if let enc = try? encoder.encode(workoutHistory) {
-            info += "- Historial de entrenamientos: \(enc.count) bytes\n"
-        }
-        
-        if let enc = try? encoder.encode(bodyWeightHistory) {
-            info += "- Historial de peso: \(enc.count) bytes\n"
-        }
-        
-        if let enc = try? encoder.encode(activeDays) {
-            info += "- Días activos: \(enc.count) bytes\n"
-        }
-        
-        return info
+        put(snap.exercises, "AvailableExercises")
+        put(snap.plan, "DailyWorkoutRecords")
+        put(snap.history, "WorkoutHistory")
+        put(snap.bodyWeight, "BodyWeightHistory")
+        put(snap.activeDays, "ActiveDays")
     }
-    
-    // Método para emergencias - limpiar solo si los datos son demasiado grandes
-    func emergencyCleanup() {
-        let encoder = JSONEncoder()
-        
-        // Verificar cada estructura de datos
-        if let enc = try? encoder.encode(workoutHistory), enc.count > 2_000_000 {
-            // Si el historial es mayor a 2MB, mantener solo el último mes
-            let calendar = Calendar.current
-            let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-            
-            let oldKeys = workoutHistory.keys.filter { $0 < oneMonthAgo }
-            for key in oldKeys {
-                workoutHistory.removeValue(forKey: key)
-            }
-            print("WorkoutViewModel: Limpieza de emergencia del historial completada")
-        }
-        
-        if let enc = try? encoder.encode(bodyWeightHistory), enc.count > 500_000 {
-            // Si el historial de peso es mayor a 500KB, mantener solo el último mes
-            let calendar = Calendar.current
-            let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-            
-            let oldKeys = bodyWeightHistory.keys.filter { $0 < oneMonthAgo }
-            for key in oldKeys {
-                bodyWeightHistory.removeValue(forKey: key)
-            }
-            print("WorkoutViewModel: Limpieza de emergencia del peso completada")
-        }
-        
-        // Guardar datos después de la limpieza
-        saveData()
+
+    private func persistSmall<T: Encodable>(_ value: T, key: String) {
+        if let data = try? JSONEncoder().encode(value) { userDefaults.set(data, forKey: key) }
     }
-    
-    // FUNCIÓN DE PRUEBA TEMPORAL - Para verificar que los segundos funcionan
-    func addTestExerciseWithSeconds() {
-        let testExercise = Exercise(
-            id: UUID(),
-            name: "PRUEBA SEGUNDOS",
-            repetitions: 0, // Sin repeticiones
-            weight: 0,
-            totalSets: 3,
-            info: "Ejercicio de prueba con segundos",
-            imageData: nil,
-            restDuration: 60,
-            sfSymbolIcon: "timer",
-            iconColor: "red",
-            segundos: 45, // 45 segundos
-            rir: 0
-        )
-        
-        availableExercises.append(testExercise)
-        
-        // Agregar a todos los días
-        for day in WorkoutDay.allCases {
-            let workoutRecord = WorkoutExercise(
-                id: UUID(),
-                exerciseId: testExercise.id,
-                completedSets: 0,
-                lastSetCompletedAt: nil
-            )
-            dailyWorkoutRecords[day]?.append(workoutRecord)
+
+    private func loadData() {
+        let decoder = JSONDecoder()
+        func get<T: Decodable>(_ key: String, _ type: T.Type) -> T? {
+            guard let data = userDefaults.data(forKey: key) else { return nil }
+            return try? decoder.decode(type, from: data)
         }
-        
-        saveData()
-        print("🔥 TEST: Ejercicio de prueba con 45 segundos agregado a todos los días")
+
+        availableExercises = get("AvailableExercises", [Exercise].self) ?? []
+        dailyWorkoutRecords = get("DailyWorkoutRecords", [WorkoutDay: [WorkoutExercise]].self) ?? [:]
+        workoutHistory = get("WorkoutHistory", [Date: [WorkoutDay: [WorkoutExercise]]].self) ?? [:]
+        bodyWeightHistory = get("BodyWeightHistory", [Date: Double].self) ?? [:]
+        activeDays = get("ActiveDays", [WorkoutDay].self) ?? WorkoutDay.allCases
+        dayLabels = get("DayLabels", [WorkoutDay: String].self) ?? [:]
+        sessionNotes = get("SessionNotes", [Date: String].self) ?? [:]
+        notifications = get("AppNotifications", [AppNotification].self) ?? []
+        notificationsEnabled = userDefaults.object(forKey: "NotificationsEnabled") as? Bool ?? true
+        defaultRestDuration = userDefaults.object(forKey: "RestDuration") as? Int ?? 120
+
+        // Los datos guardados antes del fin de semana solo traen lunes-viernes.
+        for day in WorkoutDay.allCases where dailyWorkoutRecords[day] == nil {
+            dailyWorkoutRecords[day] = []
+        }
+
+        if let saved = userDefaults.object(forKey: "LastSessionDate") as? Date {
+            sessionDate = Calendar.current.startOfDay(for: saved)
+        } else {
+            // Primera vez con sesiones por fecha. Lo que hubiera marcado ya
+            // está en el historial bajo el día en que se marcó; la plantilla
+            // vuelve a cero para que la sesión de hoy empiece limpia.
+            for day in WorkoutDay.allCases {
+                dailyWorkoutRecords[day] = (dailyWorkoutRecords[day] ?? []).map { $0.resettingProgress() }
+            }
+            sessionDate = Calendar.current.startOfDay(for: Date())
+            userDefaults.set(sessionDate, forKey: "LastSessionDate")
+            scheduleSave()
+        }
+        userDefaults.set(true, forKey: "HasLaunchedBefore")
+    }
+}
+
+extension WorkoutExercise {
+    /// El mismo ejercicio en la plantilla, sin series hechas.
+    func resettingProgress() -> WorkoutExercise {
+        var r = self
+        r.completedSets = 0
+        r.setLogs = []
+        r.lastSetCompletedAt = nil
+        return r
     }
 }

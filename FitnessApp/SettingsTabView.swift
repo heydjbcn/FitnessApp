@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsTabView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
@@ -23,8 +24,13 @@ struct SettingsTabView: View {
     @State private var showingProfile = false
     @State private var showingNotifications = false
     @State private var showingCoach = false
+    @State private var importingBackup = false
+    @State private var pendingRestore: URL? = nil
+    @State private var restoreError: String? = nil
+    @State private var confirmReset = false
 
     private var p: Palette { themeManager.p }
+    private static let restPresets = [30, 60, 90, 120, 180]
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -166,7 +172,24 @@ struct SettingsTabView: View {
             toggleRow(icon: "sun.max.fill", title: "Mantener pantalla encendida",
                       sub: "Evita que se apague durante el entreno", isOn: $keepScreenOn, divider: true)
             toggleRow(icon: "moon.zzz.fill", title: "Modo de enfoque automático",
-                      sub: "Silencia avisos mientras entrenas", isOn: $autoFocusMode, divider: false)
+                      sub: "Silencia avisos mientras entrenas", isOn: $autoFocusMode, divider: true)
+            HStack(spacing: 12) {
+                IconTile(symbol: "hourglass", p: p)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Descanso por defecto").font(.fig(15, .semibold)).foregroundColor(p.ink)
+                    Text("Para los ejercicios nuevos").font(.fig(12, .medium)).foregroundColor(p.mute)
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.top, 12)
+            PulsoSegmented(options: Self.restPresets.map { WorkoutViewModel.restText($0) },
+                           selection: Binding(
+                               get: { Self.restPresets.firstIndex(of: viewModel.defaultRestDuration) ?? 3 },
+                               set: { viewModel.defaultRestDuration = Self.restPresets[$0] }),
+                           onCard: false, p: p)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 6)
@@ -259,21 +282,80 @@ struct SettingsTabView: View {
             .buttonStyle(.plain)
             .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
 
-            ShareLink(item: viewModel.exportCSV(), preview: SharePreview("Entrenamientos ChamaFit (CSV)")) {
-                navRow(icon: "square.and.arrow.up", title: "Exportar datos", sub: "Todo tu historial en CSV para abrir en Excel")
+            ShareLink(item: CSVFile(make: { [viewModel] in viewModel.exportCSV() }),
+                      preview: SharePreview("Entrenamientos ChamaFit (CSV)")) {
+                navRow(icon: "tablecells", title: "Exportar entrenamientos", sub: "Una fila por serie, en CSV para Excel o Numbers")
+            }
+            .buttonStyle(.plain)
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+
+            ShareLink(item: BackupFile(make: { [viewModel] in try viewModel.backupData() }),
+                      preview: SharePreview("Copia de seguridad de ChamaFit")) {
+                navRow(icon: "square.and.arrow.up", title: "Copia de seguridad", sub: "Todo (ejercicios, rutina, historial, peso, notas) en un fichero")
+            }
+            .buttonStyle(.plain)
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+
+            Button { importingBackup = true } label: {
+                navRow(icon: "square.and.arrow.down", title: "Restaurar copia", sub: "Sustituye todo por el contenido de una copia")
+            }
+            .buttonStyle(.plain)
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+
+            Button { confirmReset = true } label: {
+                navRow(icon: "trash", title: "Borrar todos los datos", sub: "Ejercicios, rutina, historial, peso y notas", tint: p.danger)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 6)
         .pulsoCard(p, radius: 22)
+        .fileImporter(isPresented: $importingBackup, allowedContentTypes: [.json]) { result in
+            guard case .success(let url) = result else { return }
+            pendingRestore = url
+        }
+        .confirmationDialog("¿Restaurar esta copia?", isPresented: Binding(get: { pendingRestore != nil },
+                                                                         set: { if !$0 { pendingRestore = nil } }),
+                            titleVisibility: .visible) {
+            Button("Sustituir todo por la copia", role: .destructive) { restore() }
+        } message: {
+            Text("Lo que hay ahora en la app se pierde. Si no estás seguro, haz antes una copia de seguridad.")
+        }
+        .confirmationDialog("¿Borrar todos los datos?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Borrar ejercicios, rutina e historial", role: .destructive) {
+                viewModel.resetAllData()
+                HapticManager.shared.destructiveAction()
+            }
+        } message: {
+            Text("Se borran los ejercicios, la rutina de cada día, el historial, el peso y las notas. El perfil y los ajustes se quedan. No se puede deshacer.")
+        }
+        .alert("No se pudo restaurar", isPresented: Binding(get: { restoreError != nil },
+                                                             set: { if !$0 { restoreError = nil } })) {
+            Button("Vale", role: .cancel) {}
+        } message: {
+            Text(restoreError ?? "")
+        }
     }
 
-    private func navRow(icon: String, title: String, sub: String) -> some View {
+    private func restore() {
+        guard let url = pendingRestore else { return }
+        pendingRestore = nil
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            try viewModel.restore(from: data)
+            userManager.reloadProfile()
+        } catch {
+            restoreError = error.localizedDescription
+        }
+    }
+
+    private func navRow(icon: String, title: String, sub: String, tint: Color? = nil) -> some View {
         HStack(spacing: 12) {
             IconTile(symbol: icon, p: p)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.fig(15, .semibold)).foregroundColor(p.ink)
+                Text(title).font(.fig(15, .semibold)).foregroundColor(tint ?? p.ink)
                 Text(sub).font(.fig(12, .medium)).foregroundColor(p.mute)
             }
             Spacer()

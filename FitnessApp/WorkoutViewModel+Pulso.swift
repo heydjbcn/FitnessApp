@@ -145,14 +145,11 @@ extension WorkoutViewModel {
     }
 
     /// Minutos entrenados esta semana (3 min por serie hecha, como el prototipo).
-    func weeklyTrainedMinutes() -> Int {
-        let calendar = Calendar.current
-        guard let week = calendar.dateInterval(of: .weekOfYear, for: Date()) else { return 0 }
-        let sets = workoutHistory
-            .filter { week.contains($0.key) }
-            .flatMap { $0.value.values.flatMap { $0 } }
-            .reduce(0) { $0 + $1.completedSets }
-        return sets * 3
+    func weeklyTrainedMinutes() -> Int { weekStats().minutes }
+
+    /// La bienvenida ya se ha visto (no vuelve a salir sola).
+    func markWelcomeSeen() {
+        userDefaults.set(true, forKey: "hasSeenWelcomeV2")
     }
 
     /// Los cinco mejores pesos registrados, uno por ejercicio.
@@ -188,13 +185,32 @@ extension WorkoutViewModel {
 
     // MARK: - Rutina de ejemplo
 
-    /// Carga los ejercicios y la rutina de ejemplo, sin inventar historial.
+    /// Carga una rutina de ejemplo de tres días sacada del catálogo, sin
+    /// inventar historial: lunes empuje, miércoles tirón, viernes pierna.
     func loadSampleRoutine() {
-        let exercises = createDefaultExercises()
-        availableExercises.append(contentsOf: exercises)
-        setupDefaultWorkoutPlan(exercises: exercises)
-        for day in WorkoutDay.allCases where dailyWorkoutRecords[day] == nil {
-            dailyWorkoutRecords[day] = []
+        let plan: [(WorkoutDay, String, [String])] = [
+            (.monday, "Pecho y tríceps", ["Press de banca", "Press inclinado mancuernas", "Aperturas", "Press militar", "Extensiones en polea"]),
+            (.wednesday, "Espalda y bíceps", ["Dominadas", "Remo con barra", "Jalón al pecho", "Curl con barra", "Curl martillo"]),
+            (.friday, "Pierna y core", ["Sentadilla", "Prensa", "Curl femoral", "Hip thrust", "Plancha"]),
+        ]
+        for (day, label, names) in plan {
+            for name in names {
+                guard let c = ExerciseCatalog.all.first(where: { $0.name == name }) else { continue }
+                let exercise: Exercise
+                if let existing = availableExercises.first(where: { $0.name == c.name }) {
+                    exercise = existing
+                } else {
+                    exercise = Exercise(id: UUID(), name: c.name, repetitions: c.reps, weight: c.weight,
+                                        totalSets: c.sets, restDuration: defaultRestDuration,
+                                        sfSymbolIcon: c.icon, iconColor: "accent",
+                                        segundos: c.reps == 0 ? 45 : 0, muscleGroup: c.muscleGroup)
+                    availableExercises.append(exercise)
+                }
+                if !(dailyWorkoutRecords[day] ?? []).contains(where: { $0.exerciseId == exercise.id }) {
+                    dailyWorkoutRecords[day, default: []].append(WorkoutExercise(exerciseId: exercise.id))
+                }
+            }
+            if dayLabels[day] == nil { dayLabels[day] = label }
         }
         activeDays = WorkoutDay.allCases.filter { !(dailyWorkoutRecords[$0] ?? []).isEmpty }
         HapticManager.shared.success()

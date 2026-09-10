@@ -46,8 +46,8 @@ class UserManager: ObservableObject {
         showingNameInput = userName.isEmpty
     }
     
-    private func loadUserName() {
-        // Método mantenido para compatibilidad
+    /// Vuelve a leer el perfil de UserDefaults (tras restaurar una copia).
+    func reloadProfile() {
         loadUserData()
     }
     

@@ -86,8 +86,8 @@ struct HistoryView: View {
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
             stat(icon: "flame.fill", title: "Racha", value: "\(viewModel.consecutiveWorkoutDays())", sub: "días seguidos")
             stat(icon: "clock.fill", title: "Esta semana", value: "\(viewModel.weeklyTrainedMinutes())", sub: "min entrenados")
-            stat(icon: "trophy.fill", title: "Mejor día", value: best?.shortLabel ?? "—",
-                 sub: best.map { "\(Int((viewModel.progressForDay($0) * 100).rounded()))% completado" } ?? "sin datos")
+            stat(icon: "trophy.fill", title: "Mejor día", value: best?.day.shortLabel ?? "—",
+                 sub: best.map { "\(Int(($0.pct * 100).rounded()))% completado" } ?? "sin datos")
             stat(icon: "dumbbell.fill", title: "Ejercicios", value: "\(viewModel.availableExercises.count)", sub: "únicos")
         }
     }
