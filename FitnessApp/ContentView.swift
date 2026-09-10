@@ -14,8 +14,14 @@ struct ContentView: View {
     @State private var tutorialForm = false
 
     @AppStorage("keepScreenOn") private var keepScreenOn = false
+    @ObservedObject private var spotify = SpotifyManager.shared
 
     private var p: Palette { themeManager.p }
+
+    /// La píldora de Spotify sale cuando hay sesión y no está escondida.
+    private var showsSpotifyPill: Bool {
+        spotify.hasSession && spotify.presentation == .compact && tutorial == nil
+    }
 
     var body: some View {
         ZStack {
@@ -48,17 +54,34 @@ struct ContentView: View {
             .environmentObject(themeManager)
             .environmentObject(userManager)
 
-            // Descanso: flota sobre la barra de pestañas en cualquier pantalla.
-            if viewModel.timerActive && tutorial == nil {
-                VStack {
+            // Descanso y reproductor de Spotify flotan sobre la barra de pestañas
+            // en cualquier pantalla; si coinciden, el descanso va encima.
+            if (viewModel.timerActive || showsSpotifyPill) && tutorial == nil {
+                VStack(spacing: 8) {
                     Spacer()
-                    PulsoRestTimer()
-                        .environmentObject(viewModel)
-                        .environmentObject(themeManager)
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 64)
+                    if viewModel.timerActive {
+                        PulsoRestTimer()
+                            .environmentObject(viewModel)
+                            .environmentObject(themeManager)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    if showsSpotifyPill {
+                        SpotifyPill(spotify: spotify, p: p)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.horizontal, 14)
+                .padding(.bottom, 64)
+            }
+
+            if spotify.hasSession && spotify.presentation == .minimized && tutorial == nil {
+                HStack {
+                    Spacer()
+                    SpotifyMiniTab(spotify: spotify, p: p)
+                }
+                .padding(.top, 150)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .transition(.move(edge: .trailing))
             }
 
             // Celebración de récord personal
@@ -90,6 +113,8 @@ struct ContentView: View {
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.timerActive)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.prCelebration)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: spotify.presentation)
+        .sheet(isPresented: $spotify.expanded) { SpotifyExpandedSheet(spotify: spotify, p: p) }
         .onAppear {
             PhoneConnectivity.shared.viewModel = viewModel
             syncStyle()
@@ -119,6 +144,7 @@ struct ContentView: View {
             viewModel.tick()
             NotificationManager.shared.clearDelivered()
             PhoneConnectivity.shared.sendTodayContext()
+            spotify.reconnectIfNeeded()
             if !wasToday || viewModel.sessionDate != Calendar.current.startOfDay(for: Date()) {
                 homeDay = WeeklyCalendarView.getCurrentDay()
             }

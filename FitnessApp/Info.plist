@@ -12,6 +12,9 @@
 	<string>ChamaFit lee tu ritmo cardíaco y las calorías del entrenamiento que registra el Apple Watch.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud.</string>
+	<!-- Client ID de la app registrada en developer.spotify.com (Redirect URI chamafit-spotify://callback) -->
+	<key>SpotifyClientID</key>
+	<string>PON_AQUI_EL_CLIENT_ID</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>spotify</string>

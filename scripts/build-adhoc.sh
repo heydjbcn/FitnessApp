@@ -24,7 +24,7 @@ cat > /tmp/ChamaFit-export.plist <<'EOF'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>method</key><string>release-testing</string>
+	<key>method</key><string>ad-hoc</string>
 	<key>teamID</key><string>47BY9SGLT7</string>
 	<key>signingStyle</key><string>automatic</string>
 	<key>compileBitcode</key><false/>
@@ -48,6 +48,6 @@ if ls "$OUT"/*.ipa >/dev/null 2>&1; then
   security cms -D -i "$ARCHIVE/Products/Applications/FitnessApp.app/embedded.mobileprovision" 2>/dev/null \
     | plutil -extract ProvisionedDevices json -o - - 2>/dev/null | tr -d '[]"' | tr ',' '\n' | sed 's/^/    /'
 else
-  echo "✗ No se ha generado el .ipa. Mira /tmp/ChamaFit-export.log"
+  echo "✗ No se ha generado el .ipa. Revisa la salida de arriba"
   exit 1
 fi

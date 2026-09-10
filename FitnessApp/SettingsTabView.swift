@@ -21,6 +21,7 @@ struct SettingsTabView: View {
     @AppStorage("keepScreenOn") private var keepScreenOn = false
     @AppStorage("autoFocusMode") private var autoFocusMode = true
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
+    @ObservedObject private var spotify = SpotifyManager.shared
 
     @State private var showingProfile = false
     @State private var showingNotifications = false
@@ -232,16 +233,75 @@ struct SettingsTabView: View {
                 IconTile(symbol: "music.note", p: p)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Spotify").font(.fig(15, .semibold)).foregroundColor(p.ink)
-                    Text("Controla tu música durante el entrenamiento").font(.fig(12, .medium)).foregroundColor(p.mute)
+                    Text(spotify.isConnected ? "Conectado a tu cuenta de Spotify"
+                         : spotify.hasSession ? "Sesión guardada · sin conexión ahora"
+                         : "Controla tu música durante el entrenamiento")
+                        .font(.fig(12, .medium)).foregroundColor(p.mute)
                 }
                 Spacer(minLength: 8)
-                Button(action: openSpotify) {
-                    Text("Abrir")
-                        .font(.fig(12, .bold)).foregroundColor(p.onacc)
-                        .padding(.horizontal, 14).frame(height: 34)
-                        .background(Capsule().fill(p.hgrad))
+                if spotify.hasSession {
+                    Button { spotify.disconnect(forget: true) } label: {
+                        Text("Desconectar")
+                            .font(.fig(12, .semibold)).foregroundColor(p.danger)
+                            .padding(.horizontal, 12).frame(height: 34)
+                            .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button { SpotifyManager.isConfigured ? spotify.connect() : openSpotify() } label: {
+                        Text(SpotifyManager.isConfigured ? "Conectar" : "Abrir")
+                            .font(.fig(12, .bold)).foregroundColor(p.onacc)
+                            .padding(.horizontal, 14).frame(height: 34)
+                            .background(Capsule().fill(p.hgrad))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            }
+            if let err = spotify.lastError {
+                Text(err).font(.fig(12, .medium)).foregroundColor(p.danger).padding(.top, 8)
+            }
+            if spotify.isConnected {
+                HStack(spacing: 10) {
+                    Group {
+                        if let img = spotify.artwork {
+                            Image(uiImage: img).resizable().scaledToFill()
+                        } else {
+                            Rectangle().fill(p.grad)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(spotify.trackTitle.isEmpty ? "Nada sonando" : spotify.trackTitle)
+                            .font(.fig(13, .bold)).foregroundColor(p.ink).lineLimit(1)
+                        Text(spotify.trackArtist).font(.fig(12, .medium)).foregroundColor(p.mute).lineLimit(1)
+                    }
+                    Spacer()
+                    Button { spotify.togglePlayPause() } label: {
+                        Image(systemName: spotify.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(p.acc)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(p.card))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
+                .padding(.top, 12)
+                HStack(spacing: 6) {
+                    ForEach([("Píldora", SpotifyManager.Presentation.compact), ("Pestaña", .minimized), ("Oculto", .hidden)], id: \.1) { item in
+                        let on = spotify.presentation == item.1
+                        Button { spotify.setPresentation(item.1) } label: {
+                            Text(item.0).font(.fig(12, on ? .bold : .semibold))
+                                .foregroundColor(on ? p.onacc : p.mute)
+                                .frame(maxWidth: .infinity).frame(height: 30)
+                                .background(Capsule().fill(on ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 8)
             }
 
             Rectangle().fill(p.line).frame(height: 1).padding(.vertical, 14)

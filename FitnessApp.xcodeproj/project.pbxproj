@@ -21,6 +21,7 @@
 		8C456EC0D4BB2B11373E1356 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CC7CC03EC34E8E83DE540FF /* Foundation.framework */; };
 		8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */; };
 		9B9CB770F4199C68E79A2D7F /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */; };
+		E105F1F3D7227DE561B0E9B4 /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = 4CACB41E9D493C058F4A8F73 /* SpotifyiOS */; };
 		E71AFAE01ED86661631D2DFD /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */; };
 		ECA52B97F270F8F51FDC8865 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7D8848F4D553FFDB4435 /* RestActivity.swift */; };
 /* End PBXBuildFile section */
@@ -152,6 +153,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E105F1F3D7227DE561B0E9B4 /* SpotifyiOS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -305,6 +307,9 @@
 				54FF56BB2E272C080011485E /* FitnessApp */,
 			);
 			name = FitnessApp;
+			packageProductDependencies = (
+				4CACB41E9D493C058F4A8F73 /* SpotifyiOS */,
+			);
 			productName = FitnessApp;
 			productReference = 54FF56B92E272C080011485E /* FitnessApp.app */;
 			productType = "com.apple.product-type.application";
@@ -400,6 +405,9 @@
 			);
 			mainGroup = 54FF56B02E272C080011485E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BF294AA2A6A34D41CDE07F27 /* XCRemoteSwiftPackageReference "ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 54FF56BA2E272C080011485E /* Products */;
 			projectDirPath = "";
@@ -875,7 +883,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp;
 				PRODUCT_NAME = "AppFit Watch";
 				SDKROOT = watchos;
-				SKIP_INSTALL = NO;
+				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 11.0;
@@ -901,7 +909,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = Mauri.FitnessApp.watchkitapp;
 				PRODUCT_NAME = "AppFit Watch";
 				SDKROOT = watchos;
-				SKIP_INSTALL = NO;
+				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				VALIDATE_PRODUCT = YES;
@@ -999,6 +1007,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BF294AA2A6A34D41CDE07F27 /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spotify/ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4CACB41E9D493C058F4A8F73 /* SpotifyiOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BF294AA2A6A34D41CDE07F27 /* XCRemoteSwiftPackageReference "ios-sdk" */;
+			productName = SpotifyiOS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 54FF56B12E272C080011485E /* Project object */;
 }

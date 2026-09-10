@@ -108,7 +108,8 @@ watch.build_configurations.each do |c|
     'INFOPLIST_KEY_NSHealthShareUsageDescription' => 'ChamaFit lee tu ritmo cardíaco y las calorías durante el entrenamiento para mostrarlos en el reloj.',
     'INFOPLIST_KEY_NSHealthUpdateUsageDescription' => 'ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud para que cuente en tus anillos.',
     'MARKETING_VERSION' => '2.0',
-    'WATCHOS_DEPLOYMENT_TARGET' => '11.0'
+    'WATCHOS_DEPLOYMENT_TARGET' => '11.0',
+    'SKIP_INSTALL' => 'YES'
   )
 end
 

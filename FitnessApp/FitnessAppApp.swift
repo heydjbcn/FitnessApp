@@ -21,6 +21,10 @@ struct FitnessAppApp: App {
             .environmentObject(themeManager)
             .environmentObject(userManager)
             .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
+            // La vuelta de Spotify tras autorizar (chamafit-spotify://callback)
+            .onOpenURL { url in
+                if url.scheme == "chamafit-spotify" { SpotifyManager.shared.handle(url: url) }
+            }
         }
     }
 }
