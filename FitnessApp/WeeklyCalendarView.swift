@@ -31,6 +31,7 @@ struct WeeklyCalendarView: View {
     @State private var renaming = false
     @State private var routineName = ""
     @State private var routineToDelete: Routine? = nil
+    @State private var generating = false
 
     // MARK: - Rutinas guardadas
 
@@ -49,6 +50,7 @@ struct WeeklyCalendarView: View {
             Section {
                 Button { routineName = ""; namingNew = true } label: { Label("Nueva rutina…", systemImage: "plus") }
                 Button { routineName = viewModel.activeRoutineName; renaming = true } label: { Label("Renombrar la actual…", systemImage: "pencil") }
+                Button { generating = true } label: { Label("Crear rutina con IA…", systemImage: "wand.and.stars") }
             }
             if !saved.isEmpty {
                 Section("Eliminar") {
@@ -133,6 +135,11 @@ struct WeeklyCalendarView: View {
                 if let r = routineToDelete { viewModel.deleteRoutine(r) }
                 routineToDelete = nil
             }
+        }
+        .sheet(isPresented: $generating) {
+            RoutineGeneratorSheet()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
         }
         .sheet(item: $detail) { target in
             ExerciseDetailSheet(exerciseId: target.exerciseId,

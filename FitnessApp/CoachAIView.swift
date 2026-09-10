@@ -2,17 +2,23 @@
 //  CoachAIView.swift
 //  ChamaFit
 //
-//  Coach IA en estilo «Pulso»: pregunta sobre tu rutina, técnica o progresión
-//  a Claude, con tu rutina y tus últimas marcas como contexto.
+//  Coach IA en estilo «Pulso». Dos motores: la IA del iPhone (Apple
+//  Intelligence: gratis, sin key, sin internet) y Claude (con tu key). Las
+//  respuestas van apareciendo mientras se escriben. Desde aquí también se
+//  analiza la semana y se crea una rutina entera con IA.
 //
 
 import SwiftUI
+
+enum CoachEngine: String { case apple, claude }
 
 struct CoachAIView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @StateObject private var coach = AICoachManager.shared
+    @ObservedObject private var health = HealthManager.shared
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("coachEngine", store: AppDefaults.store) private var engineRaw = CoachEngine.apple.rawValue
 
     @State private var prompt = ""
     @State private var thread: [(question: String, answer: String)] = []
@@ -20,9 +26,19 @@ struct CoachAIView: View {
     @State private var errorMsg: String?
     @State private var keyDraft = ""
     @State private var showingKey = false
+    @State private var showingGenerator = false
+    @State private var streamTask: Task<Void, Never>? = nil
     @FocusState private var focused: Bool
 
     private var p: Palette { themeManager.p }
+    private var appleOK: Bool { OnDeviceCoach.isAvailable }
+    /// El motor que se usa de verdad: si el elegido no está disponible, el otro.
+    private var engine: CoachEngine {
+        let wanted = CoachEngine(rawValue: engineRaw) ?? .apple
+        if wanted == .apple && !appleOK { return .claude }
+        return wanted
+    }
+    private var needsKey: Bool { engine == .claude && (!coach.hasKey || showingKey) }
 
     private let suggestions = [
         "Ajusta mi rutina del lunes para ganar fuerza",
@@ -33,31 +49,49 @@ struct CoachAIView: View {
 
     var body: some View {
         PulsoSheet(p: p) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    UpperLabel(text: "Claude", p: p)
-                    Text("Coach IA").font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
-                }
-                Spacer()
-                if coach.hasKey {
-                    Button { showingKey = true } label: {
-                        Image(systemName: "key.fill")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(p.mute)
-                            .frame(width: 36, height: 36)
-                            .background(Circle().fill(p.soft))
-                            .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 8)
-                }
-                CloseCircle(p: p) { dismiss() }
+            header
+            if appleOK {
+                PulsoSegmented(options: ["iPhone · gratis", "Claude"],
+                               selection: Binding(get: { engine == .apple ? 0 : 1 },
+                                                  set: { engineRaw = ($0 == 0 ? CoachEngine.apple : .claude).rawValue }),
+                               onCard: false, p: p)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
+                    .accessibilityIdentifier("coach.engine")
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 22)
-
-            if coach.hasKey && !showingKey { chat } else { keyEntry }
+            if needsKey { keyEntry } else { chat }
         }
+        .sheet(isPresented: $showingGenerator) {
+            RoutineGeneratorSheet(engine: engine)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .onDisappear { streamTask?.cancel() }
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                UpperLabel(text: engine == .apple ? "Apple Intelligence · en tu iPhone" : "Claude", p: p)
+                Text("Coach IA").font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
+            }
+            Spacer()
+            if engine == .claude && coach.hasKey {
+                Button { showingKey = true } label: {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 13, weight: .bold)).foregroundColor(p.mute)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(p.soft))
+                        .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("API key")
+                .padding(.trailing, 8)
+            }
+            CloseCircle(p: p) { dismiss() }
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 22)
     }
 
     // MARK: - API key
@@ -66,10 +100,12 @@ struct CoachAIView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 IconTile(symbol: "sparkles", size: 56, radius: 18, gradient: true, glow: true, p: p)
-                Text("Activa el Coach IA")
+                Text("Activa el Coach con Claude")
                     .font(.bri(20)).em(-0.02, size: 20).foregroundColor(p.ink)
                     .padding(.top, 16)
-                Text("Pega tu API key de Anthropic. Es de pago por uso y se guarda solo en este iPhone.")
+                Text(appleOK
+                     ? "Pega tu API key de Anthropic (de pago por uso, se guarda en el llavero de este iPhone). Sin key, usa «iPhone · gratis»."
+                     : "Pega tu API key de Anthropic. Es de pago por uso y se guarda en el llavero de este iPhone. \(OnDeviceCoach.unavailableReason)")
                     .font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
                     .padding(.top, 6)
                 UpperLabel(text: "API key", p: p).padding(.top, 18).padding(.bottom, 6)
@@ -110,6 +146,13 @@ struct CoachAIView: View {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            actionChip("Analiza mi semana", icon: "chart.line.uptrend.xyaxis") { analyzeWeek() }
+                                .accessibilityIdentifier("coach.analyze")
+                            actionChip("Crear rutina con IA", icon: "wand.and.stars") { showingGenerator = true }
+                                .accessibilityIdentifier("coach.generate")
+                        }
+                        .padding(.top, 6)
                         if thread.isEmpty && !loading {
                             UpperLabel(text: "Prueba a preguntar", p: p).padding(.top, 6)
                             ForEach(suggestions, id: \.self) { s in
@@ -128,9 +171,9 @@ struct CoachAIView: View {
                         }
                         ForEach(Array(thread.enumerated()), id: \.offset) { i, turn in
                             bubble(turn.question, mine: true)
-                            bubble(turn.answer, mine: false).id(i)
+                            if !turn.answer.isEmpty { bubble(turn.answer, mine: false).id(i) }
                         }
-                        if loading {
+                        if loading && (thread.last?.answer.isEmpty ?? true) {
                             HStack(spacing: 8) {
                                 ProgressView().tint(p.acc)
                                 Text("Pensando…").font(.fig(13, .medium)).foregroundColor(p.mute)
@@ -148,7 +191,7 @@ struct CoachAIView: View {
                     .padding(.top, 14)
                     .padding(.bottom, 12)
                 }
-                .onChange(of: thread.count) { _, n in withAnimation { proxy.scrollTo(n - 1, anchor: .bottom) } }
+                .onChange(of: thread.last?.answer) { _, _ in proxy.scrollTo(thread.count - 1, anchor: .bottom) }
                 .onChange(of: loading) { _, l in if l { withAnimation { proxy.scrollTo("loading", anchor: .bottom) } } }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -163,6 +206,7 @@ struct CoachAIView: View {
                     .padding(.horizontal, 16).padding(.vertical, 12)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(p.soft))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+                    .accessibilityIdentifier("coach.input")
                 Button(action: send) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 17, weight: .bold))
@@ -172,6 +216,7 @@ struct CoachAIView: View {
                         .shadow(color: p.glow1, radius: 10, y: 6)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Enviar")
                 .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty || loading)
                 .opacity(prompt.trimmingCharacters(in: .whitespaces).isEmpty || loading ? 0.5 : 1)
             }
@@ -180,21 +225,42 @@ struct CoachAIView: View {
         }
     }
 
+    private func actionChip(_ title: String, icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon).font(.fig(13, .bold))
+                .foregroundColor(p.onacc)
+                .frame(maxWidth: .infinity).frame(height: 40)
+                .background(Capsule().fill(p.hgrad))
+        }
+        .buttonStyle(.plain)
+        .disabled(loading)
+    }
+
     private func bubble(_ text: String, mine: Bool) -> some View {
         HStack {
             if mine { Spacer(minLength: 40) }
-            Text(text)
-                .font(.fig(14, mine ? .semibold : .medium))
-                .lineSpacing(4)
-                .foregroundColor(mine ? p.onacc : p.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 14).padding(.vertical, 11)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(mine ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft))
-                )
+            Group {
+                if mine { Text(text) } else { Text((try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)) }
+            }
+            .font(.fig(14, mine ? .semibold : .medium))
+            .lineSpacing(4)
+            .foregroundColor(mine ? p.onacc : p.ink)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+            .padding(.horizontal, 14).padding(.vertical, 11)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(mine ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft))
+            )
             if !mine { Spacer(minLength: 24) }
         }
+    }
+
+    // MARK: - Envío
+
+    private func analyzeWeek() {
+        prompt = "Analiza mi semana de entreno: qué he hecho bien, qué grupos van cortos o sobrados frente a 10-20 series, cómo voy frente a la semana anterior y a mi objetivo de sesiones, y dame tres ajustes concretos para la que viene."
+        send()
     }
 
     private func send() {
@@ -204,43 +270,26 @@ struct CoachAIView: View {
         loading = true
         errorMsg = nil
         focused = false
-        let ctx = buildContext()
-        Task {
+        let history = thread.filter { !$0.answer.isEmpty }.map { ($0.question, $0.answer) }
+        thread.append((q, ""))
+        let index = thread.count - 1
+        let useApple = engine == .apple
+        let ctx = viewModel.coachContext(compact: useApple, recovery: health.recovery)
+        streamTask = Task {
             do {
-                let res = try await coach.ask(q, context: ctx)
-                thread.append((q, res))
+                let stream = useApple
+                    ? OnDeviceCoach.stream(q, context: ctx, history: history)
+                    : coach.stream(q, context: ctx, history: history)
+                for try await text in stream where index < thread.count {
+                    thread[index].answer = text
+                }
+                if thread[index].answer.isEmpty { thread[index].answer = "(sin respuesta)" }
+            } catch is CancellationError {
             } catch {
+                if index < thread.count, thread[index].answer.isEmpty { thread.remove(at: index) }
                 errorMsg = error.localizedDescription
             }
             loading = false
         }
-    }
-
-    /// Rutina, marcas y semana en curso: lo que el coach necesita para responder con datos.
-    private func buildContext() -> String {
-        var lines: [String] = ["RUTINA SEMANAL:"]
-        for day in WorkoutDay.allCases.sorted(by: { $0.weekOrder < $1.weekOrder }) {
-            let recs = viewModel.dailyWorkoutRecords[day] ?? []
-            guard !recs.isEmpty else { continue }
-            let label = viewModel.label(for: day).map { " (\($0))" } ?? ""
-            lines.append("\(day.rawValue)\(label):")
-            for r in recs {
-                guard let ex = viewModel.getExercise(by: r.exerciseId) else { continue }
-                let grp = ex.muscleGroup.map { " [\($0)]" } ?? ""
-                var line = "  - \(ex.name)\(grp): \(viewModel.meta(for: ex)), descanso \(WorkoutViewModel.restText(ex.restDuration))"
-                if let pr = viewModel.personalRecord(for: ex.id), pr.weight > 0 {
-                    line += ", récord \(WorkoutViewModel.kg(pr.weight)) (1RM est. \(Int(pr.oneRepMax)) kg)"
-                }
-                if let last = viewModel.lastPerformance(for: ex.id) {
-                    line += ", última serie \(WorkoutViewModel.kg(last.weight)) × \(last.reps)"
-                }
-                lines.append(line)
-            }
-        }
-        if lines.count == 1 { lines.append("(sin ejercicios todavía)") }
-        let w = viewModel.weekStats(), prev = viewModel.weekStats(offset: -1)
-        lines.append("ESTA SEMANA: \(w.sessions) sesiones, \(w.sets) series, \(Int(w.volume)) kg de volumen. Semana anterior: \(prev.sessions) sesiones, \(prev.sets) series, \(Int(prev.volume)) kg.")
-        lines.append("Racha: \(viewModel.consecutiveWorkoutDays()) días.")
-        return lines.joined(separator: "\n")
     }
 }

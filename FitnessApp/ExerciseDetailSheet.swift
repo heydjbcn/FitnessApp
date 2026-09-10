@@ -53,6 +53,7 @@ struct ExerciseDetailSheet: View {
                             GoalCard(exercise: ex, p: p).padding(.top, 12)
                         }
                         if let rec = todayRecord { todaySets(rec).padding(.top, 20) }
+                        TechniqueCard(name: ex.name, p: p).padding(.top, 12)
                         platesButton.padding(.top, 12)
                         progress.padding(.top, 20)
                         history(ex).padding(.top, 20)

@@ -968,16 +968,21 @@ struct HealthGoalsRemindersTests {
 
     @Test func etaFromTrend() {
         let now = Date()
-        let pts: [(Date, Double)] = (0..<5).map { (now.addingTimeInterval(Double($0 - 4) * 7 * 86_400), 60 + Double($0) * 2.5) }
+        let week: Double = 7 * 86_400
+        func point(_ i: Int, _ step: Double) -> (Date, Double) {
+            let d: Double = Double(i - 4) * week
+            return (now.addingTimeInterval(d), 60 + Double(i) * step)
+        }
+        let pts: [(Date, Double)] = (0..<5).map { point($0, 2.5) }
         let eta = WorkoutViewModel.linearETA(points: pts, target: 80, now: now)
         #expect(eta != nil)
         // 2,5 kg por semana: de 70 a 80 son unas 4 semanas.
-        let weeks = (eta!.timeIntervalSince(now)) / (7 * 86_400)
+        let weeks: Double = (eta?.timeIntervalSince(now) ?? 0) / week
         #expect(weeks > 3.5 && weeks < 4.5)
-        let flat: [(Date, Double)] = (0..<5).map { (now.addingTimeInterval(Double($0) * -86_400 * 5), 60) }
+        let flat: [(Date, Double)] = (0..<5).map { point($0, 0) }
         #expect(WorkoutViewModel.linearETA(points: flat, target: 80, now: now) == nil)
         #expect(WorkoutViewModel.linearETA(points: Array(pts.prefix(2)), target: 80, now: now) == nil)
-        let slow: [(Date, Double)] = (0..<5).map { (now.addingTimeInterval(Double($0 - 4) * 7 * 86_400), 60 + Double($0) * 0.1) }
+        let slow: [(Date, Double)] = (0..<5).map { point($0, 0.1) }
         #expect(WorkoutViewModel.linearETA(points: slow, target: 100, now: now) == nil, "más de un año: sin fecha")
     }
 
@@ -1046,5 +1051,88 @@ struct HealthGoalsRemindersTests {
         #expect(MuscleZone.verdict(6).hasPrefix("por debajo"))
         #expect(MuscleZone.verdict(14).hasPrefix("en el rango"))
         #expect(MuscleZone.verdict(25).hasPrefix("por encima"))
+    }
+}
+
+// MARK: - Fase 5: IA y técnica
+
+import UIKit
+
+@Suite(.serialized) @MainActor
+struct AITests {
+
+    @Test func sseParsing() {
+        #expect(AICoachManager.parseSSE("event: content_block_delta") == .none)
+        #expect(AICoachManager.parseSSE(#"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hola"}}"#) == .text("Hola"))
+        #expect(AICoachManager.parseSSE(#"data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"..."}}"#) == .none)
+        #expect(AICoachManager.parseSSE(#"data: {"type":"message_stop"}"#) == .stop)
+        #expect(AICoachManager.parseSSE(#"data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#) == .error("Overloaded"))
+        #expect(AICoachManager.parseSSE("data: [basura") == .none)
+    }
+
+    @Test func structuredRoutineDecoding() throws {
+        let routine = #"{"name":"Fuerza 3 días","notes":"Básicos.","days":[{"day":"Lunes","label":"Pierna","exercises":[{"name":"Sentadilla","sets":5,"reps":5,"restSeconds":180}]}]}"#
+        let body: [String: Any] = ["content": [["type": "thinking", "thinking": "x"], ["type": "text", "text": routine]], "stop_reason": "end_turn"]
+        let g = try AICoachManager.decodeRoutine(from: JSONSerialization.data(withJSONObject: body))
+        #expect(g.days.first?.exercises.first?.name == "Sentadilla")
+        let refusal: [String: Any] = ["content": [], "stop_reason": "refusal"]
+        #expect(throws: NSError.self) { try AICoachManager.decodeRoutine(from: JSONSerialization.data(withJSONObject: refusal)) }
+        let schema = AICoachManager.routineSchema
+        let props = ((((schema["properties"] as? [String: Any])?["days"] as? [String: Any])?["items"] as? [String: Any])?["properties"] as? [String: Any])
+        let items = ((props?["exercises"] as? [String: Any])?["items"] as? [String: Any])?["properties"] as? [String: Any]
+        #expect(((items?["name"] as? [String: Any])?["enum"] as? [String])?.count == ExerciseCatalog.all.count)
+        #expect(RoutineRequest().prompt.contains("Press de banca"))
+    }
+
+    @Test func applyGeneratedRoutine() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (bench, _) = box.add("Press de banca", sets: 3, weight: 60, on: .monday)
+        let g = GeneratedRoutine(name: "IA", notes: "", days: [
+            .init(day: "Martes", label: "Torso", exercises: [.init(name: "press de banca", sets: 4, reps: 8, restSeconds: 120),
+                                                             .init(name: "Remo con barra", sets: 4, reps: 10, restSeconds: 90),
+                                                             .init(name: "Inventado", sets: 3, reps: 10, restSeconds: 60)]),
+            .init(day: "Martes", label: "Repetido", exercises: [.init(name: "Crunch", sets: 3, reps: 20, restSeconds: 30)]),
+            .init(day: "Jueves", label: "Core", exercises: [.init(name: "Plancha", sets: 3, reps: 45, restSeconds: 60)]),
+            .init(day: "Funday", label: "x", exercises: []),
+        ])
+        let added = box.vm.applyGeneratedRoutine(g, named: "  Mi IA ")
+        #expect(added == 3)
+        #expect(box.vm.activeRoutineName == "Mi IA")
+        #expect(box.vm.savedRoutines.count == 1, "la anterior queda guardada")
+        #expect(box.vm.dailyWorkoutRecords[.tuesday]?.count == 2)
+        #expect(box.vm.dailyWorkoutRecords[.tuesday]?.first?.exerciseId == bench.id, "reutiliza el ejercicio por nombre")
+        #expect(box.vm.label(for: .tuesday) == "Torso")
+        let plank = box.vm.availableExercises.first { $0.name == "Plancha" }
+        #expect(plank?.segundos == 45 && plank?.repetitions == 0, "por tiempo: reps como segundos")
+        #expect(box.vm.availableExercises.first { $0.name == "Remo con barra" }?.restDuration == 90)
+        #expect(box.vm.activeDays == [.tuesday, .thursday])
+        #expect(box.vm.dailyWorkoutRecords[.monday]?.isEmpty == true)
+    }
+
+    @Test func coachContextHasTheEssentials() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, rec) = box.add("Press de banca", sets: 3, weight: 60, on: .monday, group: "Pecho")
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 62.5, reps: 8)
+        box.vm.stopTimer(silent: true)
+        let full = box.vm.coachContext(recovery: Recovery(sleepHours: 5, restingHR: 62, restingHRAvg: 55))
+        #expect(full.contains("Press de banca") && full.contains("[Pecho]") && full.contains("récord 62,5 kg"))
+        #expect(full.contains("de 3 sesiones objetivo"))
+        #expect(full.contains("RECUPERACIÓN HOY: Mejor suave hoy"))
+        let compact = box.vm.coachContext(compact: true)
+        #expect(compact.count < full.count && !compact.contains("descanso"))
+    }
+
+    @Test func techniqueForEveryCatalogExercise() {
+        for c in ExerciseCatalog.all {
+            let t = TechniqueGuide.entry(for: c.name)
+            #expect(t != nil && (t?.cues.count ?? 0) >= 3, "\(c.name) sin técnica")
+        }
+        #expect(TechniqueGuide.entry(for: "PRESS DE BANCA") != nil, "sin mirar mayúsculas")
+        #expect(TechniqueGuide.entry(for: "Mi ejercicio raro") == nil)
+        #expect(TechniquePhotos.byName.count >= 30)
+        for (name, photo) in TechniquePhotos.byName {
+            #expect(UIImage(named: photo.asset) != nil, "falta la foto de \(name)")
+            #expect(!photo.license.isEmpty)
+        }
     }
 }

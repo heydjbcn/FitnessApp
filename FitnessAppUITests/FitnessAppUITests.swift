@@ -766,6 +766,37 @@ class ChamaFitUITests: XCTestCase {
         XCTAssertTrue(exists(app.buttons["home.startWorkout"], 5), "vuelta a Inicio")
         XCTAssertEqual(app.buttons["set.Press de banca.1"].value as? String, "hecha")
     }
+
+    // MARK: - 12. Crear rutina con IA (motor simulado) y técnica
+
+    func test12_AIRoutineAndTechnique() {
+        launch(["--named", "--seed-sample", "--fake-ai"])
+        tab("Calendario")
+        tap(routineMenu)
+        tap(app.buttons["Crear rutina con IA…"])
+        tap(app.buttons["generator.Fuerza"])
+        tap(app.buttons["generator.4"])
+        tap(app.buttons["generator.Mancuernas"])
+        tap(app.buttons["generator.go"])
+        XCTAssertTrue(exists(app.otherElements["generator.preview"], 10) || exists(app.staticTexts["Torso"], 5), "vista previa")
+        tap(app.buttons["generator.apply"])
+        XCTAssertTrue(exists(app.staticTexts["Fuerza · 4 días"], 8), "rutina nueva activa")
+        XCTAssertTrue(exists(app.staticTexts["Torso"]))
+        snap("rutina-ia")
+
+        // La anterior sigue guardada.
+        tap(routineMenu)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mi rutina'")).firstMatch.waitForExistence(timeout: 5))
+        app.tap()
+
+        // Técnica en el detalle.
+        tab("Ejercicios")
+        tap(app.staticTexts["Press de banca"].firstMatch)
+        search(app.otherElements["detail.technique"])
+        XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'wger.de'")).firstMatch, 5), "atribución de la foto")
+        snap("tecnica")
+        closeSheet()
+    }
 }
 
 /// Toda la batería otra vez en modo claro (repaso visual: las capturas quedan adjuntas).

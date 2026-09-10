@@ -90,7 +90,15 @@ struct ExerciseCatalogPicker: View {
                     ForEach(results) { ex in
                         Button { onSelect(ex); dismiss() } label: {
                             HStack(spacing: 12) {
-                                IconTile(symbol: ex.icon, size: 40, radius: 13, p: p)
+                                if let photo = TechniquePhotos.byName[ex.name] {
+                                    // La ilustración de wger ayuda a reconocer el ejercicio.
+                                    Image(photo.asset).resizable().scaledToFit()
+                                        .padding(3)
+                                        .frame(width: 40, height: 40)
+                                        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Color.white))
+                                } else {
+                                    IconTile(symbol: ex.icon, size: 40, radius: 13, p: p)
+                                }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(ex.name).font(.fig(14, .semibold)).foregroundColor(p.ink)
                                     Text("\(ex.muscleGroup) · \(ex.sets) × \(ex.reps > 0 ? "\(ex.reps)" : "tiempo")\(ex.weight > 0 ? " · \(Int(ex.weight)) kg" : "")")
