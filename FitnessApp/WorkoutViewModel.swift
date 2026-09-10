@@ -24,6 +24,8 @@ class WorkoutViewModel: ObservableObject {
     @Published var timerActive = false
     @Published var timeRemaining = 120
     @Published var currentTimerDuration: Int = 120 // Duración del timer actual
+    /// Qué descanso es: "Press militar · siguiente serie 3 de 4".
+    @Published var timerLabel: String = ""
     @Published var isTimerEnabled = true // Estado del timer desde ThemeManager
     @Published var restDuration: Int = 120 { // Tiempo de descanso personalizable (por defecto 2 minutos)
         didSet {
@@ -43,6 +45,28 @@ class WorkoutViewModel: ObservableObject {
                 userDefaults.set(enc, forKey: "DayLabels")
             }
         }
+    }
+
+    /// Nota libre de cada sesión, por fecha ("¿Cómo fue la sesión?").
+    @Published var sessionNotes: [Date: String] = [:] {
+        didSet {
+            if let enc = try? JSONEncoder().encode(sessionNotes) {
+                userDefaults.set(enc, forKey: "SessionNotes")
+            }
+        }
+    }
+
+    /// Centro de avisos: fin de descanso, récords, recordatorios.
+    @Published var notifications: [AppNotification] = [] {
+        didSet {
+            if let enc = try? JSONEncoder().encode(notifications) {
+                userDefaults.set(enc, forKey: "AppNotifications")
+            }
+        }
+    }
+
+    @Published var notificationsEnabled: Bool = true {
+        didSet { userDefaults.set(notificationsEnabled, forKey: "NotificationsEnabled") }
     }
 
     private var timer: Timer?
@@ -87,6 +111,9 @@ class WorkoutViewModel: ObservableObject {
         return !historyForDate.values.allSatisfy { $0.isEmpty }
     }
     
+    /// Guarda todo el estado (para las extensiones, que no ven `saveData`).
+    func persistAll() { saveData() }
+
     private func saveData() {
         DispatchQueue.global(qos: .background).async {
             // Limpiar datos antiguos antes de guardar
@@ -198,6 +225,7 @@ class WorkoutViewModel: ObservableObject {
             HapticManager.shared.setCompleted()
 
             if record.completedSets < baseExercise.totalSets {
+                timerLabel = "\(baseExercise.name) · siguiente serie \(record.completedSets + 1) de \(baseExercise.totalSets)"
                 startTimer(duration: baseExercise.restDuration, isEnabled: isTimerEnabled)
             }
         }
@@ -229,7 +257,7 @@ class WorkoutViewModel: ObservableObject {
                 completedSets: 0,
                 lastSetCompletedAt: nil
             )
-            dailyWorkoutRecords[day]?.append(newWorkoutRecord)
+            dailyWorkoutRecords[day, default: []].append(newWorkoutRecord)
         }
         
         // Haptic feedback para añadir ejercicio
@@ -312,6 +340,8 @@ class WorkoutViewModel: ObservableObject {
         if weight > previous && previous > 0 {
             prCelebration = "¡Nuevo récord en \(name)! \(String(format: "%g", weight)) kg"
             HapticManager.shared.goalAchieved()
+            notify(.achievement, title: "¡Nuevo récord!",
+                   message: "\(name): \(Self.kg(weight)). Superaste tu marca anterior de \(Self.kg(previous)).")
         }
     }
 
@@ -486,15 +516,10 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
-    /// Minutos que faltan para terminar la sesión, contando el descanso propio
-    /// de cada ejercicio más un minuto de trabajo por serie.
+    /// Minutos que faltan para terminar la sesión: 3 por serie pendiente, la
+    /// misma cuenta que usa el prototipo (y los minutos de la semana).
     func remainingMinutes(for day: WorkoutDay) -> Int {
-        let seconds = (dailyWorkoutRecords[day] ?? []).reduce(0) { acc, record in
-            guard let exercise = getExercise(by: record.exerciseId) else { return acc }
-            let pending = max(0, exercise.totalSets - record.completedSets)
-            return acc + pending * (60 + exercise.restDuration)
-        }
-        return Int((Double(seconds) / 60).rounded())
+        max(0, totalSets(for: day) - completedSets(for: day)) * 3
     }
 
     /// True si ese día no queda ninguna serie pendiente (y había alguna).
@@ -655,7 +680,23 @@ class WorkoutViewModel: ObservableObject {
                 dailyWorkoutRecords = decoded
             }
         }
-        
+        // Los datos guardados antes del fin de semana solo traen lunes-viernes:
+        // sin esto, añadir un ejercicio al sábado o domingo no hacía nada.
+        for day in WorkoutDay.allCases where dailyWorkoutRecords[day] == nil {
+            dailyWorkoutRecords[day] = []
+        }
+
+        // Notas por sesión y centro de avisos (rediseño «Pulso»)
+        if let data = userDefaults.data(forKey: "SessionNotes"),
+           let decoded = try? decoder.decode([Date: String].self, from: data) {
+            sessionNotes = decoded
+        }
+        if let data = userDefaults.data(forKey: "AppNotifications"),
+           let decoded = try? decoder.decode([AppNotification].self, from: data) {
+            notifications = decoded
+        }
+        notificationsEnabled = userDefaults.object(forKey: "NotificationsEnabled") as? Bool ?? true
+
         // Cargar workoutHistory
         if let data = userDefaults.data(forKey: "WorkoutHistory") {
             print("WorkoutViewModel: Cargando workoutHistory - \(data.count) bytes")
@@ -731,7 +772,7 @@ class WorkoutViewModel: ObservableObject {
         print("WorkoutViewModel: Datos por defecto configurados exitosamente")
     }
     
-    private func createDefaultExercises() -> [Exercise] {
+    func createDefaultExercises() -> [Exercise] {
         var exercises: [Exercise] = []
         
         // DÍA 1 - LUNES (Glúteos e Isquiosurales)
@@ -948,7 +989,7 @@ class WorkoutViewModel: ObservableObject {
         return exercises
     }
     
-    private func setupDefaultWorkoutPlan(exercises: [Exercise]) {
+    func setupDefaultWorkoutPlan(exercises: [Exercise]) {
         // Limpiar rutinas existentes
         dailyWorkoutRecords = [:]
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
@@ -1051,6 +1092,9 @@ class WorkoutViewModel: ObservableObject {
         self.workoutHistory = [:]
         self.bodyWeightHistory = [:]
         self.activeDays = WorkoutDay.allCases
+        self.dayLabels = [:]
+        self.sessionNotes = [:]
+        self.notifications = []
         userDefaults.removeObject(forKey: "AvailableExercises")
         userDefaults.removeObject(forKey: "DailyWorkoutRecords")
         userDefaults.removeObject(forKey: "WorkoutHistory")
@@ -1254,6 +1298,17 @@ class WorkoutViewModel: ObservableObject {
     
     // MARK: - Timer Methods
     
+    /// Alarga el descanso en curso (el botón "+30 s" del temporizador flotante).
+    /// Reprograma el aviso: si no, sonaría a la hora del descanso original.
+    func extendTimer(by seconds: Int) {
+        guard timerActive else { return }
+        timeRemaining += seconds
+        currentTimerDuration += seconds
+        NotificationManager.shared.cancelRestNotification()
+        NotificationManager.shared.scheduleRestNotification(after: TimeInterval(timeRemaining))
+        HapticManager.shared.buttonTapped()
+    }
+
     func startTimer(duration: Int, isEnabled: Bool = true) {
         guard isEnabled else {
             print("WorkoutViewModel: Timer desactivado por configuración")
@@ -1304,9 +1359,10 @@ class WorkoutViewModel: ObservableObject {
     
     private func completeTimer() {
         stopTimer()
-        
+
         // Haptic feedback mejorado para completar timer
         HapticManager.shared.timerCompleted()
+        notify(.restTimer, title: "Descanso terminado", message: "Cuando quieras, a por la siguiente serie.")
         
         // Notificación local si la app está en background
         scheduleTimerCompletionNotification()

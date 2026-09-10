@@ -40,6 +40,11 @@ enum Pulso {
         isDark ? Color(hex: "#141224").opacity(0.80) : Color.white.opacity(0.86)
     }
 
+    /// Fondo de las hojas modales y de las tarjetas con borde de degradado.
+    static func sheet(isDark: Bool) -> Color {
+        isDark ? Color(hex: "#16142A") : Color(hex: "#FFFFFF")
+    }
+
     // MARK: - Tinta
 
     /// Texto principal.
@@ -106,6 +111,32 @@ enum Pulso {
     }
 }
 
+// MARK: - Tipografía
+
+extension Font {
+    /// Figtree, la letra de todo el texto. Pesos del prototipo: 400/500/600/700.
+    static func fig(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        let name: String
+        switch weight {
+        case .bold, .heavy, .black: name = "Figtree-Bold"
+        case .semibold: name = "Figtree-SemiBold"
+        case .medium: name = "Figtree-Medium"
+        default: name = "Figtree-Regular"
+        }
+        return .custom(name, fixedSize: size)
+    }
+
+    /// Bricolage Grotesque, la de titulares y cifras.
+    static func bri(_ size: CGFloat, extraBold: Bool = false) -> Font {
+        .custom(extraBold ? "BricolageGrotesque-ExtraBold" : "BricolageGrotesque-Bold", fixedSize: size)
+    }
+}
+
+extension View {
+    /// El `letter-spacing` en `em` del prototipo (−.03em en titulares).
+    func em(_ value: CGFloat, size: CGFloat) -> some View { tracking(value * size) }
+}
+
 // MARK: - Acentos con degradado
 
 extension AccentColor {
@@ -130,10 +161,16 @@ extension AccentColor {
         return (isDark ? hexes.dark : hexes.light).map { Color(hex: $0) }
     }
 
-    /// Degradado listo para usar como relleno.
+    /// Degradado diagonal (135°): cuadros, chips, bolitas, avatares.
     func gradient(isDark: Bool) -> LinearGradient {
         LinearGradient(colors: gradientColors(isDark: isDark),
                        startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    /// Degradado horizontal (90°): botones, barras, texto.
+    func hGradient(isDark: Bool) -> LinearGradient {
+        LinearGradient(colors: gradientColors(isDark: isDark),
+                       startPoint: .leading, endPoint: .trailing)
     }
 
     /// Color plano del acento, para texto e iconos sueltos.

@@ -2,192 +2,198 @@
 //  HomeView.swift
 //  FitnessApp
 //
-//  Pantalla de Inicio del rediseño «Pulso»: la sesión del día de un vistazo
-//  —cuánto llevas, cuánto pesa y cuánto queda— y los ejercicios listos para
-//  ir marcando serie a serie.
+//  Inicio del rediseño «Pulso»: la sesión del día de un vistazo y los
+//  ejercicios listos para ir marcando serie a serie.
 //
 
 import SwiftUI
 
 struct HomeView: View {
     @Binding var selectedTab: Int
+    /// Día que se está viendo. Vive en ContentView para que el Calendario
+    /// pueda mandar aquí con "Entrenar este día".
+    @Binding var selectedDay: WorkoutDay
 
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
 
-    @State private var selectedDay: WorkoutDay = WeeklyCalendarView.getCurrentDay()
     @State private var detail: DetailTarget? = nil
-    @State private var showingCoach = false
-    @State private var showingSettings = false
+    @State private var formDay: FormTarget? = nil
 
-    private var isDark: Bool { themeManager.isDarkMode }
-    private var accent: AccentColor { themeManager.selectedAccentColor }
+    private var p: Palette { themeManager.p }
     private var today: WorkoutDay { WeeklyCalendarView.getCurrentDay() }
     private var records: [WorkoutExercise] { viewModel.dailyWorkoutRecords[selectedDay] ?? [] }
 
     var body: some View {
-        ZStack {
-            Pulso.background(isDark: isDark).ignoresSafeArea()
-            accentGlow
+        ZStack(alignment: .top) {
+            p.bg.ignoresSafeArea()
+            glow
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: Pulso.Space.stack) {
-                    greeting
-                    dayTitle
-                    sessionCard
-                    daysStrip
-                    quote
-                    exercisesSection
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        sessionCard
+                        daysStrip.padding(.top, 14)
+                        quote
+                        exercisesHeader
+                        exercisesList
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 120)
                 }
-                .padding(.horizontal, Pulso.Space.screen)
-                .padding(.bottom, 100)
             }
         }
         .sheet(item: $detail) { target in
-            NavigationStack {
-                ExerciseDetailSheet(exerciseId: target.exerciseId,
-                                    workoutExerciseId: target.workoutExerciseId,
-                                    day: selectedDay)
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
-            }
-        }
-        .sheet(isPresented: $showingCoach) {
-            CoachAIView()
+            ExerciseDetailSheet(exerciseId: target.exerciseId,
+                                workoutExerciseId: target.workoutExerciseId,
+                                day: selectedDay)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
-        .sheet(isPresented: $showingSettings) {
-            ProgramSettingsView()
-                .environmentObject(themeManager)
-                .environmentObject(userManager)
+        .sheet(item: $formDay) { target in
+            ExerciseFormSheet(editing: nil, prefillDay: target.day)
                 .environmentObject(viewModel)
+                .environmentObject(themeManager)
         }
     }
 
-    // Resplandor del acento detrás de la cabecera, como en el prototipo.
-    private var accentGlow: some View {
-        VStack {
-            Circle()
-                .fill(accent.gradient(isDark: isDark))
-                .frame(width: 320, height: 320)
-                .blur(radius: 110)
-                .opacity(isDark ? 0.30 : 0.18)
-                .offset(y: -170)
-            Spacer()
+    /// Los dos resplandores del fondo del prototipo (violeta arriba, cian a la derecha).
+    private var glow: some View {
+        ZStack {
+            Circle().fill(p.glow1).frame(width: 360, height: 360).blur(radius: 90)
+                .offset(x: -90, y: -210)
+            Circle().fill(p.glow2).frame(width: 300, height: 300).blur(radius: 100)
+                .offset(x: 170, y: 120)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
-    // MARK: - Cabecera
+    // MARK: - Cabecera fija
 
-    private var greeting: some View {
-        HStack(alignment: .center) {
-            Text(saludo)
-                .font(AppFonts.body)
-                .foregroundColor(Pulso.mute(isDark: isDark))
-
-            Spacer()
-
-            if viewModel.consecutiveWorkoutDays() > 0 {
-                PulsoPill(text: "\(viewModel.consecutiveWorkoutDays()) días",
-                          icon: "flame.fill", accent: accent, isDark: isDark)
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Text(saludo)
+                    .font(.fig(14, .medium))
+                    .foregroundColor(p.mute)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(p.acc)
+                    Text("\(viewModel.consecutiveWorkoutDays()) días")
+                        .font(.fig(12, .semibold))
+                        .foregroundColor(p.ink)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(p.card))
+                .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
             }
 
-            Button { HapticManager.shared.buttonTapped(); showingCoach = true } label: {
-                circleIcon("sparkles")
+            VStack(alignment: .leading, spacing: 0) {
+                Text(selectedDay.displayName)
+                    .font(.bri(34))
+                    .em(-0.03, size: 34)
+                    .foregroundColor(p.ink)
+                if let label = viewModel.label(for: selectedDay) {
+                    GradientText(text: label, font: .bri(34), p: p, tracking: -0.03 * 34)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
             }
-            Button { HapticManager.shared.buttonTapped(); showingSettings = true } label: {
-                circleIcon("gearshape.fill")
-            }
-        }
-        .padding(.top, 8)
-    }
+            .padding(.top, 8)
 
-    private var saludo: String {
-        let nombre = userManager.userName.trimmingCharacters(in: .whitespaces)
-        return nombre.isEmpty ? userManager.getGreeting() : "\(userManager.getGreeting()), \(nombre)"
-    }
-
-    private func circleIcon(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundColor(accent.accent(isDark: isDark))
-            .frame(width: 38, height: 38)
-            .background(Circle().fill(Pulso.card(isDark: isDark)))
-            .overlay(Circle().strokeBorder(Pulso.line(isDark: isDark), lineWidth: 1))
-    }
-
-    /// Día grande y, debajo, el nombre que el usuario le haya puesto a la sesión.
-    private var dayTitle: some View {
-        VStack(alignment: .leading, spacing: -2) {
-            Text(selectedDay.displayName)
-                .font(AppFonts.largeTitle)
-                .foregroundColor(Pulso.ink(isDark: isDark))
-            if let label = viewModel.label(for: selectedDay) {
-                GradientText(text: label, font: AppFonts.largeTitle, accent: accent, isDark: isDark)
-            }
             if selectedDay != today {
                 Button {
                     withAnimation { selectedDay = today }
                     HapticManager.shared.buttonTapped()
                 } label: {
                     Text("Estás viendo otro día · Volver a hoy")
-                        .font(AppFonts.caption)
-                        .foregroundColor(accent.accent(isDark: isDark))
+                        .font(.fig(12, .semibold))
+                        .foregroundColor(p.ink)
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(Capsule().fill(p.soft))
+                        .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
                 }
-                .padding(.top, 6)
+                .buttonStyle(.plain)
+                .padding(.top, 10)
             }
         }
+        .padding(.horizontal, 22)
+        .padding(.top, 8)
     }
 
-    // MARK: - Tarjeta de la sesión
+    private var saludo: String {
+        let h = Calendar.current.component(.hour, from: Date())
+        let g = (6..<12).contains(h) ? "Buenos días" : (12..<22).contains(h) ? "Buenas tardes" : "Buenas noches"
+        let nombre = userManager.userName.trimmingCharacters(in: .whitespaces)
+        return nombre.isEmpty ? g : "\(g), \(nombre)"
+    }
+
+    // MARK: - Tarjeta de sesión
 
     private var sessionCard: some View {
         let total = viewModel.totalSets(for: selectedDay)
         let done = viewModel.completedSets(for: selectedDay)
-        let progress = total > 0 ? Double(done) / Double(total) : 0
+        let pct = total > 0 ? Double(done) / Double(total) : 0
 
-        return GlassCard(isDark: isDark) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text(selectedDay == today ? "Sesión de hoy" : "Sesión del \(selectedDay.displayName.lowercased())")
-                        .font(AppFonts.subtitle)
-                        .foregroundColor(Pulso.ink(isDark: isDark))
-                    Spacer()
-                    GradientText(text: "\(Int(progress * 100))%", font: AppFonts.metric,
-                                 accent: accent, isDark: isDark)
-                }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(selectedDay == today ? "Sesión de hoy" : "Sesión del \(selectedDay.displayName.lowercased())")
+                    .font(.fig(15, .bold))
+                    .foregroundColor(p.ink)
+                Spacer()
+                GradientText(text: "\(Int((pct * 100).rounded()))%", font: .bri(26), p: p)
+            }
 
-                PulsoProgressBar(value: progress, accent: accent, isDark: isDark)
-
-                HStack(spacing: 10) {
-                    StatTile(label: "Series", value: "\(done)", unit: "/\(total)", isDark: isDark)
-                    StatTile(label: "Tonelaje", value: tonelaje, isDark: isDark)
-                    StatTile(label: "Quedan", value: "\(viewModel.remainingMinutes(for: selectedDay))",
-                             unit: "min", isDark: isDark)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(p.soft)
+                    Capsule().fill(p.hgrad)
+                        .frame(width: geo.size.width * pct)
+                        .shadow(color: p.glow1, radius: 8)
+                        .animation(.easeOut(duration: 0.5), value: pct)
                 }
             }
+            .frame(height: 12)
+            .padding(.top, 12)
+
+            HStack(spacing: 10) {
+                StatTile(label: "Series", value: "\(done)", unit: "/\(total)", p: p)
+                StatTile(label: "Tonelaje", value: tonelaje, p: p)
+                StatTile(label: "Quedan", value: "\(viewModel.remainingMinutes(for: selectedDay)) min", p: p)
+            }
+            .padding(.top, 16)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 20)
+        .pulsoCard(p, radius: 26)
     }
 
     private var tonelaje: String {
         let kg = viewModel.volume(for: selectedDay)
-        if kg >= 1000 {
-            return String(format: "%.1f t", kg / 1000).replacingOccurrences(of: ".", with: ",")
-        }
-        return "\(Int(kg)) kg"
+        return kg >= 1000
+            ? String(format: "%.1f t", kg / 1000).replacingOccurrences(of: ".", with: ",")
+            : "\(Int(kg.rounded())) kg"
     }
 
     // MARK: - Tira de días
 
-    /// Días que se ven en la tira: los activos, más el de hoy aunque sea de
-    /// descanso (si no, la cabecera dice "Jueves" y no hay ningún chip de jueves).
+    /// Los días de entrenamiento más el de hoy (aunque sea de descanso) y el
+    /// que se esté viendo: así nunca falta el chip del día de la cabecera.
     private var stripDays: [WorkoutDay] {
-        var days = viewModel.activeDays
-        if !days.contains(today) { days.append(today) }
-        if !days.contains(selectedDay) { days.append(selectedDay) }
+        var days = WorkoutDay.allCases.filter { !(viewModel.dailyWorkoutRecords[$0] ?? []).isEmpty }
+        if days.isEmpty { days = viewModel.activeDays }
+        for d in [today, selectedDay] where !days.contains(d) { days.append(d) }
         return days.sorted { $0.weekOrder < $1.weekOrder }
     }
 
@@ -198,8 +204,7 @@ struct HomeView: View {
                         isSelected: day == selectedDay,
                         isDone: viewModel.isDayComplete(day),
                         count: (viewModel.dailyWorkoutRecords[day] ?? []).count,
-                        accent: accent,
-                        isDark: isDark) {
+                        p: p) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { selectedDay = day }
                     HapticManager.shared.segmentChanged()
                 }
@@ -209,58 +214,77 @@ struct HomeView: View {
 
     private var quote: some View {
         Text("“\(userManager.getMotivationalQuote())”")
-            .font(AppFonts.body)
+            .font(.fig(13, .medium))
             .italic()
-            .foregroundColor(Pulso.mute(isDark: isDark))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 2)
+            .lineSpacing(4)
+            .foregroundColor(p.mute)
+            .padding(.horizontal, 6)
+            .padding(.top, 18)
     }
 
-    // MARK: - Ejercicios del día
+    // MARK: - Ejercicios
 
-    private var exercisesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Ejercicios", actionLabel: "+ Añadir",
-                          accent: accent, isDark: isDark) {
+    private var exercisesHeader: some View {
+        HStack {
+            Text("Ejercicios")
+                .font(.bri(20))
+                .em(-0.02, size: 20)
+                .foregroundColor(p.ink)
+            Spacer()
+            Button {
                 HapticManager.shared.buttonTapped()
-                selectedTab = 2
+                formDay = FormTarget(day: selectedDay)
+            } label: {
+                Text("+ Añadir")
+                    .font(.fig(13, .semibold))
+                    .foregroundColor(p.acc)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 4)
             }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 22)
+        .padding(.bottom, 4)
+    }
 
-            if records.isEmpty {
-                GlassCard(isDark: isDark) {
-                    VStack(spacing: 14) {
-                        PulsoEmptyState(
-                            icon: "figure.strengthtraining.traditional",
-                            title: "Sin ejercicios para el \(selectedDay.displayName.lowercased())",
-                            message: "Añade tu primer ejercicio para empezar a llenar la sesión.",
-                            isDark: isDark)
-                        PulsoPrimaryButton(title: "Añadir ejercicio", icon: "plus",
-                                           accent: accent, isDark: isDark) {
-                            HapticManager.shared.buttonTapped()
-                            selectedTab = 2
-                        }
+    @ViewBuilder private var exercisesList: some View {
+        if records.isEmpty {
+            EmptyCard(icon: "dumbbell.fill",
+                      title: "Sin ejercicios para el \(selectedDay.displayName.lowercased())",
+                      message: "Añade tu primer ejercicio o carga una rutina de ejemplo para ver la app llena.",
+                      p: p) {
+                PrimaryButton(title: "Añadir ejercicio", p: p) {
+                    formDay = FormTarget(day: selectedDay)
+                }
+                if viewModel.availableExercises.isEmpty {
+                    SoftButton(title: "Cargar rutina de ejemplo", p: p) {
+                        viewModel.loadSampleRoutine()
                     }
                 }
-            } else {
-                ForEach(records) { record in
-                    if let exercise = viewModel.getExercise(by: record.exerciseId) {
-                        HomeExerciseCard(exercise: exercise, record: record, day: selectedDay,
-                                         accent: accent, isDark: isDark) {
-                            detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id)
-                        }
-                        .environmentObject(viewModel)
-                        .environmentObject(themeManager)
+            }
+            .padding(.top, 10)
+        } else {
+            ForEach(records) { record in
+                if let exercise = viewModel.getExercise(by: record.exerciseId) {
+                    HomeExerciseCard(exercise: exercise, record: record, day: selectedDay, p: p) {
+                        detail = DetailTarget(exerciseId: exercise.id, workoutExerciseId: record.id)
                     }
+                    .padding(.top, 10)
                 }
             }
         }
     }
 
-    /// Identifica qué ejercicio abre la hoja de detalle.
     struct DetailTarget: Identifiable {
         let exerciseId: UUID
         let workoutExerciseId: UUID
         var id: UUID { workoutExerciseId }
+    }
+
+    struct FormTarget: Identifiable {
+        let day: WorkoutDay
+        var id: String { day.rawValue }
     }
 }
 
@@ -270,8 +294,7 @@ struct HomeExerciseCard: View {
     let exercise: Exercise
     let record: WorkoutExercise
     let day: WorkoutDay
-    let accent: AccentColor
-    let isDark: Bool
+    let p: Palette
     let onOpenDetail: () -> Void
 
     @EnvironmentObject var viewModel: WorkoutViewModel
@@ -281,102 +304,78 @@ struct HomeExerciseCard: View {
     private var isStarted: Bool { record.completedSets > 0 && !isDone }
 
     var body: some View {
-        GlassCard(isDark: isDark) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    icon
-
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
+                    ExerciseIcon(exercise: exercise, size: 40, radius: 13, p: p)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(exercise.name)
-                            .font(AppFonts.subtitle)
-                            .foregroundColor(Pulso.ink(isDark: isDark))
-                            .lineLimit(1)
-                        Text(subtitle)
-                            .font(AppFonts.caption)
-                            .foregroundColor(Pulso.mute(isDark: isDark))
+                            .font(.fig(16, .bold))
+                            .em(-0.01, size: 16)
+                            .foregroundColor(p.ink)
+                            .lineLimit(2)
+                        Text(viewModel.meta(for: exercise))
+                            .font(.fig(13, .medium))
+                            .foregroundColor(p.mute)
                     }
-
-                    Spacer(minLength: 4)
-
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    if let g = record.supersetGroup {
+                        DayTag(text: "SS \(ExerciseDetailSheet.ssLetter(g))", p: p)
+                    }
                     if isDone {
-                        PulsoPill(text: "Hecho", accent: accent, isDark: isDark)
+                        StatusPill(text: "Hecho", p: p)
                     } else if isStarted {
-                        PulsoPill(text: "En curso", filled: true, accent: accent, isDark: isDark)
+                        StatusPill(text: "En curso", filled: true, p: p)
                     }
-
                     Button(action: onOpenDetail) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 17))
-                            .foregroundColor(Pulso.mute(isDark: isDark))
+                        Image(systemName: "info")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(p.mute)
+                            .frame(width: 30, height: 30)
+                            .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
+            }
 
-                HStack(spacing: 8) {
-                    ForEach(0..<max(0, exercise.totalSets), id: \.self) { index in
-                        SetDot(isDone: index < record.completedSets, accent: accent, isDark: isDark) {
-                            tapSet(index)
-                        }
+            HStack(spacing: 8) {
+                ForEach(0..<max(0, exercise.totalSets), id: \.self) { index in
+                    SetDot(number: index + 1, isDone: index < record.completedSets, p: p) {
+                        tapSet(index)
                     }
-
-                    Spacer(minLength: 0)
-
-                    // Descanso del ejercicio: arranca el temporizador a mano.
-                    Button {
-                        HapticManager.shared.timerStarted()
-                        viewModel.startTimer(duration: exercise.restDuration,
-                                             isEnabled: themeManager.isTimerEnabled)
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "timer").font(.system(size: 12, weight: .semibold))
-                            Text(restLabel).font(AppFonts.label)
-                        }
-                        .foregroundColor(Pulso.ink(isDark: isDark))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(Capsule().fill(Pulso.soft(isDark: isDark)))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!themeManager.isTimerEnabled)
-                    .opacity(themeManager.isTimerEnabled ? 1 : 0.4)
                 }
+                Spacer(minLength: 0)
+                Button {
+                    viewModel.timerLabel = "\(exercise.name) · descanso"
+                    viewModel.startTimer(duration: exercise.restDuration,
+                                         isEnabled: themeManager.isTimerEnabled)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer").font(.system(size: 13, weight: .semibold))
+                        Text(WorkoutViewModel.restText(exercise.restDuration)).font(.fig(13, .semibold))
+                    }
+                    .foregroundColor(p.ink)
+                    .padding(.horizontal, 12)
+                    .frame(height: 38)
+                    .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(!themeManager.isTimerEnabled)
+                .opacity(themeManager.isTimerEnabled ? 1 : 0.4)
             }
+            .padding(.top, 14)
         }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .pulsoCard(p, radius: 22)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenDetail)
     }
 
-    private var icon: some View {
-        Group {
-            if let data = exercise.imageData, let ui = UIImage(data: data) {
-                Image(uiImage: ui).resizable().scaledToFill()
-            } else {
-                Image(systemName: exercise.sfSymbolIcon ?? "dumbbell.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(accent.accent(isDark: isDark))
-            }
-        }
-        .frame(width: 42, height: 42)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Pulso.soft(isDark: isDark)))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    private var subtitle: String {
-        var parts = ["\(exercise.totalSets) series"]
-        if exercise.segundos > 0 {
-            parts.append("\(exercise.segundos) s")
-        } else if exercise.repetitions > 0 {
-            parts.append("\(exercise.repetitions) reps")
-        }
-        if exercise.weight > 0 { parts.append("\(Int(exercise.weight)) kg") }
-        return parts.joined(separator: " · ")
-    }
-
-    private var restLabel: String {
-        let m = exercise.restDuration / 60, s = exercise.restDuration % 60
-        return m > 0 ? String(format: "%d:%02d", m, s) : "\(s)s"
-    }
-
-    /// Tocar la siguiente bolita marca la serie; tocar la última marcada la deshace.
+    /// Tocar la siguiente bolita marca la serie (y el modelo arranca el
+    /// descanso); tocar la última marcada la deshace.
     private func tapSet(_ index: Int) {
         if index == record.completedSets {
             viewModel.completeSet(for: record.id, in: day)

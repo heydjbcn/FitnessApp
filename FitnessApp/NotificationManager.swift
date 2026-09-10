@@ -23,10 +23,21 @@ class NotificationManager: ObservableObject {
     }
     
     func scheduleRestNotification(after seconds: TimeInterval) {
+        let defaults = UserDefaults.standard
+        // Avisos apagados desde la hoja de Notificaciones: no se programa nada.
+        guard defaults.object(forKey: "NotificationsEnabled") as? Bool ?? true else { return }
+
         let content = UNMutableNotificationContent()
         content.title = "¡Descanso terminado!"
         content.body = "Es hora de continuar con tu entrenamiento"
-        content.sound = UNNotificationSound.default
+        // "Modo de enfoque automático": el aviso llega, pero sin sonido ni
+        // vibración y sin encender la pantalla (nivel pasivo).
+        if defaults.bool(forKey: "autoFocusMode") {
+            content.sound = nil
+            content.interruptionLevel = .passive
+        } else {
+            content.sound = UNNotificationSound.default
+        }
         content.badge = 1
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)

@@ -5,181 +5,135 @@ struct ContentView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
+
     @State private var selectedTab = 0
-    @State private var shouldShowAddExerciseTab = false
+    /// Día que enseña Inicio; el Calendario lo cambia con "Entrenar este día".
+    @State private var homeDay: WorkoutDay = WeeklyCalendarView.getCurrentDay()
+    @State private var tutorial: TutorialStep? = nil
+    @State private var showingWelcome = false
+    @State private var tutorialForm = false
+
+    @AppStorage("keepScreenOn") private var keepScreenOn = false
+
+    private var p: Palette { themeManager.p }
 
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                // DASHBOARD
-                NavigationStack {
-                    HomeView(selectedTab: $selectedTab)
-                        .environmentObject(viewModel)
-                        .environmentObject(themeManager)
-                        .environmentObject(userManager)
-                        .sheet(isPresented: $userManager.showingNameInput) {
-                            NameInputView()
-                                .environmentObject(userManager)
-                                .environmentObject(themeManager)
-                                .interactiveDismissDisabled()
-                        }
-                }
-                .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("Inicio")
-                }
-                .tag(0)
+                HomeView(selectedTab: $selectedTab, selectedDay: $homeDay)
+                    .tabItem { Label("Inicio", systemImage: "house.fill") }
+                    .tag(0)
 
-                // CALENDARIO SEMANAL
-                WeeklyCalendarView(
-                    onNavigateToAddExercise: {
-                        // Cambiar a la pestaña de ejercicios y mostrar la pestaña de añadir
-                        shouldShowAddExerciseTab = true
-                        selectedTab = 2
-                    }
-                )
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
-                    .environmentObject(userManager)
-                    .tabItem {
-                        Image(systemName: "calendar")
-                        Text("Calendario")
-                    }
+                WeeklyCalendarView(onTrain: { day in
+                    homeDay = day
+                    selectedTab = 0
+                })
+                    .tabItem { Label("Calendario", systemImage: "calendar") }
                     .tag(1)
 
-                // EJERCICIOS
-                ExerciseManagementView(shouldShowAddExerciseTab: shouldShowAddExerciseTab)
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
-                    .tabItem {
-                        Image(systemName: "dumbbell.fill")
-                        Text("Ejercicios")
-                    }
+                ExercisesView()
+                    .tabItem { Label("Ejercicios", systemImage: "dumbbell.fill") }
                     .tag(2)
-                    .onAppear {
-                        // Resetear el estado cuando se cambia de pestaña
-                        if selectedTab != 2 {
-                            shouldShowAddExerciseTab = false
-                        }
-                    }
 
-                // HISTORIAL
                 HistoryView()
-                    .environmentObject(viewModel)
-                    .environmentObject(themeManager)
-                    .tabItem {
-                        Image(systemName: "clock.fill")
-                        Text("Historial")
-                    }
+                    .tabItem { Label("Historial", systemImage: "clock.fill") }
                     .tag(3)
 
-                // PERFIL
-                ProfileView()
-                    .environmentObject(userManager)
-                    .environmentObject(themeManager)
-                    .environmentObject(viewModel)
-                    .tabItem {
-                        Image(systemName: "person.circle.fill")
-                        Text("Perfil")
-                    }
+                SettingsTabView(onStartTutorial: { startTutorial() })
+                    .tabItem { Label("Ajustes", systemImage: "gearshape.fill") }
                     .tag(4)
             }
-            .tint(AppColors.primary(themeManager: themeManager))
-            .onAppear {
-                updateTabBarAppearance()
-                PhoneConnectivity.shared.viewModel = viewModel
-                PhoneConnectivity.shared.sendTodayContext()
-                if viewModel.needsWelcome {
-                    viewModel.showWelcome = true
-                }
-            }
-            .onChange(of: themeManager.isDarkMode) { _, _ in
-                updateTabBarAppearance()
-            }
-            .onChange(of: themeManager.selectedAccentColor) { _, _ in
-                updateTabBarAppearance()
-            }
-            .onChange(of: selectedTab) { _, newValue in
-                // Haptic feedback para cambio de tab
-                HapticManager.shared.tabChanged()
-                
-                // Resetear el estado cuando se cambia de pestaña
-                if newValue != 2 {
-                    shouldShowAddExerciseTab = false
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                // Resetear la app al estado inicial cuando vuelve de estar completamente cerrada
-                selectedTab = 0
-            }
-            
-            // Celebración de récord personal (Fase 4)
-            if let pr = viewModel.prCelebration {
+            .tint(p.acc)
+            .environmentObject(viewModel)
+            .environmentObject(themeManager)
+            .environmentObject(userManager)
+
+            // Descanso: flota sobre la barra de pestañas en cualquier pantalla.
+            if viewModel.timerActive && tutorial == nil {
                 VStack {
                     Spacer()
-                    HStack(spacing: 8) {
-                        Image(systemName: "trophy.fill")
-                        Text(pr).font(AppFonts.subtitle)
-                    }
-                    .foregroundColor(AppColors.onPrimary(themeManager: themeManager))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
-                    .background(Capsule().fill(AppColors.primary(themeManager: themeManager)))
-                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 4)
-                    .padding(.bottom, 110)
+                    PulsoRestTimer()
+                        .environmentObject(viewModel)
+                        .environmentObject(themeManager)
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 64)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            // Celebración de récord personal
+            if let pr = viewModel.prCelebration {
+                VStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trophy.fill")
+                        Text(pr).font(.fig(14, .bold))
+                    }
+                    .foregroundColor(p.onacc)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .background(Capsule().fill(p.hgrad))
+                    .shadow(color: p.glow1, radius: 16, y: 8)
+                    .padding(.top, 8)
+                    Spacer()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
                 .onAppear {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                         withAnimation { viewModel.prCelebration = nil }
                     }
                 }
             }
-        }
-        .focusMode() // Aplicar modificador de modo de enfoque
-        .fullScreenCover(isPresented: $viewModel.showWelcome) {
-            OnboardingCarouselView(onFinish: {
-                viewModel.markWelcomeSeen()
-            })
-            .environmentObject(themeManager)
-        }
-    }
-    
-    private func updateTabBarAppearance() {
-        let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(AppColors.cardBackground(isDark: themeManager.isDarkMode))
-        
-        // Color de los items NO seleccionados (gris). El color del SELECCIONADO
-        // lo controla SwiftUI con .tint(...) para que reaccione al cambio de acento.
-        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
-        ]
-        appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary(isDark: themeManager.isDarkMode))
 
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
-
-        // Aplicar también a las tab bars ya instanciadas (el proxy appearance no
-        // refresca las vivas), y fijar el tint del seleccionado al acento actual.
-        let tint = UIColor(AppColors.primary(themeManager: themeManager))
-        for window in UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene }).flatMap({ $0.windows }) {
-            for tabBar in window.allTabBars() {
-                tabBar.standardAppearance = appearance
-                tabBar.scrollEdgeAppearance = appearance
-                tabBar.tintColor = tint
+            TutorialOverlay(step: $tutorial, selectedTab: $selectedTab, onCreate: { tutorialForm = true })
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.timerActive)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.prCelebration)
+        .onAppear {
+            PhoneConnectivity.shared.viewModel = viewModel
+            PhoneConnectivity.shared.sendTodayContext()
+            viewModel.updateTimerEnabledState(themeManager.isTimerEnabled)
+            UIApplication.shared.isIdleTimerDisabled = keepScreenOn
+            // Primera vez: la pantalla "Entrena con pulso" pide el nombre.
+            if userManager.userName.trimmingCharacters(in: .whitespaces).isEmpty {
+                showingWelcome = true
             }
         }
+        .onChange(of: themeManager.isTimerEnabled) { _, on in viewModel.updateTimerEnabledState(on) }
+        .onChange(of: keepScreenOn) { _, on in UIApplication.shared.isIdleTimerDisabled = on }
+        .onChange(of: selectedTab) { _, _ in HapticManager.shared.tabChanged() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Al volver a la app se empieza por Inicio, en el día de hoy.
+            if tutorial == nil {
+                selectedTab = 0
+                homeDay = WeeklyCalendarView.getCurrentDay()
+            }
+        }
+        .fullScreenCover(isPresented: $showingWelcome) {
+            PulsoWelcomeView {
+                showingWelcome = false
+                viewModel.markWelcomeSeen()
+                // Recién llegado: el tutorial arranca solo.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { startTutorial() }
+            }
+            .environmentObject(userManager)
+            .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $tutorialForm, onDismiss: {
+            // Tras crear el ejercicio, el tutorial sigue en "Ejercicio creado".
+            if tutorial != nil, !viewModel.availableExercises.isEmpty { tutorial = .created; selectedTab = 2 }
+        }) {
+            ExerciseFormSheet(editing: nil, prefillDay: nil)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
     }
-}
 
-extension UIView {
-    /// Busca recursivamente todas las UITabBar dentro de la jerarquía de vistas.
-    func allTabBars() -> [UITabBar] {
-        var result: [UITabBar] = []
-        if let tb = self as? UITabBar { result.append(tb) }
-        for sub in subviews { result.append(contentsOf: sub.allTabBars()) }
-        return result
+    private func startTutorial() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            tutorial = .welcome
+            selectedTab = 0
+        }
     }
 }
