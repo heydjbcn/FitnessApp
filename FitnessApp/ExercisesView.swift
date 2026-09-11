@@ -24,7 +24,7 @@ struct ExercisesView: View {
             PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHeader(title: "Ejercicios",
-                             subtitle: "\(viewModel.availableExercises.count) en tu biblioteca", p: p) {
+                             subtitle: String(localized: "\(viewModel.availableExercises.count) en tu biblioteca"), p: p) {
                     Button {
                         HapticManager.shared.buttonTapped()
                         creating = true
@@ -100,7 +100,7 @@ struct ExercisesView: View {
             ExerciseIcon(exercise: ex, size: 46, radius: 15, p: p)
 
             VStack(alignment: .leading, spacing: 0) {
-                Text(ex.name)
+                Text((ex.name).loc)
                     .font(.fig(16, .bold))
                     .em(-0.01, size: 16)
                     .foregroundColor(p.ink)
@@ -142,7 +142,7 @@ private struct FlowTags: View {
         HStack(spacing: 5) {
             ForEach(days) { DayTag(text: $0.shortLabel, p: p) }
             if let pr {
-                DayTag(text: "PR \(WorkoutViewModel.kg(pr))", icon: "trophy.fill", filled: true, p: p)
+                DayTag(text: String(localized: "PR \(WorkoutViewModel.kg(pr))"), icon: "trophy.fill", filled: true, p: p)
             }
         }
     }

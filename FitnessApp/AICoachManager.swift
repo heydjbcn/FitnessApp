@@ -35,6 +35,8 @@ struct RoutineRequest: Equatable {
     var minutes = 60
     var equipment = "Gimnasio completo"
     var level = "Intermedio"
+    /// Perfil de entreno en una línea (preferencias y limitaciones).
+    var extra = ""
 
     var prompt: String {
         """
@@ -44,7 +46,7 @@ struct RoutineRequest: Equatable {
         Reparte los grupos musculares con cabeza, pon series, repeticiones y descanso adecuados al objetivo, \
         y en los ejercicios por tiempo (plancha y cardio) usa las repeticiones como segundos. \
         Días de la semana en español (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo). \
-        En "notes", dos frases de por qué está montada así.
+        En "notes", dos frases de por qué está montada así.\(extra.isEmpty ? "" : " Ten en cuenta mi perfil: \(extra).")
         """
     }
 }
@@ -54,7 +56,7 @@ final class AICoachManager: ObservableObject {
     static let shared = AICoachManager()
 
     static let model = "claude-sonnet-5"
-    static let system = "Eres un entrenador personal experto. Responde SIEMPRE en español de España, de forma concisa y práctica, con recomendaciones accionables. Usa los datos del usuario cuando sean relevantes. No des consejo médico."
+    static var system: String { "Eres un entrenador personal experto. Responde SIEMPRE en \(AppLanguage.replyIn), de forma concisa y práctica, con recomendaciones accionables. Usa los datos del usuario cuando sean relevantes. Los nombres de los ejercicios de la lista van en español: si hace falta, tradúcelos al hablar. No des consejo médico." }
 
     @Published var apiKey: String {
         didSet { Keychain.set(apiKey, for: "anthropicAPIKey") }
@@ -71,7 +73,7 @@ final class AICoachManager: ObservableObject {
 
     var hasKey: Bool { !apiKey.trimmingCharacters(in: .whitespaces).isEmpty }
 
-    private func request(_ body: [String: Any], timeout: TimeInterval = 90) throws -> URLRequest {
+    func request(_ body: [String: Any], timeout: TimeInterval = 90) throws -> URLRequest {
         let key = apiKey.trimmingCharacters(in: .whitespaces)
         guard !key.isEmpty else { throw Self.error(401, "Falta la API key de Anthropic.") }
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!, timeoutInterval: timeout)
@@ -209,6 +211,51 @@ final class AICoachManager: ObservableObject {
             "system": Self.system,
             "output_config": ["effort": "medium", "format": ["type": "json_schema", "schema": Self.routineSchema]],
             "messages": [["role": "user", "content": r.prompt]],
+        ], timeout: 150)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse else { throw Self.error(-1, "Sin respuesta del servidor.") }
+        guard http.statusCode == 200 else {
+            throw Self.error(http.statusCode, Self.httpMessage(http.statusCode, String(data: data, encoding: .utf8) ?? ""))
+        }
+        return try Self.decodeRoutine(from: data)
+    }
+
+    // MARK: - Texto → plan
+
+    static func parsePrompt(_ text: String) -> String {
+        """
+        Convierte esta rutina (pegada de un mensaje o de un entrenador) en una rutina estructurada. \
+        Respeta los ejercicios, series, repeticiones y descansos que diga; si falta algo, pon valores razonables. \
+        Si un ejercicio coincide con uno de esta lista, usa ese nombre exacto; si no, escribe su nombre en español: \
+        \(ExerciseCatalog.all.map(\.name).joined(separator: ", ")). \
+        Días de la semana en español (Lunes…Domingo); si el texto no dice días (Día 1, Día A…), repártelos en Lunes, Miércoles, Viernes, etc. \
+        En los ejercicios por tiempo usa las repeticiones como segundos. En "notes", una frase de lo que has entendido.
+
+        RUTINA:
+        \(text.prefix(6000))
+        """
+    }
+
+    static var parsedRoutineSchema: [String: Any] {
+        var s = routineSchema
+        if var props = s["properties"] as? [String: Any], var days = props["days"] as? [String: Any],
+           var day = days["items"] as? [String: Any], var dprops = day["properties"] as? [String: Any],
+           var ex = dprops["exercises"] as? [String: Any], var item = ex["items"] as? [String: Any],
+           var iprops = item["properties"] as? [String: Any] {
+            iprops["name"] = ["type": "string"]
+            item["properties"] = iprops; ex["items"] = item; dprops["exercises"] = ex
+            day["properties"] = dprops; days["items"] = day; props["days"] = days; s["properties"] = props
+        }
+        return s
+    }
+
+    func parseRoutineText(_ text: String) async throws -> GeneratedRoutine {
+        let req = try request([
+            "model": Self.model,
+            "max_tokens": 8000,
+            "system": Self.system,
+            "output_config": ["effort": "medium", "format": ["type": "json_schema", "schema": Self.parsedRoutineSchema]],
+            "messages": [["role": "user", "content": Self.parsePrompt(text)]],
         ], timeout: 150)
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw Self.error(-1, "Sin respuesta del servidor.") }

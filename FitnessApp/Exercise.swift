@@ -26,16 +26,20 @@ struct Exercise: Identifiable, Codable, Equatable {
     var setupNote: String? = nil
     /// Récord que se quiere alcanzar (kg).
     var goalWeight: Double? = nil
+    /// Qué significa el peso: total, por mancuerna, por lado, asistencia o lastre.
+    var loadKind: LoadKind = .total
+    /// Enlace a un vídeo propio (YouTube, Instagram…). Si no, el del catálogo.
+    var videoURL: String? = nil
 
     init(id: UUID = UUID(), name: String, repetitions: Int, weight: Double, totalSets: Int = 4,
          info: String = "", imageData: Data? = nil, restDuration: Int = 60, sfSymbolIcon: String? = nil,
          iconColor: String = "blue", segundos: Int = 0, rir: Int = 0, muscleGroup: String? = nil,
-         setupNote: String? = nil, goalWeight: Double? = nil) {
+         setupNote: String? = nil, goalWeight: Double? = nil, loadKind: LoadKind = .total) {
         self.id = id; self.name = name; self.repetitions = repetitions; self.weight = weight
         self.totalSets = totalSets; self.info = info; self.imageData = imageData
         self.restDuration = restDuration; self.sfSymbolIcon = sfSymbolIcon; self.iconColor = iconColor
         self.segundos = segundos; self.rir = rir; self.muscleGroup = muscleGroup
-        self.setupNote = setupNote; self.goalWeight = goalWeight
+        self.setupNote = setupNote; self.goalWeight = goalWeight; self.loadKind = loadKind
     }
 
     /// Tolerante: un campo que falte toma su valor por defecto. Si esto fallara,
@@ -57,6 +61,8 @@ struct Exercise: Identifiable, Codable, Equatable {
         muscleGroup = try c.decodeIfPresent(String.self, forKey: .muscleGroup)
         setupNote = try c.decodeIfPresent(String.self, forKey: .setupNote)
         goalWeight = try c.decodeIfPresent(Double.self, forKey: .goalWeight)
+        loadKind = (try? c.decodeIfPresent(LoadKind.self, forKey: .loadKind)) ?? .total
+        videoURL = try? c.decodeIfPresent(String.self, forKey: .videoURL)
     }
 
     /// La nota de máquina, si tiene algo escrito.
@@ -65,3 +71,54 @@ struct Exercise: Identifiable, Codable, Equatable {
         return t
     }
 }
+
+/// Qué representa el peso apuntado en un ejercicio.
+enum LoadKind: String, Codable, CaseIterable, Identifiable {
+    /// El peso total que mueves (barra con discos, máquina).
+    case total
+    /// Lo que pesa cada mancuerna (se usan dos).
+    case perDumbbell
+    /// Por brazo o pierna, haciendo cada lado (zancadas con una mancuerna, remo a una mano).
+    case perSide
+    /// Máquina de asistencia: el peso te ayuda, así que menos es mejor.
+    case assisted
+    /// Tu peso corporal más un lastre (0 = sin lastre).
+    case bodyweight
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .total: return "Peso total"
+        case .perDumbbell: return "Por mancuerna"
+        case .perSide: return "Por lado"
+        case .assisted: return "Asistido"
+        case .bodyweight: return "Corporal + lastre"
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .total: return "Apuntas lo que mueves en total: barra con discos o la placa de la máquina."
+        case .perDumbbell: return "Apuntas lo que pesa una mancuerna. En el tonelaje cuenta el doble."
+        case .perSide: return "Apuntas el peso de un lado y haces los dos. En el tonelaje cuenta el doble."
+        case .assisted: return "Apuntas la ayuda de la máquina. Progresar es bajarla: el récord es la menor."
+        case .bodyweight: return "Apuntas el lastre (0 sin lastre). El tonelaje suma tu peso corporal."
+        }
+    }
+
+    /// Cómo se llama el campo de peso para este tipo.
+    var fieldLabel: String {
+        switch self {
+        case .total: return "Peso"
+        case .perDumbbell: return "Por mancuerna"
+        case .perSide: return "Por lado"
+        case .assisted: return "Asistencia"
+        case .bodyweight: return "Lastre"
+        }
+    }
+
+    /// Menos peso es mejor (asistencia).
+    var lowerIsBetter: Bool { self == .assisted }
+}
+

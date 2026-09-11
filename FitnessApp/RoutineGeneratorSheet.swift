@@ -18,6 +18,7 @@ struct RoutineGeneratorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var req = RoutineRequest()
+    @State private var prefilled = false
     @State private var result: GeneratedRoutine? = nil
     @State private var name = ""
     @State private var loading = false
@@ -53,7 +54,7 @@ struct RoutineGeneratorSheet: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let r = result { preview(r) } else { form }
                     if let e = errorMsg {
-                        Text(e).font(.fig(13, .medium)).foregroundColor(p.danger).padding(.top, 12)
+                        Text((e).loc).font(.fig(13, .medium)).foregroundColor(p.danger).padding(.top, 12)
                     }
                 }
                 .padding(.horizontal, 22).padding(.vertical, 16)
@@ -82,6 +83,11 @@ struct RoutineGeneratorSheet: View {
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: 0).onAppear {
+                guard !prefilled else { return }
+                prefilled = true
+                req = viewModel.routineRequestFromProfile()
+            }
             if !canGenerate {
                 Text("Para crear rutinas con IA necesitas Apple Intelligence activado o una API key de Claude en el Coach.")
                     .font(.fig(13, .medium)).foregroundColor(p.mute).padding(.bottom, 12)
@@ -116,7 +122,7 @@ struct RoutineGeneratorSheet: View {
                 ForEach(options, id: \.self) { o in
                     let on = o == selected
                     Button { pick(o); HapticManager.shared.selectionFeedback() } label: {
-                        Text(o).font(.fig(13, on ? .bold : .semibold))
+                        Text((o).loc).font(.fig(13, on ? .bold : .semibold))
                             .foregroundColor(on ? p.onacc : p.mute)
                             .padding(.horizontal, 14).frame(height: 36)
                             .background(Capsule().fill(on ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
@@ -124,6 +130,7 @@ struct RoutineGeneratorSheet: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("generator.\(o)")
+                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
         }
@@ -135,16 +142,16 @@ struct RoutineGeneratorSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             UpperLabel(text: "Nombre de la rutina", p: p)
             PulsoField(placeholder: r.name, text: $name, p: p)
-            Text(r.notes).font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
+            Text((r.notes).loc).font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
             ForEach(Array(r.days.enumerated()), id: \.offset) { _, d in
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(d.day).font(.fig(15, .bold)).foregroundColor(p.ink)
-                        Text(d.label).font(.fig(13, .semibold)).foregroundColor(p.acc)
+                        Text((d.day).loc).font(.fig(15, .bold)).foregroundColor(p.ink)
+                        Text((d.label).loc).font(.fig(13, .semibold)).foregroundColor(p.acc)
                     }
                     ForEach(Array(d.exercises.enumerated()), id: \.offset) { _, e in
                         HStack {
-                            Text(e.name).font(.fig(13, .medium)).foregroundColor(p.ink)
+                            Text((e.name).loc).font(.fig(13, .medium)).foregroundColor(p.ink)
                             Spacer()
                             Text("\(e.sets) × \(e.reps) · \(WorkoutViewModel.restText(e.restSeconds))")
                                 .font(.fig(12, .semibold)).foregroundColor(p.mute)
@@ -177,7 +184,7 @@ struct RoutineGeneratorSheet: View {
                 } else {
                     g = try await coach.generateRoutine(r)
                 }
-                name = "\(r.goal) · \(r.daysPerWeek) días"
+                name = String(localized: "\(r.goal) · \(r.daysPerWeek) días")
                 result = g
             } catch {
                 errorMsg = error.localizedDescription
@@ -188,7 +195,7 @@ struct RoutineGeneratorSheet: View {
 
     /// Rutina fija para las pruebas de UI (--fake-ai).
     static func sample(for r: RoutineRequest) -> GeneratedRoutine {
-        GeneratedRoutine(name: "\(r.goal) \(r.daysPerWeek) días", notes: "Rutina de prueba.",
+        GeneratedRoutine(name: String(localized: "\(r.goal) \(r.daysPerWeek) días"), notes: "Rutina de prueba.",
                          days: [.init(day: "Martes", label: "Torso", exercises: [.init(name: "Press de banca", sets: 4, reps: 8, restSeconds: 120),
                                                                                   .init(name: "Remo con barra", sets: 4, reps: 10, restSeconds: 90)]),
                                 .init(day: "Jueves", label: "Pierna", exercises: [.init(name: "Sentadilla", sets: 5, reps: 5, restSeconds: 180),

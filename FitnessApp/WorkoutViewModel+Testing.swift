@@ -18,6 +18,11 @@ extension WorkoutViewModel {
         guard AppDefaults.isTesting, availableExercises.isEmpty else { return }
         if AppDefaults.has("--seed-sample") || AppDefaults.has("--seed-history") {
             loadSampleRoutine()
+            // Perfil ya hecho (sin tocar el objetivo semanal) para que Inicio no saque el aviso.
+            var profile = TrainingProfile()
+            profile.daysPerWeek = weeklySessionGoal
+            profile.completed = true
+            if let data = try? JSONEncoder().encode(profile) { userDefaults.set(data, forKey: "TrainingProfile") }
         }
         if AppDefaults.has("--seed-history") { seedHistory() }
     }

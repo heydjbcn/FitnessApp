@@ -16,6 +16,11 @@ struct ChamaFitShortcuts: AppShortcutsProvider {
             "Marca serie en \(.applicationName)",
         ], shortTitle: "Marcar serie", systemImageName: "checkmark.circle.fill")
 
+        AppShortcut(intent: LogSetIntent(), phrases: [
+            "Apunta una serie en \(.applicationName)",
+            "Apunta en \(.applicationName)",
+        ], shortTitle: "Apuntar serie", systemImageName: "mic.fill")
+
         AppShortcut(intent: StartRestIntent(), phrases: [
             "Empieza el descanso en \(.applicationName)",
             "Descanso en \(.applicationName)",

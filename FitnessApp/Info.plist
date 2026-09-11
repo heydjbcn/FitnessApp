@@ -25,19 +25,30 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>chamafit-spotify</string>
+				<string>chamafit</string>
 			</array>
 		</dict>
 	</array>
+	<key>ChamaFitCloudKit</key>
+	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>spotify</string>
 	</array>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Para poner tus próximas sesiones en un calendario «ChamaFit» y rehacerlo cuando cambias la rutina.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear el código de barras de lo que comes y apuntarlo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Para apuntar tus series hablando en el modo entreno («80 kilos por 8»). El audio no se guarda.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Para entender lo que dices en el modo entreno. Siempre que el iPhone puede, se reconoce en el propio iPhone.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>ChamaFit lee tu ritmo cardíaco y las calorías del entrenamiento que registra el Apple Watch.</string>
+	<string>ChamaFit lee tu ritmo cardíaco, sueño, pasos y peso para enseñarte tu recuperación, y las calorías de los entrenos que registra el Apple Watch.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud.</string>
+	<string>ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud, además de tu peso y el agua.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

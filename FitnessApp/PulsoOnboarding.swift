@@ -2,96 +2,11 @@
 //  PulsoOnboarding.swift
 //  FitnessApp
 //
-//  Primera vez en la app, como en el prototipo: la pantalla "Entrena con
-//  pulso" que pide el nombre, y después el tutorial de siete pasos que va
-//  moviéndose por las pestañas.
+//  El tutorial de siete pasos que va moviéndose por las pestañas. La
+//  bienvenida con el nombre y el perfil está en ProfileOnboarding.swift.
 //
 
 import SwiftUI
-
-// MARK: - Bienvenida
-
-struct PulsoWelcomeView: View {
-    @EnvironmentObject var userManager: UserManager
-    @EnvironmentObject var themeManager: ThemeManager
-    let onDone: () -> Void
-
-    @State private var name = ""
-    @FocusState private var focused: Bool
-
-    private var p: Palette { themeManager.p }
-    private var valid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
-
-    var body: some View {
-        ZStack {
-            p.bg.ignoresSafeArea()
-            Circle()
-                .fill(RadialGradient(colors: [p.glow1, .clear], center: .center, startRadius: 0, endRadius: 210))
-                .frame(width: 420, height: 420)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .offset(y: -140)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-
-            VStack(spacing: 0) {
-                Spacer()
-                VStack(spacing: 0) {
-                    Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 44, weight: .bold))
-                        .foregroundColor(p.onacc)
-                        .frame(width: 112, height: 112)
-                        .background(RoundedRectangle(cornerRadius: 36, style: .continuous).fill(p.grad))
-                        .shadow(color: p.glow1, radius: 30, y: 24)
-                    Text("CHAMAFIT")
-                        .font(.fig(12, .bold))
-                        .tracking(1.7)
-                        .foregroundColor(p.mute)
-                        .padding(.top, 28)
-                    HStack(spacing: 0) {
-                        Text("Entrena con ")
-                            .font(.bri(34))
-                            .em(-0.03, size: 34)
-                            .foregroundColor(p.ink)
-                        GradientText(text: "pulso", font: .bri(34), p: p, tracking: -0.03 * 34)
-                    }
-                    .padding(.top, 8)
-                    Text("Para personalizar tu experiencia, cuéntanos tu nombre.")
-                        .font(.fig(15, .medium))
-                        .lineSpacing(5)
-                        .foregroundColor(p.mute)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 290)
-                        .padding(.top, 12)
-                }
-                Spacer()
-
-                VStack(spacing: 12) {
-                    TextField("", text: $name, prompt: Text("Tu nombre").foregroundColor(p.mute.opacity(0.8)))
-                        .font(.fig(17, .semibold))
-                        .foregroundColor(p.ink)
-                        .multilineTextAlignment(.center)
-                        .focused($focused)
-                        .submitLabel(.continue)
-                        .onSubmit(save)
-                        .frame(height: 54)
-                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(p.card))
-                        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(p.line, lineWidth: 1))
-                    PrimaryButton(title: "Continuar", icon: nil, height: 54, fontSize: 16, enabled: valid, p: p, action: save)
-                }
-                .padding(.bottom, 24)
-            }
-            .padding(.horizontal, 28)
-        }
-    }
-
-    private func save() {
-        guard valid else { return }
-        userManager.saveUserProfile(name: name, age: userManager.userAge, height: userManager.userHeight,
-                                    weight: userManager.userWeight)
-        HapticManager.shared.success()
-        onDone()
-    }
-}
 
 // MARK: - Tutorial
 
@@ -184,7 +99,7 @@ struct TutorialOverlay: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("TUTORIAL · \(s.rawValue + 1) DE \(TutorialStep.allCases.count)")
                         .font(.fig(11, .bold)).tracking(0.9).foregroundColor(p.mute)
-                    Text(s.title).font(.bri(19)).em(-0.02, size: 19).foregroundColor(p.ink)
+                    Text((s.title).loc).font(.bri(19)).em(-0.02, size: 19).foregroundColor(p.ink)
                 }
                 Spacer(minLength: 0)
                 Button("Saltar") { go(nil) }
@@ -192,7 +107,7 @@ struct TutorialOverlay: View {
                     .foregroundColor(p.mute)
             }
 
-            Text(s.text)
+            Text((s.text).loc)
                 .font(.fig(14, .medium))
                 .lineSpacing(5)
                 .foregroundColor(p.mute)

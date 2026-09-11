@@ -11,7 +11,9 @@
 		1092163F029D5232C88190B0 /* ChamaFitWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7E3A07DD4CAE3F4F01D62C71 /* ChamaFitWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		12419794A4F956742A3E9189 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
 		24E0944FDB6541C1307472CF /* ChamaFitWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		25EE2899FA412CAD16D2EEAA /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = AD49972BA103F4A3E239F8D8 /* Localizable.xcstrings */; };
 		25F627ADC9141BE05758DD8A /* RestLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5056444605F415CCD99EEA /* RestLiveActivity.swift */; };
+		295BF2B4879CD6B107BC8DA9 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2137F2E188D975D13B410951 /* InfoPlist.xcstrings */; };
 		2C4905799931F359F2190100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7FB05CE264A60C7E08561938 /* Assets.xcassets */; };
 		2FD021769EEB6D1589428888 /* TodaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DEE2203B6080FA0954AB99 /* TodaySummary.swift */; };
 		3EB026936A728AC1D8830B72 /* ChamaFitWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */; };
@@ -21,10 +23,12 @@
 		679FAB50BC638A7D0495ED97 /* AppFitWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */; };
 		69D69BA5068F58BD0403CC52 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */; };
 		855588D7A7FCAD172332AADA /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7D8848F4D553FFDB4435 /* RestActivity.swift */; };
+		89214EA51CF95EC2D7BEE66A /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 7FB9CEF0FFB1680F10CC8915 /* Localizable.xcstrings */; };
 		8C456EC0D4BB2B11373E1356 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CC7CC03EC34E8E83DE540FF /* Foundation.framework */; };
 		8F2B30CA5A6591D59FC5C8B4 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCA7C66B977F7ECCACA6A40 /* WatchHomeView.swift */; };
 		9651A3ED51C1381CFE8DC416 /* ControlWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA6445570477D2501099E148 /* ControlWidgets.swift */; };
 		9B9CB770F4199C68E79A2D7F /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */; };
+		9BCFF783279D42FBD69E3F23 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0077BA08DEA557E913E1F2D0 /* Localizable.xcstrings */; };
 		B243AD64495022AC45F37158 /* ChamaFitIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6D420DB41FD213E553E633F /* ChamaFitIntents.swift */; };
 		CC932C8A15188B0F2F5C7D07 /* ChamaFitWatchWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0309B6935CBD898232EF2244 /* ChamaFitWatchWidgets.swift */; };
 		D01809EB8DE895677E26CC3A /* WatchComplicationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */; };
@@ -109,6 +113,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0077BA08DEA557E913E1F2D0 /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		009C7D8848F4D553FFDB4435 /* RestActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestActivity.swift; sourceTree = "<group>"; };
 		01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchComplicationState.swift; sourceTree = "<group>"; };
 		02D8E103F213F58583ACFD95 /* ChamaFitWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChamaFitWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -116,6 +121,7 @@
 		07350731FBFAFA4DDBBCDDC0 /* AppFit Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AppFit Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		07B0E053139FD794AC3B3522 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		1B5056444605F415CCD99EEA /* RestLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RestLiveActivity.swift; sourceTree = "<group>"; };
+		2137F2E188D975D13B410951 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		33CB166E018058E194E51FA1 /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
 		38A4D9044238A1960F1C2251 /* WorkoutSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutSessionManager.swift; sourceTree = "<group>"; };
 		3CC7CC03EC34E8E83DE540FF /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -128,11 +134,13 @@
 		786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ChamaFitWidgets.entitlements; sourceTree = "<group>"; };
 		7E3A07DD4CAE3F4F01D62C71 /* ChamaFitWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChamaFitWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FB05CE264A60C7E08561938 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7FB9CEF0FFB1680F10CC8915 /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		84ACAFD3525062678BC54AA1 /* ChamaFitWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitWidgetsBundle.swift; sourceTree = "<group>"; };
 		89295C9FFD4744E36409A06F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8AF4D7E87C58CD5CBB835AF6 /* TodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
 		8AF9485A702E246BF7E5135B /* AppFitWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppFitWatchApp.swift; sourceTree = "<group>"; };
 		AA6445570477D2501099E148 /* ControlWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ControlWidgets.swift; sourceTree = "<group>"; };
+		AD49972BA103F4A3E239F8D8 /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		AED016F852ED4094BFC89711 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D7432C80E1776A1C2B36EC77 /* ChamaFitWatchWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = ChamaFitWatchWidgets.entitlements; sourceTree = "<group>"; };
 		F6D420DB41FD213E553E633F /* ChamaFitIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChamaFitIntents.swift; sourceTree = "<group>"; };
@@ -241,6 +249,8 @@
 				4FC221B1CDFF3C3256B16C38 /* Watch.entitlements */,
 				7FB05CE264A60C7E08561938 /* Assets.xcassets */,
 				01BEA75ADA1A343099FC6A2E /* WatchComplicationState.swift */,
+				7FB9CEF0FFB1680F10CC8915 /* Localizable.xcstrings */,
+				2137F2E188D975D13B410951 /* InfoPlist.xcstrings */,
 			);
 			path = WatchApp;
 			sourceTree = "<group>";
@@ -254,6 +264,7 @@
 				89295C9FFD4744E36409A06F /* Info.plist */,
 				786F5E6748E656E67F2EBE79 /* ChamaFitWidgets.entitlements */,
 				AA6445570477D2501099E148 /* ControlWidgets.swift */,
+				AD49972BA103F4A3E239F8D8 /* Localizable.xcstrings */,
 			);
 			path = ChamaFitWidgets;
 			sourceTree = "<group>";
@@ -301,6 +312,7 @@
 				AED016F852ED4094BFC89711 /* Info.plist */,
 				D7432C80E1776A1C2B36EC77 /* ChamaFitWatchWidgets.entitlements */,
 				0309B6935CBD898232EF2244 /* ChamaFitWatchWidgets.swift */,
+				0077BA08DEA557E913E1F2D0 /* Localizable.xcstrings */,
 			);
 			name = ChamaFitWatchWidgets;
 			path = ChamaFitWatchWidgets;
@@ -479,6 +491,7 @@
 				en,
 				Base,
 				es,
+				ca,
 			);
 			mainGroup = 54FF56B02E272C080011485E;
 			minimizedProjectReferenceProxies = 1;
@@ -526,6 +539,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9BCFF783279D42FBD69E3F23 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -533,6 +547,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				25EE2899FA412CAD16D2EEAA /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -541,6 +556,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2C4905799931F359F2190100 /* Assets.xcassets in Resources */,
+				89214EA51CF95EC2D7BEE66A /* Localizable.xcstrings in Resources */,
+				295BF2B4879CD6B107BC8DA9 /* InfoPlist.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

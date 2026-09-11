@@ -36,18 +36,38 @@ enum Reminders {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
 
         if enabled {
-            for offset in 0..<7 {
-                guard let day = cal.date(byAdding: .day, value: offset, to: cal.startOfDay(for: now)),
-                      let wd = WorkoutDay.from(date: day) else { continue }
+            func planned(_ wd: WorkoutDay, on day: Date, fire: Date) -> Planned {
                 let recs = vm.dailyWorkoutRecords[wd] ?? []
-                guard !recs.isEmpty else { continue }
-                let fire = day.addingTimeInterval(TimeInterval(minutes * 60))
-                guard fire > now else { continue }
-                if offset == 0 && vm.hasWorkoutForDate(day) { continue }   // hoy ya entrenaste
-                let label = vm.label(for: wd).map { "\(wd.displayName) · \($0)" } ?? wd.displayName
                 let sets = recs.reduce(0) { $0 + (vm.getExercise(by: $1.exerciseId)?.totalSets ?? 0) }
-                out.append(Planned(id: "reminder-\(f.string(from: day))", date: fire, title: "Hoy toca \(label)",
-                                   body: "\(recs.count) ejercicios · \(sets) series. ¡A por ello!"))
+                return Planned(id: "reminder-\(f.string(from: day))", date: fire, title: String(localized: "Hoy toca \(vm.sessionTitle(wd))"),
+                               body: String(localized: "\(recs.count) ejercicios · \(sets) series. ¡A por ello!"))
+            }
+            switch vm.scheduleMode {
+            case .fixedWeek, .elasticWeek:
+                let doneThisWeek = vm.slotsDoneThisWeek(upTo: now)
+                for offset in 0..<7 {
+                    guard let day = cal.date(byAdding: .day, value: offset, to: cal.startOfDay(for: now)),
+                          let wd = WorkoutDay.from(date: day) else { continue }
+                    guard !(vm.dailyWorkoutRecords[wd] ?? []).isEmpty else { continue }
+                    let fire = day.addingTimeInterval(TimeInterval(minutes * 60))
+                    guard fire > now else { continue }
+                    if offset == 0 && vm.hasWorkoutForDate(day) { continue }   // hoy ya entrenaste
+                    if vm.scheduleMode == .elasticWeek {
+                        // Flexible: lo ya hecho esta semana no se recuerda y «hoy no puedo» calla el de hoy.
+                        if offset == 0 && vm.isPostponed(on: now) { continue }
+                        if doneThisWeek.contains(wd) && cal.isDate(day, equalTo: now, toGranularity: .weekOfYear) { continue }
+                    }
+                    out.append(planned(wd, on: day, fire: fire))
+                }
+            case .sequence:
+                // Sin días: un solo aviso, el próximo día sin entrenar, con la sesión que toca.
+                for offset in 0..<2 {
+                    guard let day = cal.date(byAdding: .day, value: offset, to: cal.startOfDay(for: now)) else { continue }
+                    let fire = day.addingTimeInterval(TimeInterval(minutes * 60))
+                    guard fire > now, !vm.hasWorkoutForDate(day), let wd = vm.nextSession(on: day) else { continue }
+                    out.append(planned(wd, on: day, fire: fire))
+                    break
+                }
             }
         }
 
@@ -58,10 +78,10 @@ enum Reminders {
                 let offset = cal.isDate(monday, equalTo: now, toGranularity: .weekOfYear) ? -1 : 0
                 let s = vm.weekStats(offset: offset)
                 let prev = vm.weekStats(offset: offset - 1)
-                var body = "\(s.sessions) \(s.sessions == 1 ? "sesión" : "sesiones") · \(s.sets) series · \(WorkoutViewModel.tonnageText(s.volume))"
+                var body = String(localized: "\(s.sessions) \((s.sessions == 1 ? "sesión" : "sesiones").loc) · \(s.sets) series · \(WorkoutViewModel.tonnageText(s.volume))")
                 if prev.volume > 0 {
                     let pct = Int(((s.volume - prev.volume) / prev.volume * 100).rounded())
-                    body += " (\(pct >= 0 ? "+" : "")\(pct) % frente a la anterior)"
+                    body += String(localized: " (\(pct >= 0 ? "+" : "")\(pct) % frente a la anterior)")
                 }
                 if s.sessions == 0 { body = "Semana sin entrenos. Esta es buena para volver." }
                 out.append(Planned(id: "weekly-\(f.string(from: monday))", date: monday, title: "Tu semana en ChamaFit", body: body))

@@ -98,7 +98,7 @@ final class HealthManager: ObservableObject {
         s.insert(HKCategoryType(.sleepAnalysis))
         return s
     }
-    private var shareTypes: Set<HKSampleType> { [HKObjectType.workoutType(), HKQuantityType(.bodyMass)] }
+    private var shareTypes: Set<HKSampleType> { [HKObjectType.workoutType(), HKQuantityType(.bodyMass), HKQuantityType(.dietaryWater)] }
 
     private init() {}
 
@@ -124,11 +124,11 @@ final class HealthManager: ObservableObject {
     // MARK: - Escribir
 
     /// Guarda el entreno de fuerza salvo que el Watch ya guardara uno que se solape.
-    func saveWorkout(start: Date, end: Date) async {
+    func saveWorkout(start: Date, end: Date, type: HKWorkoutActivityType = .traditionalStrengthTraining) async {
         guard isAvailable, connected, saveWorkouts, end > start else { return }
-        if await hasOverlappingWorkout(start: start, end: end) { return }
+        if await hasOverlappingWorkout(start: start, end: end, type: type) { return }
         let config = HKWorkoutConfiguration()
-        config.activityType = .traditionalStrengthTraining
+        config.activityType = type
         config.locationType = .indoor
         let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: .local())
         do {
@@ -138,7 +138,7 @@ final class HealthManager: ObservableObject {
         } catch {}
     }
 
-    private func hasOverlappingWorkout(start: Date, end: Date) async -> Bool {
+    private func hasOverlappingWorkout(start: Date, end: Date, type: HKWorkoutActivityType) async -> Bool {
         let predicate = HKQuery.predicateForSamples(withStart: start.addingTimeInterval(-600), end: end.addingTimeInterval(600))
         let workouts: [HKWorkout] = await withCheckedContinuation { cont in
             let q = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate, limit: 20, sortDescriptors: nil) { _, samples, _ in
@@ -146,7 +146,17 @@ final class HealthManager: ObservableObject {
             }
             store.execute(q)
         }
+        if type == .highIntensityIntervalTraining { return workouts.contains { $0.workoutActivityType == type } }
         return workouts.contains { $0.workoutActivityType == .traditionalStrengthTraining || $0.workoutActivityType == .functionalStrengthTraining }
+    }
+
+    /// Agua bebida (ml) a Salud.
+    func saveWater(ml: Double, date: Date = Date()) {
+        guard isAvailable, connected, ml > 0 else { return }
+        let sample = HKQuantitySample(type: HKQuantityType(.dietaryWater),
+                                      quantity: HKQuantity(unit: .literUnit(with: .milli), doubleValue: ml),
+                                      start: date, end: date)
+        store.save(sample) { _, _ in }
     }
 
     func saveBodyWeight(_ kg: Double, date: Date = Date()) {

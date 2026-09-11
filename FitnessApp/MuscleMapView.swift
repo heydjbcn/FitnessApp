@@ -132,7 +132,7 @@ struct MuscleMapView: View {
                     }
                 }
             }
-            Text(title.uppercased()).font(.fig(10, .bold)).tracking(0.8).foregroundColor(p.mute)
+            Text((title.uppercased()).loc).font(.fig(10, .bold)).tracking(0.8).foregroundColor(p.mute)
         }
         .frame(maxWidth: 130)
     }
@@ -152,7 +152,7 @@ struct MuscleMapView: View {
                 HapticManager.shared.selectionFeedback()
             }
             .accessibilityElement()
-            .accessibilityLabel(piece.group.map { "\($0): \(sets[$0] ?? 0) series" } ?? "")
+            .accessibilityLabel(piece.group.map { String(localized: "\($0): \(sets[$0] ?? 0) series") } ?? "")
             .accessibilityHidden(piece.group == nil)
             .accessibilityAddTraits(piece.group == nil ? [] : .isButton)
     }
@@ -171,7 +171,7 @@ struct MuscleMapView: View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 3).fill(color).frame(width: 12, height: 12)
                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(p.line, lineWidth: 0.8))
-            Text(label).font(.fig(11, .medium)).foregroundColor(p.mute)
+            Text((label).loc).font(.fig(11, .medium)).foregroundColor(p.mute)
         }
     }
 }

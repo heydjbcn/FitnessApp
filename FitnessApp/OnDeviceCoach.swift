@@ -42,6 +42,101 @@ struct OnDeviceItem {
     var restSeconds: Int
 }
 
+/// Rutina leída de un texto: los nombres pueden no estar en el catálogo.
+@Generable
+struct OnDeviceParsedRoutine {
+    @Guide(description: "Nombre corto de la rutina, en español") var name: String
+    @Guide(description: "Una frase con lo que has entendido") var notes: String
+    @Guide(description: "Un elemento por día de entreno") var days: [OnDeviceParsedDay]
+}
+
+@Generable
+struct OnDeviceParsedDay {
+    @Guide(description: "Día de la semana", .anyOf(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"])) var day: String
+    @Guide(description: "Nombre de la sesión") var label: String
+    @Guide(description: "Ejercicios tal como vienen en el texto") var exercises: [OnDeviceParsedItem]
+}
+
+@Generable
+struct OnDeviceParsedItem {
+    @Guide(description: "Nombre del ejercicio en español") var name: String
+    @Guide(description: "Series", .range(1...12)) var sets: Int
+    @Guide(description: "Repeticiones (o segundos si es por tiempo)", .range(1...300)) var reps: Int
+    @Guide(description: "Descanso en segundos", .range(0...600)) var restSeconds: Int
+}
+
+// MARK: - Herramientas para el modelo del iPhone
+
+struct CoachHistoryTool: Tool {
+    let name = "history"
+    let description = "Sesiones hechas entre dos fechas, con ejercicios, series y notas."
+    @Generable struct Arguments {
+        @Guide(description: "Desde, formato yyyy-MM-dd") var from: String
+        @Guide(description: "Hasta, formato yyyy-MM-dd") var to: String
+    }
+    func call(arguments: Arguments) async throws -> String {
+        await MainActor.run { WorkoutViewModel.shared.toolHistory(from: arguments.from, to: arguments.to) }
+    }
+}
+
+struct CoachStatsTool: Tool {
+    let name = "exercise_stats"
+    let description = "Récord, 1RM estimado, últimas sesiones y sugerencia de hoy de un ejercicio del usuario."
+    @Generable struct Arguments { @Guide(description: "Nombre del ejercicio") var name: String }
+    func call(arguments: Arguments) async throws -> String {
+        await MainActor.run { WorkoutViewModel.shared.toolExerciseStats(arguments.name) }
+    }
+}
+
+struct CoachNotesTool: Tool {
+    let name = "search_notes"
+    let description = "Busca en las notas de sesión, ajustes de máquina y descripciones."
+    @Generable struct Arguments { @Guide(description: "Texto a buscar") var query: String }
+    func call(arguments: Arguments) async throws -> String {
+        await MainActor.run { WorkoutViewModel.shared.toolSearchNotes(arguments.query) }
+    }
+}
+
+struct CoachConsistencyTool: Tool {
+    let name = "consistency_report"
+    let description = "Constancia de las últimas 8 semanas: sesiones frente al objetivo, días que se saltan y horario."
+    @Generable struct Arguments { @Guide(description: "Pon «todo»") var scope: String }
+    func call(arguments: Arguments) async throws -> String {
+        await MainActor.run { WorkoutViewModel.shared.toolConsistency() }
+    }
+}
+
+struct CoachProposeTool: Tool {
+    let name = "propose_changes"
+    let description = "Propone cambios en la rutina para que el usuario los revise con Aplicar o Descartar. No los aplica."
+    @Generable struct Change {
+        @Guide(description: "Tipo de cambio", .anyOf(["substitute", "sets_reps", "add", "remove", "rest"])) var kind: String
+        @Guide(description: "Día de la rutina o «toda»", .anyOf(["toda", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"])) var day: String
+        @Guide(description: "Ejercicio afectado, nombre exacto") var exercise: String
+        @Guide(description: "Para substitute: ejercicio nuevo; si no, vacío") var newExercise: String
+        @Guide(description: "Series (0 si no aplica)", .range(0...12)) var sets: Int
+        @Guide(description: "Repeticiones (0 si no aplica)", .range(0...100)) var reps: Int
+        @Guide(description: "Descanso en segundos (0 si no aplica)", .range(0...600)) var seconds: Int
+    }
+    @Generable struct Arguments {
+        @Guide(description: "Por qué, en una frase") var reason: String
+        @Guide(description: "Los cambios") var changes: [Change]
+    }
+    func call(arguments: Arguments) async throws -> String {
+        let items: [[String: Any]] = arguments.changes.map { c in
+            var d: [String: Any] = ["kind": c.kind, "exercise": c.exercise]
+            if c.day != "toda" { d["day"] = c.day }
+            if !c.newExercise.isEmpty { d["new_exercise"] = c.newExercise }
+            if c.sets > 0 { d["sets"] = c.sets }
+            if c.reps > 0 { d["reps"] = c.reps }
+            if c.seconds > 0 { d["seconds"] = c.seconds }
+            return d
+        }
+        let reason = arguments.reason
+        return await MainActor.run { WorkoutViewModel.shared.runCoachTool("propose_changes", ["reason": reason, "changes": items]) }
+    }
+}
+
 @MainActor
 enum OnDeviceCoach {
 
@@ -62,18 +157,21 @@ enum OnDeviceCoach {
         }
     }
 
-    private static let instructions = """
-    Eres un entrenador personal. Respondes en español de España, breve y práctico, con pasos concretos. \
-    Usas los datos del usuario si ayudan. No das consejo médico.
-    """
+    private static var instructions: String {
+        "Eres un entrenador personal. Respondes en \(AppLanguage.replyIn), breve y práctico, con pasos concretos. " +
+        "Usas los datos del usuario si ayudan. No das consejo médico."
+    }
 
     /// Respuesta que va llegando (texto acumulado).
-    static func stream(_ prompt: String, context: String, history: [(String, String)]) -> AsyncThrowingStream<String, Error> {
+    static func stream(_ prompt: String, context: String, history: [(String, String)], tools: Bool = false) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task { @MainActor in
                 do {
                     // El modelo recuerda el hilo dentro de la sesión; se rehace con lo último para no pasarse de contexto.
-                    let session = LanguageModelSession(instructions: instructions)
+                    let session = tools
+                        ? LanguageModelSession(tools: [CoachHistoryTool(), CoachStatsTool(), CoachNotesTool(), CoachConsistencyTool(), CoachProposeTool()],
+                                               instructions: instructions + " Si hace falta, usa las herramientas para consultar datos. Si propones cambios en la rutina, usa propose_changes; nunca digas que ya están aplicados.")
+                        : LanguageModelSession(instructions: instructions)
                     var recent = ""
                     for (q, a) in history.suffix(2) { recent += "Pregunta anterior: \(q)\nTu respuesta: \(a.prefix(400))\n" }
                     let full = "Mis datos:\n\(context.prefix(1800))\n\(recent)\nMi petición: \(prompt)"
@@ -89,12 +187,21 @@ enum OnDeviceCoach {
         }
     }
 
+    static func parseRoutine(_ text: String) async throws -> GeneratedRoutine {
+        let session = LanguageModelSession(instructions: instructions)
+        let out = try await session.respond(to: AICoachManager.parsePrompt(String(text.prefix(2500))), generating: OnDeviceParsedRoutine.self).content
+        return GeneratedRoutine(name: out.name, notes: out.notes, days: out.days.map { d in
+            GeneratedRoutine.Day(day: d.day, label: d.label,
+                                 exercises: d.exercises.map { .init(name: $0.name, sets: $0.sets, reps: $0.reps, restSeconds: $0.restSeconds) })
+        })
+    }
+
     static func generateRoutine(_ r: RoutineRequest) async throws -> GeneratedRoutine {
         let session = LanguageModelSession(instructions: instructions)
         let prompt = """
         Crea una rutina semanal de \(r.daysPerWeek) días para \(r.goal.lowercased()), sesiones de unos \(r.minutes) minutos, \
         nivel \(r.level.lowercased()), con este material: \(r.equipment.lowercased()). \
-        Reparte bien los grupos musculares y no repitas día de la semana.
+        Reparte bien los grupos musculares y no repitas día de la semana.\(r.extra.isEmpty ? "" : " Mi perfil: \(r.extra).")
         """
         let out = try await session.respond(to: prompt, generating: OnDeviceRoutine.self).content
         return GeneratedRoutine(

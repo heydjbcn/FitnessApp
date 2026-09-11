@@ -22,6 +22,10 @@ struct SessionSummary {
     let exercisesDone: Int
     let records: [Record]
     let previous: Previous?
+    /// "Lunes" o, en secuencia, "Sesión B".
+    var slot: String? = nil
+
+    var slotName: String { slot ?? day.displayName }
 
     var duration: TimeInterval {
         guard let start, let end else { return 0 }
@@ -38,7 +42,8 @@ extension WorkoutViewModel {
         let records = dailyWorkoutRecords[day] ?? []
         func pending(_ r: WorkoutExercise) -> Bool {
             guard let ex = getExercise(by: r.exerciseId) else { return false }
-            return r.completedSets < ex.totalSets
+            if let g = r.supersetGroup, isBlockClosed(day, g) { return false }
+            return r.completedSets < r.planned(ex)
         }
         let candidates = records.filter(pending)
         let pool = candidates.filter { !skipping.contains($0.id) }
@@ -58,11 +63,11 @@ extension WorkoutViewModel {
     /// "Press militar, 40 kilos por 8" para la voz y el descanso.
     func nextUpText(in day: WorkoutDay) -> String? {
         guard let rec = nextRecord(in: day), let ex = getExercise(by: rec.exerciseId) else { return nil }
-        if ex.segundos > 0 { return "\(ex.name), \(ex.segundos) segundos" }
+        if ex.segundos > 0 { return String(localized: "\(ex.name), \(ex.segundos) segundos") }
         let s = proposedSet(for: ex, record: rec)
         return s.weight > 0
-            ? "\(ex.name), \(WorkoutViewModel.number(s.weight)) kilos por \(s.reps)"
-            : "\(ex.name), \(s.reps) repeticiones"
+            ? String(localized: "\(ex.name), \(Units.number(s.weight)) \(WorkoutViewModel.unitWord) por \(s.reps)")
+            : String(localized: "\(ex.name), \(s.reps) repeticiones")
     }
 
     func sessionSummary(for day: WorkoutDay, endedAt: Date? = nil) -> SessionSummary {
@@ -87,7 +92,7 @@ extension WorkoutViewModel {
             let dates = logs.map(\.date)
             let dur = (dates.max() ?? entry.key).timeIntervalSince(dates.min() ?? entry.key)
             previous = .init(date: entry.key, sets: recs.reduce(0) { $0 + $1.completedSets },
-                             volume: logs.reduce(0) { $0 + $1.volume }, duration: dur)
+                             volume: volume(of: recs), duration: dur)
         }
 
         let end = endedAt.map { max($0, bounds?.end ?? $0) } ?? bounds?.end
@@ -95,20 +100,20 @@ extension WorkoutViewModel {
                               sets: completedSets(for: day), totalSets: totalSets(for: day),
                               volume: volume(for: day),
                               exercisesDone: records.filter { $0.completedSets > 0 }.count,
-                              records: prs, previous: previous)
+                              records: prs, previous: previous, slot: slotName(day))
     }
 
     /// "1 h 05 min" / "42 min"
     static func durationText(_ seconds: TimeInterval) -> String {
         let m = Int(seconds / 60)
-        return m >= 60 ? "\(m / 60) h \(String(format: "%02d", m % 60)) min" : "\(max(1, m)) min"
+        return m >= 60 ? "\(m / 60) h \(String(format: "%02d", m % 60)) min" : String(localized: "\(max(1, m)) min")
     }
 
     /// "1,2 t" o "840 kg"
-    static func tonnageText(_ kg: Double) -> String {
-        kg >= 1000 ? String(format: "%.1f t", kg / 1000).replacingOccurrences(of: ".", with: ",")
-                   : "\(Int(kg.rounded())) kg"
-    }
+    static func tonnageText(_ kg: Double) -> String { Units.tonnage(kg) }
+
+    /// "kilos" o "libras", para la voz.
+    static var unitWord: String { (Units.weight == .kg ? "kilos" : "libras").loc }
 }
 
 extension WorkoutViewModel {

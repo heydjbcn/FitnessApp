@@ -23,8 +23,8 @@ struct PastSetsEditor: View {
         PulsoSheet(p: p) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    UpperLabel(text: "Series del \(WeeklyCalendarView.longDate(ref.date).lowercased())", p: p)
-                    Text(exercise.name).font(.bri(20)).em(-0.02, size: 20).foregroundColor(p.ink).lineLimit(1)
+                    UpperLabel(text: String(localized: "Series del \(WeeklyCalendarView.longDate(ref.date).lowercased())"), p: p)
+                    Text((exercise.name).loc).font(.bri(20)).em(-0.02, size: 20).foregroundColor(p.ink).lineLimit(1)
                 }
                 Spacer()
                 CloseCircle(p: p) { dismiss() }
@@ -46,7 +46,7 @@ struct PastSetsEditor: View {
                                     .frame(width: 34, height: 34)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Borrar la serie \(i + 1)")
+                            .accessibilityLabel(String(localized: "Borrar la serie \(i + 1)"))
                             .accessibilityIdentifier("past.delete.\(i + 1)")
                         }
                     }

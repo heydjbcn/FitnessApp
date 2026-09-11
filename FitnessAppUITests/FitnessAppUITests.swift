@@ -228,6 +228,24 @@ class ChamaFitUITests: XCTestCase {
         type("Tester", into: name)
         tap(app.buttons["Continuar"])
 
+        // Perfil en cinco pasos.
+        XCTAssertTrue(exists(app.staticTexts["¿Qué quieres conseguir?"], 8))
+        tap(app.buttons["profile.goal.strength"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["profile.level.advanced"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["profile.days.4"])
+        tap(app.buttons["profile.minutes.75"])
+        XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '4 sesiones de unos 75 min'")).firstMatch))
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["profile.equipment.Casa"])
+        tap(app.buttons["equipment.item.kettlebell"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["profile.focus.Espalda"])
+        tap(app.buttons["onboarding.next"])
+        XCTAssertTrue(exists(app.staticTexts["¿Cómo quieres empezar?"]))
+        tap(app.buttons["onboarding.start.manual"])
+
         XCTAssertTrue(exists(app.staticTexts["¡Bienvenido!"], 8), "el tutorial arranca solo")
         tap(app.buttons["Atajo: cargar rutina de ejemplo"])
         tap(app.buttons["Siguiente"])                          // create
@@ -254,8 +272,21 @@ class ChamaFitUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Continuar"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Tester'")).firstMatch.exists)
 
-        // "Saltar" desde Ajustes.
+        // El perfil quedó guardado y el objetivo semanal sale de él.
         tab("Ajustes")
+        let profileRow = app.buttons["settings.trainingProfile"]
+        scrollTo(profileRow)
+        XCTAssertTrue(profileRow.label.contains("Ganar fuerza") && profileRow.label.contains("Casa"), profileRow.label)
+        XCTAssertEqual(app.staticTexts["goal.week.value"].label, "4")
+        tap(profileRow)
+        tap(app.buttons["profile.tab.3"])
+        XCTAssertTrue(app.buttons["equipment.item.kettlebell"].isSelected, "el material retocado se guardó")
+        tap(app.buttons["profile.tab.2"])
+        tap(app.buttons["profile.days.3"])
+        tap(app.buttons["profile.save"])
+        XCTAssertEqual(app.staticTexts["goal.week.value"].label, "3")
+
+        // "Saltar" desde Ajustes.
         tap(app.buttons["Ver tutorial y empezar"])
         XCTAssertTrue(exists(app.staticTexts["¡Bienvenido!"]))
         tap(app.buttons["Saltar"])
@@ -822,9 +853,273 @@ class ChamaFitUITests: XCTestCase {
         dismissShareSheet()
         XCTAssertTrue(exists(app.tabBars.firstMatch), "sigue viva tras compartir")
     }
+
+    // MARK: - 14. Onboarding: «Ahora no» y plan con IA
+
+    func test14_OnboardingSkipAndAIPlan() {
+        launch(["--reset", "--fake-ai"])
+        type("Ana", into: app.textFields.firstMatch)
+        tap(app.buttons["Continuar"])
+        tap(app.buttons["profile.goal.fatLoss"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["profile.days.5"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["profile.equipment.Sin material"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["onboarding.next"])
+        tap(app.buttons["onboarding.start.ai"])
+
+        // El generador sale relleno con el perfil.
+        XCTAssertTrue(exists(app.staticTexts["Crear rutina con IA"], 8))
+        XCTAssertTrue(exists(app.buttons["generator.Perder grasa"]))
+        XCTAssertTrue(app.buttons["generator.Perder grasa"].isSelected, "objetivo del perfil")
+        XCTAssertTrue(app.buttons["generator.5"].isSelected, "días del perfil")
+        XCTAssertTrue(app.buttons["generator.Peso corporal"].isSelected, "material del perfil")
+        tap(app.buttons["generator.go"])
+        XCTAssertTrue(exists(app.descendants(matching: .any)["generator.preview"], 10))
+        tap(app.buttons["generator.apply"])
+        assertGone(app.staticTexts["Crear rutina con IA"])
+        XCTAssertFalse(app.descendants(matching: .any)["home.profileNudge"].exists, "perfil hecho: sin aviso")
+
+        // «Ahora no»: entra sin perfil y el aviso de Inicio lo recuerda.
+        launch(["--reset"])
+        type("Luis", into: app.textFields.firstMatch)
+        tap(app.buttons["Continuar"])
+        tap(app.buttons["onboarding.skip"])
+        XCTAssertTrue(exists(app.staticTexts["¡Bienvenido!"], 8))
+        tap(app.buttons["Saltar"])
+        let nudge = app.descendants(matching: .any)["home.profileNudge"]
+        XCTAssertTrue(exists(nudge))
+        tap(app.buttons["Cerrar aviso de perfil"])
+        assertGone(nudge)
+    }
+
+    // MARK: - 15. Biblioteca: errores, alternativas, sustituir y material
+
+    func test15_LibraryAlternativesAndSwap() {
+        launch()
+        selectDay("Lunes")
+        tap(app.buttons["info.Press de banca"])
+        search(app.otherElements["library.mistakes"])
+        XCTAssertTrue(exists(app.staticTexts["Rebotar la barra en el pecho para subirla."]))
+        XCTAssertTrue(exists(app.buttons["library.video"]))
+        snap("biblioteca")
+        tap(app.buttons["library.alt.Press de pecho en máquina"])
+        confirm("Solo hoy")
+        XCTAssertTrue(exists(app.buttons["info.Press de pecho en máquina"], 8), "hoy toca el de la máquina")
+        XCTAssertFalse(app.buttons["info.Press de banca"].exists)
+
+        tap(app.buttons["info.Press de pecho en máquina"])
+        tap(app.buttons["library.revert"])
+        XCTAssertTrue(exists(app.buttons["info.Press de banca"], 8), "vuelve el de siempre")
+
+        // Sin material: las alternativas se quedan en lo que se puede hacer.
+        tap(app.buttons["home.equipment"])
+        tap(app.buttons["Sin material"])
+        XCTAssertTrue(exists(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Sin material'")).firstMatch))
+        tap(app.buttons["info.Press de banca"])
+        search(app.buttons["library.alt.Flexiones"])
+        XCTAssertTrue(app.buttons["library.alt.Flexiones"].exists)
+        XCTAssertFalse(app.buttons["library.alt.Press de pecho en máquina"].exists)
+    }
+
+    // MARK: - 16. Libras y tipo de carga
+
+    func test16_PoundsAndLoadKind() {
+        launch()
+        tab("Ajustes")
+        let unit = app.descendants(matching: .any)["settings.unit"]
+        scrollTo(unit)
+        tap(unit.buttons["lb"].exists ? unit.buttons["lb"] : app.buttons["lb"])
+        tab("Inicio")
+        selectDay("Lunes")
+        XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' lb'")).firstMatch, 5), "pesos en libras")
+        tap(app.buttons["set.Press de banca.1"])
+        tap(app.buttons["timer.stop"])
+        tab("Ajustes")
+        scrollTo(unit)
+        tap(unit.buttons["kg"].exists ? unit.buttons["kg"] : app.buttons["kg"])
+        tab("Inicio")
+        XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' kg'")).firstMatch, 5), "de vuelta a kilos")
+
+        // Tipo de carga en el formulario.
+        tab("Ejercicios")
+        tap(app.staticTexts["Press de banca"].firstMatch)
+        tap(app.buttons["Editar ejercicio"])
+        for _ in 0..<3 { tap(app.buttons["Siguiente"]) }
+        tap(app.buttons["form.load.perDumbbell"])
+        XCTAssertTrue(exists(app.staticTexts["Apuntas lo que pesa una mancuerna. En el tonelaje cuenta el doble."]))
+    }
+
+    // MARK: - 17. Modos de rutina y programas
+
+    func test17_ScheduleModesAndPrograms() {
+        launch()
+        tab("Calendario")
+        tap(routineMenu)
+        tap(app.buttons["Secuencia A/B/C"])
+        XCTAssertTrue(exists(app.staticTexts["Sesión A"]), "en secuencia las sesiones son A, B, C")
+        XCTAssertTrue(exists(app.staticTexts["Sesión C"]))
+        tab("Inicio")
+        XCTAssertTrue(exists(app.staticTexts["Sesión A"]), "sin historial toca la A")
+        snap("secuencia")
+
+        tab("Calendario")
+        tap(routineMenu)
+        tap(app.buttons["Programas de varias semanas…"])
+        tap(app.buttons["program.fivebyfive"])
+        XCTAssertTrue(exists(app.descendants(matching: .any)["program.detail"]))
+        tap(app.buttons["program.start"])
+        tab("Inicio")
+        let banner = app.descendants(matching: .any)["home.program"]
+        XCTAssertTrue(exists(banner), "tarjeta del programa en Inicio")
+        XCTAssertTrue(exists(app.buttons["info.Sentadilla"]))
+        snap("programa")
+        tap(banner)
+        tap(app.buttons["program.end"])
+        confirm("Terminar programa")
+        closeSheet()
+        assertGone(banner)
+    }
+
+    // MARK: - 18. Bloque AMRAP en el modo entreno
+
+    func test18_AmrapBlock() {
+        launch()
+        selectDay("Lunes")
+        for name in ["Aperturas", "Press militar"] {
+            tap(app.buttons["info.\(name)"])
+            tap(app.buttons["detail.superset"])
+            tap(app.buttons["Bloque A"])
+            if name == "Aperturas" {
+                tap(app.buttons["block.kind.amrap"])
+                for _ in 0..<9 { tap(app.buttons["block.minus"]) }
+                XCTAssertTrue(exists(app.staticTexts["1 min"]))
+            }
+            closeSheet()
+        }
+        tap(app.buttons["home.startWorkout"])
+        tap(app.buttons["session.skip"])
+        tap(app.buttons["session.skip"])
+        tap(app.buttons["session.block"])
+        tap(app.buttons["block.start"])
+        tap(app.buttons["block.round"])
+        tap(app.buttons["block.round"])
+        XCTAssertEqual(app.staticTexts["block.rounds"].label, "2 vueltas")
+        snap("amrap")
+        tap(app.buttons["sheet.close"])
+        confirm("Terminar y guardar")
+        XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label == 'Extensiones en polea'")).firstMatch, 8),
+                      "cerrado el bloque, sigue lo siguiente")
+    }
+
+    /// Secuencia A/B/C: así hoy siempre toca una sesión, sea el día que sea.
+    func useSequence() {
+        tab("Calendario")
+        tap(routineMenu)
+        tap(app.buttons["Secuencia A/B/C"])
+        tab("Inicio")
+    }
+
+    // MARK: - 19. Hora límite, «hoy me cuesta» y «está ocupada»
+
+    func test19_DeadlineLightAndBusy() {
+        launch(["--named", "--seed-sample", "--low-recovery"])
+        useSequence()
+        tap(app.buttons["home.deadline"])
+        tap(app.buttons["deadline.30"])
+        XCTAssertTrue(exists(app.otherElements["deadline.cuts"]), "en 30 min no cabe todo: propone recortes")
+        snap("hora-limite")
+        tap(app.buttons["deadline.apply"])
+        XCTAssertTrue(exists(app.staticTexts["home.deadline.status"]))
+        XCTAssertTrue(exists(app.staticTexts["Fuera hoy"].firstMatch), "algún aislamiento fuera hoy")
+        tap(app.buttons["home.deadline"])
+        tap(app.buttons["deadline.clear"])
+        assertGone(app.staticTexts["home.deadline.status"])
+
+        tap(app.buttons["home.light"])
+        XCTAssertTrue(exists(app.buttons["home.light.undo"]))
+        XCTAssertTrue(exists(app.staticTexts["Fuera hoy"].firstMatch))
+        tap(app.buttons["home.light.undo"])
+        assertGone(app.staticTexts["Fuera hoy"].firstMatch)
+
+        tap(app.buttons["home.startWorkout"])
+        XCTAssertEqual(app.staticTexts["session.exercise"].label, "Press de banca")
+        tap(app.buttons["session.busy"])
+        tap(app.buttons["busy.alt.Press de banca con mancuernas"])
+        XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label == 'Press de banca con mancuernas'")).firstMatch, 8),
+                      "la cambia solo hoy por la alternativa")
+    }
+
+    // MARK: - 20. Experimentos
+
+    func test20_Experiments() {
+        launch()
+        useSequence()
+        tab("Ajustes")
+        tap(app.buttons["settings.experiments"])
+        tap(app.buttons["experiment.new"])
+        tap(app.buttons["experiment.template.rest"])
+        tap(app.buttons["experiment.start"])
+        XCTAssertTrue(exists(app.staticTexts["experiment.today"]))
+        XCTAssertTrue(app.staticTexts["experiment.verdict"].label.hasPrefix("Aún no se puede saber"))
+        snap("experimento")
+        closeSheet()
+        tab("Inicio")
+        XCTAssertTrue(exists(app.descendants(matching: .any)["home.experiment"]), "el experimento se ve en Inicio")
+    }
+
+    // MARK: - 21. Voz: «80 kilos por 8» apunta la serie
+
+    func test21_VoiceLogsASet() {
+        launch(["--named", "--seed-sample", "--voice=ochenta kilos por ocho"])
+        useSequence()
+        tap(app.buttons["home.startWorkout"])
+        XCTAssertEqual(app.staticTexts["session.exercise"].label, "Press de banca")
+        tap(app.buttons["session.mic"])
+        let heard = app.staticTexts["session.heard"]
+        XCTAssertTrue(exists(heard))
+        XCTAssertTrue(heard.label.contains("80 kg") && heard.label.contains("8 reps"), heard.label)
+        XCTAssertTrue(exists(app.buttons["timer.stop"]) || exists(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Serie 2'")).firstMatch),
+                      "la serie quedó apuntada")
+    }
 }
 
 /// Toda la batería otra vez en modo claro (repaso visual: las capturas quedan adjuntas).
 final class LightModeUITests: ChamaFitUITests {
     override class var extra: [String] { ["--light"] }
+}
+
+/// La app en inglés y en catalán: pestañas, pantallas principales y fechas.
+final class LanguageUITests: XCTestCase {
+
+    func run(_ lang: String, locale: String, tabs: [String], home: String) {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-tests", "--named", "--seed-sample", "-AppleLanguages", "(\(lang))", "-AppleLocale", locale]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 15))
+        for t in tabs {
+            let b = app.tabBars.buttons[t]
+            XCTAssertTrue(b.waitForExistence(timeout: 5), "pestaña «\(t)» en \(lang)")
+            b.tap()
+            sleep(1)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "\(lang)-\(t)"
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+        app.tabBars.buttons[tabs[0]].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", home)).firstMatch.waitForExistence(timeout: 5),
+                      "Inicio en \(lang) dice «\(home)»")
+        app.terminate()
+    }
+
+    func testEnglish() {
+        run("en", locale: "en_GB", tabs: ["Home", "Calendar", "Exercises", "History", "Settings"], home: "Today's session")
+    }
+
+    func testCatalan() {
+        run("ca", locale: "ca_ES", tabs: ["Inici", "Calendari", "Exercicis", "Historial", "Configuració"], home: "Sessió d'avui")
+    }
 }

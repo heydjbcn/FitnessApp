@@ -37,6 +37,11 @@ enum AppDefaults {
         ProcessInfo.processInfo.arguments.contains(argument)
     }
 
+    /// Valor de un argumento `--nombre=valor` (pruebas).
+    nonisolated static func value(_ name: String) -> String? {
+        ProcessInfo.processInfo.arguments.first { $0.hasPrefix(name + "=") }.map { String($0.dropFirst(name.count + 1)) }
+    }
+
     /// Se llama antes de crear los managers: deja en el dominio de pruebas lo
     /// que piden los argumentos (`--light`, `--named`, `--accent=blue`…).
     static func applyLaunchArguments() {

@@ -53,7 +53,7 @@ struct RecoveryCard: View {
                     .background(Circle().fill((level?.color(p) ?? p.mute).opacity(0.16)))
                 VStack(alignment: .leading, spacing: 1) {
                     UpperLabel(text: "Recuperación", p: p)
-                    Text(r.headline).font(.fig(15, .bold)).foregroundColor(p.ink)
+                    Text((r.headline).loc).font(.fig(15, .bold)).foregroundColor(p.ink)
                 }
                 Spacer()
                 if let move = r.move, let ex = r.exercise, let stand = r.stand {
@@ -62,8 +62,8 @@ struct RecoveryCard: View {
             }
             HStack(spacing: 8) {
                 metric("Sueño", r.sleepHours.map { Self.hours($0) } ?? "—", "moon.fill")
-                metric("Reposo", r.restingHR.map { "\(Int($0.rounded())) ppm" } ?? "—", "heart.fill")
-                metric("VFC", r.hrv.map { "\(Int($0.rounded())) ms" } ?? "—", "waveform.path.ecg")
+                metric("Reposo", r.restingHR.map { String(localized: "\(Int($0.rounded())) ppm") } ?? "—", "heart.fill")
+                metric("VFC", r.hrv.map { String(localized: "\(Int($0.rounded())) ms") } ?? "—", "waveform.path.ecg")
                 metric("Pasos", r.steps.map { Self.steps($0) } ?? "—", "figure.walk")
             }
         }
@@ -94,8 +94,8 @@ struct RecoveryCard: View {
     private func metric(_ label: String, _ value: String, _ icon: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Image(systemName: icon).font(.system(size: 10, weight: .semibold)).foregroundColor(p.acc)
-            Text(value).font(.fig(13, .bold)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
-            Text(label).font(.fig(10, .medium)).foregroundColor(p.mute)
+            Text((value).loc).font(.fig(13, .bold)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
+            Text((label).loc).font(.fig(10, .medium)).foregroundColor(p.mute)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 9).padding(.vertical, 8)
@@ -108,7 +108,7 @@ struct RecoveryCard: View {
     }
 
     static func steps(_ n: Int) -> String {
-        n >= 1000 ? String(format: "%.1f k", Double(n) / 1000).replacingOccurrences(of: ".", with: ",") : "\(n)"
+        n >= 1000 ? AppLanguage.decimal(String(format: "%.1f k", Double(n) / 1000)) : "\(n)"
     }
 }
 
@@ -129,7 +129,7 @@ struct ActivityRings: View {
             }
             .frame(width: w, height: w)
         }
-        .accessibilityLabel("Anillos: moverse \(Int(move * 100)) %, ejercicio \(Int(exercise * 100)) %, de pie \(Int(stand * 100)) %")
+        .accessibilityLabel(String(localized: "Anillos: moverse \(Int(move * 100)) %, ejercicio \(Int(exercise * 100)) %, de pie \(Int(stand * 100)) %"))
     }
 
     private func ring(_ v: Double, _ c: Color, _ size: CGFloat, _ line: CGFloat) -> some View {
@@ -153,7 +153,7 @@ struct RecoveryDetailSheet: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     UpperLabel(text: "Recuperación de hoy", p: p)
-                    Text(r.headline).font(.bri(24)).em(-0.02, size: 24).foregroundColor(r.level?.color(p) ?? p.ink)
+                    Text((r.headline).loc).font(.bri(24)).em(-0.02, size: 24).foregroundColor(r.level?.color(p) ?? p.ink)
                 }
                 Spacer()
                 CloseCircle(p: p) { dismiss() }
@@ -161,17 +161,17 @@ struct RecoveryDetailSheet: View {
             .padding(.horizontal, 22).padding(.top, 22)
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(r.advice).font(.fig(14, .medium)).lineSpacing(4).foregroundColor(p.ink)
+                    Text((r.advice).loc).font(.fig(14, .medium)).lineSpacing(4).foregroundColor(p.ink)
                     row("Sueño de anoche", r.sleepHours.map { RecoveryCard.hours($0) } ?? "Sin datos",
-                        health.weekSleepAvg.map { "media 7 días: \(RecoveryCard.hours($0))" }, "moon.fill")
-                    row("Pulso en reposo", r.restingHR.map { "\(Int($0.rounded())) ppm" } ?? "Sin datos",
-                        r.restingHRAvg.map { "tu media: \(Int($0.rounded())) ppm" }, "heart.fill")
-                    row("Variabilidad (VFC)", r.hrv.map { "\(Int($0.rounded())) ms" } ?? "Sin datos",
-                        r.hrvAvg.map { "tu media: \(Int($0.rounded())) ms" }, "waveform.path.ecg")
+                        health.weekSleepAvg.map { String(localized: "media 7 días: \(RecoveryCard.hours($0))") }, "moon.fill")
+                    row("Pulso en reposo", r.restingHR.map { String(localized: "\(Int($0.rounded())) ppm") } ?? "Sin datos",
+                        r.restingHRAvg.map { String(localized: "tu media: \(Int($0.rounded())) ppm") }, "heart.fill")
+                    row("Variabilidad (VFC)", r.hrv.map { String(localized: "\(Int($0.rounded())) ms") } ?? "Sin datos",
+                        r.hrvAvg.map { String(localized: "tu media: \(Int($0.rounded())) ms") }, "waveform.path.ecg")
                     row("Pasos hoy", r.steps.map { "\($0)" } ?? "Sin datos",
-                        health.weekStepsAvg.map { "media 7 días: \($0)" }, "figure.walk")
-                    row("Energía activa", r.activeEnergy.map { "\(Int($0)) kcal" } ?? "Sin datos",
-                        r.exerciseMinutes.map { "\(Int($0)) min de ejercicio" }, "flame.fill")
+                        health.weekStepsAvg.map { String(localized: "media 7 días: \($0)") }, "figure.walk")
+                    row("Energía activa", r.activeEnergy.map { String(localized: "\(Int($0)) kcal") } ?? "Sin datos",
+                        r.exerciseMinutes.map { String(localized: "\(Int($0)) min de ejercicio") }, "flame.fill")
                     Text("Orientativo, no es consejo médico. Sale de Salud: el sueño y el pulso los registra el Apple Watch.")
                         .font(.fig(11, .medium)).foregroundColor(p.mute).padding(.top, 6)
                 }
@@ -185,11 +185,11 @@ struct RecoveryDetailSheet: View {
         HStack(spacing: 12) {
             IconTile(symbol: icon, p: p)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.fig(13, .medium)).foregroundColor(p.mute)
-                Text(value).font(.bri(18)).foregroundColor(p.ink)
+                Text((title).loc).font(.fig(13, .medium)).foregroundColor(p.mute)
+                Text((value).loc).font(.bri(18)).foregroundColor(p.ink)
             }
             Spacer()
-            if let sub { Text(sub).font(.fig(11, .medium)).foregroundColor(p.mute).multilineTextAlignment(.trailing) }
+            if let sub { Text((sub).loc).font(.fig(11, .medium)).foregroundColor(p.mute).multilineTextAlignment(.trailing) }
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
@@ -220,8 +220,8 @@ struct HealthWeekCard: View {
         HStack(spacing: 10) {
             Image(systemName: icon).font(.system(size: 14, weight: .semibold)).foregroundColor(p.acc)
             VStack(alignment: .leading, spacing: 1) {
-                Text(value).font(.bri(18)).foregroundColor(p.ink)
-                Text(label).font(.fig(11, .medium)).foregroundColor(p.mute)
+                Text((value).loc).font(.bri(18)).foregroundColor(p.ink)
+                Text((label).loc).font(.fig(11, .medium)).foregroundColor(p.mute)
             }
             Spacer(minLength: 0)
         }

@@ -15,7 +15,7 @@ final class VoiceCoach: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = VoiceCoach()
 
     private let synth = AVSpeechSynthesizer()
-    private let voice = AVSpeechSynthesisVoice(language: "es-ES")
+    private var voice: AVSpeechSynthesisVoice? { AVSpeechSynthesisVoice(language: AppLanguage.voiceLanguage) ?? AVSpeechSynthesisVoice(language: "es-ES") }
 
     var enabled: Bool { AppDefaults.store.object(forKey: "voiceCues") as? Bool ?? true }
 
@@ -49,7 +49,7 @@ final class VoiceCoach: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func restDone(next: String?) {
-        say(next.map { "¡A por la siguiente! \($0)" } ?? "¡Descanso terminado!", interrupt: true)
+        say(next.map { String(localized: "¡A por la siguiente! \($0)") } ?? "¡Descanso terminado!", interrupt: true)
     }
 
     // La música vuelve a su volumen al terminar de hablar.

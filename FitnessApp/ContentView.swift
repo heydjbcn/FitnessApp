@@ -14,6 +14,10 @@ struct ContentView: View {
     @State private var tutorial: TutorialStep? = nil
     @State private var showingWelcome = false
     @State private var tutorialForm = false
+    /// Generador de rutina con IA pedido al acabar el onboarding.
+    @State private var onboardingGenerator = false
+    @State private var onboardingPrograms = false
+    struct JoinTarget: Identifiable { let id: String }
     /// Modo entreno abierto desde Siri / Atajos.
     @State private var intentWorkout = false
     /// Ficha abierta desde Spotlight.
@@ -104,7 +108,7 @@ struct ContentView: View {
                 VStack {
                     HStack(spacing: 8) {
                         Image(systemName: "trophy.fill")
-                        Text(pr).font(.fig(14, .bold))
+                        Text((pr).loc).font(.fig(14, .bold))
                     }
                     .foregroundColor(p.onacc)
                     .padding(.horizontal, 20)
@@ -146,6 +150,7 @@ struct ContentView: View {
                 spotlightExercise = SpotlightTarget(id: id)
             }
             syncStyle()
+            homeDay = viewModel.todaySession
             viewModel.trainingDay = homeDay
             PhoneConnectivity.shared.sendTodayContext()
             viewModel.updateTimerEnabledState(themeManager.isTimerEnabled)
@@ -164,6 +169,9 @@ struct ContentView: View {
         .onChange(of: themeManager.isTimerEnabled) { _, on in viewModel.updateTimerEnabledState(on) }
         .onChange(of: themeManager.selectedAccentColor) { _, _ in syncStyle() }
         .onChange(of: themeManager.isDarkMode) { _, _ in syncStyle() }
+        // Otro modo de rutina u otra rutina: Inicio salta a la sesión que toca.
+        .onChange(of: viewModel.scheduleMode) { _, _ in homeDay = viewModel.todaySession }
+        .onChange(of: viewModel.activeRoutineName) { _, _ in homeDay = viewModel.todaySession }
         .onChange(of: homeDay) { _, day in
             viewModel.trainingDay = day
             PhoneConnectivity.shared.sendTodayContext()
@@ -204,6 +212,9 @@ struct ContentView: View {
             // a cero; el descanso en curso se recalcula contra el reloj de pared.
             viewModel.ensureSession()
             viewModel.tick()
+            if !AppDefaults.isTesting {
+                Task { await Nutrition.shared.refresh(); await Nutrition.shared.pullWeights(into: viewModel) }
+            }
             NotificationManager.shared.clearDelivered()
             PhoneConnectivity.shared.sendTodayContext()
             spotify.reconnectIfNeeded()
@@ -213,23 +224,48 @@ struct ContentView: View {
             let now = Calendar.current.startOfDay(for: Date())
             if now != homeDate {
                 homeDate = now
-                homeDay = WeeklyCalendarView.getCurrentDay()
+                homeDay = viewModel.todaySession
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             viewModel.saveNow()
             Reminders.reschedule(for: viewModel)
+            SystemCalendar.sync(viewModel)
             AutoBackup.runIfDue(viewModel)
         }
         .fullScreenCover(isPresented: $showingWelcome) {
-            PulsoWelcomeView {
+            ProfileOnboardingView { start in
                 showingWelcome = false
                 viewModel.markWelcomeSeen()
-                // Recién llegado: el tutorial arranca solo.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { startTutorial() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    switch start {
+                    case .ai: onboardingGenerator = true
+                    case .program: onboardingPrograms = true
+                    case .sample: viewModel.loadSampleRoutine()
+                    case .manual: startTutorial()   // recién llegado: el tutorial arranca solo
+                    }
+                }
             }
             .environmentObject(userManager)
+            .environmentObject(viewModel)
             .environmentObject(themeManager)
+        }
+        .sheet(item: Binding(get: { viewModel.pendingChallengeJoin.map(JoinTarget.init) },
+                             set: { if $0 == nil { viewModel.pendingChallengeJoin = nil } })) { t in
+            FriendsView(joinId: t.id)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $onboardingPrograms) {
+            ProgramsSheet()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $onboardingGenerator) {
+            RoutineGeneratorSheet()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
         }
         .sheet(isPresented: $tutorialForm, onDismiss: {
             // Tras crear el ejercicio, el tutorial sigue en "Ejercicio creado".

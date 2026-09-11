@@ -1,0 +1,90 @@
+{
+  "sourceLanguage": "es",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ChamaFit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ChamaFit"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChamaFit"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "AppFit Watch"
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription": {
+      "comment": "Privacy - Health Share Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ChamaFit llegeix el teu ritme cardíac, son, passes i pes per mostrar la teva recuperació, i les calories dels entrenaments que registra l’Apple Watch."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ChamaFit reads your heart rate, sleep, steps and weight to show your recovery, and the calories of workouts recorded on your Apple Watch."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChamaFit lee tu ritmo cardíaco y las calorías durante el entrenamiento para mostrarlos en el reloj."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription": {
+      "comment": "Privacy - Health Update Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ChamaFit desa cada sessió com a entrenament de força a Salut, a més del teu pes i l’aigua."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ChamaFit saves each session as a strength workout in Health, plus your weight and water."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud para que cuente en tus anillos."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

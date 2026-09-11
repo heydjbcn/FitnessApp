@@ -21,13 +21,14 @@ struct WatchExercise: Identifiable, Equatable {
     let seconds: Int
     let rest: Int
     let superset: Int
+    var unit: String = "kg"
 
     var meta: String {
         var parts: [String] = []
         if seconds > 0 { parts.append("\(seconds) s") } else if reps > 0 { parts.append("\(reps) reps") }
         if weight > 0 {
             let w = weight.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(weight)) : String(format: "%.1f", weight).replacingOccurrences(of: ".", with: ",")
-            parts.append("\(w) kg")
+            parts.append("\(w) \(unit)")
         }
         return parts.joined(separator: " · ")
     }
@@ -133,7 +134,8 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
                               reps: $0["reps"] as? Int ?? 0,
                               seconds: $0["seconds"] as? Int ?? 0,
                               rest: $0["rest"] as? Int ?? 120,
-                              superset: $0["superset"] as? Int ?? -1)
+                              superset: $0["superset"] as? Int ?? -1,
+                              unit: $0["unit"] as? String ?? "kg")
             }
             self.lastSync = Date()
             self.publishComplication()

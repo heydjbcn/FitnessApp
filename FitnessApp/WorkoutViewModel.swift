@@ -87,7 +87,7 @@ final class WorkoutViewModel: ObservableObject {
     let userDefaults: UserDefaults
     private var pendingSave: DispatchWorkItem?
     private let saveQueue = DispatchQueue(label: "chamafit.save", qos: .utility)
-    private let liveActivity = LiveActivityManager()
+    let liveActivity = LiveActivityManager()
     /// Series por ejercicio, calculadas una vez por cambio del historial.
     private var setLogIndex: [UUID: [SetLog]]? = nil
     /// Rutinas guardadas en memoria (el JSON se lee una vez, no en cada render).
@@ -100,6 +100,8 @@ final class WorkoutViewModel: ObservableObject {
     @Published var pendingExerciseOpen: UUID? = nil
     /// Rutina .chamafit recibida, pendiente de confirmar.
     @Published var pendingRoutineImport: SharedRoutine? = nil
+    /// Enlace chamafit://reto/<id> recibido: ContentView abre Amigos y retos.
+    @Published var pendingChallengeJoin: String? = nil
 
     // MARK: - Ciclo de vida
 
@@ -117,6 +119,9 @@ final class WorkoutViewModel: ObservableObject {
         RestTimerBridge.shared.extend = { [weak self] in self?.extendTimer(by: 30) }
         RestTimerBridge.shared.stop = { [weak self] in self?.stopTimer() }
         RestTimerBridge.shared.flushPending()
+        syncProgramWeek()
+        // Semana flexible o secuencia: la sesión de hoy no es el día de la semana.
+        trainingDay = todaySession
         publishSummary()
     }
 
@@ -140,9 +145,9 @@ final class WorkoutViewModel: ObservableObject {
         let records = dailyWorkoutRecords[day] ?? []
         let next = records.first { r in
             guard let ex = getExercise(by: r.exerciseId) else { return false }
-            return r.completedSets < ex.totalSets
+            return r.completedSets < r.planned(ex)
         }.flatMap { getExercise(by: $0.exerciseId)?.name }
-        TodaySummary(dayName: day.displayName, sessionLabel: label(for: day),
+        TodaySummary(dayName: slotName(day), sessionLabel: label(for: day),
                      exerciseCount: records.count, doneSets: completedSets(for: day),
                      totalSets: totalSets(for: day), nextExercise: next,
                      streak: consecutiveWorkoutDays(), accent1: activityStyle.accent1,
@@ -162,7 +167,11 @@ final class WorkoutViewModel: ObservableObject {
             mirrorToHistory(day, on: sessionDate)
             dailyWorkoutRecords[day] = (dailyWorkoutRecords[day] ?? []).map { $0.resettingProgress() }
         }
+        // Lo cambiado «solo hoy» vuelve a su sitio.
+        undoSessionEdits()
         sessionDate = today
+        // Semana nueva del programa: series y repeticiones al día.
+        syncProgramWeek()
         userDefaults.set(today, forKey: "LastSessionDate")
         scheduleSave()
     }
@@ -187,7 +196,7 @@ final class WorkoutViewModel: ObservableObject {
         if byDay.isEmpty { workoutHistory.removeValue(forKey: date) } else { workoutHistory[date] = byDay }
     }
 
-    private func recordHistory(for day: WorkoutDay) {
+    func recordHistory(for day: WorkoutDay) {
         ensureSession()
         mirrorToHistory(day, on: sessionDate)
         scheduleSave()
@@ -216,7 +225,7 @@ final class WorkoutViewModel: ObservableObject {
               let exercise = getExercise(by: dailyWorkoutRecords[day]![idx].exerciseId) else { return }
 
         var record = dailyWorkoutRecords[day]![idx]
-        guard record.completedSets < exercise.totalSets else { return }
+        guard record.completedSets < record.planned(exercise) else { return }
 
         let start = proposedSet(for: exercise, record: record)
         let log = SetLog(reps: reps ?? start.reps, weight: weight ?? start.weight, type: type, rpe: rpe)
@@ -228,7 +237,7 @@ final class WorkoutViewModel: ObservableObject {
         checkRecord(weight: log.weight, exerciseId: exercise.id, excluding: log.id, name: exercise.name)
         HapticManager.shared.setCompleted()
 
-        let finished = record.completedSets >= exercise.totalSets
+        let finished = record.completedSets >= record.planned(exercise)
 
         if let g = record.supersetGroup {
             // En una superserie el descanso llega al cerrar la vuelta: si un
@@ -236,27 +245,34 @@ final class WorkoutViewModel: ObservableObject {
             let partners = (dailyWorkoutRecords[day] ?? []).filter { $0.supersetGroup == g && $0.id != record.id }
             let pending = partners.first { p in
                 guard let pex = getExercise(by: p.exerciseId) else { return false }
-                return p.completedSets < record.completedSets && p.completedSets < pex.totalSets
+                return p.completedSets < record.completedSets && p.completedSets < p.planned(pex)
             }
             if let pending {
                 let next = getExercise(by: pending.exerciseId)?.name ?? "el siguiente"
-                timerLabel = "Ahora \(next) · sin descanso"
+                timerLabel = String(localized: "Ahora \(next) · sin descanso")
                 return
             }
             // Vuelta cerrada. Si a nadie del grupo le quedan series, se acabó.
             let groupDone = finished && partners.allSatisfy { p in
                 guard let pex = getExercise(by: p.exerciseId) else { return true }
-                return p.completedSets >= pex.totalSets
+                return p.completedSets >= p.planned(pex)
             }
             if groupDone { return }
+            let settings = block(day, g)
+            if settings.kind == .circuit {
+                timerLabel = String(localized: "Vuelta \(record.completedSets) cerrada · descanso del circuito")
+                startTimer(duration: settings.restBetweenRounds, isEnabled: isTimerEnabled)
+                return
+            }
             timerLabel = finished
-                ? "\(exercise.name) · descanso de la superserie"
-                : "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
+                ? String(localized: "\(exercise.name) · descanso de la superserie")
+                : String(localized: "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(record.planned(exercise))")
         } else {
             guard !finished else { return }
-            timerLabel = "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(exercise.totalSets)"
+            timerLabel = String(localized: "\(exercise.name) · siguiente serie \(record.completedSets + 1) de \(record.planned(exercise))")
         }
-        startTimer(duration: exercise.restDuration, isEnabled: isTimerEnabled)
+        // Experimento de descanso: hoy puede tocar el descanso largo.
+        startTimer(duration: experimentRest(for: exercise) ?? exercise.restDuration, isEnabled: isTimerEnabled)
     }
 
     func undoLastSet(for workoutExerciseId: UUID, in day: WorkoutDay) {
@@ -339,34 +355,58 @@ final class WorkoutViewModel: ObservableObject {
         return (work.isEmpty ? logs : work).max { $0.date < $1.date }
     }
 
-    func bestWeight(for exerciseId: UUID, excluding logId: UUID? = nil) -> Double {
-        allSetLogs(for: exerciseId).filter { $0.id != logId }.map(\.weight).max() ?? 0
+    /// Series que cuentan para récords: con peso, o con repeticiones si es asistido
+    /// (sin asistencia, 0 kg, es la mejor marca posible).
+    private func recordLogs(for exerciseId: UUID) -> [SetLog] {
+        let assisted = loadKind(for: exerciseId).lowerIsBetter
+        return allSetLogs(for: exerciseId).filter { assisted ? $0.reps > 0 : $0.weight > 0 }
     }
 
-    /// Récord personal: mejor peso y mejor 1RM estimado (Epley).
+    func bestWeight(for exerciseId: UUID, excluding logId: UUID? = nil) -> Double {
+        let weights = recordLogs(for: exerciseId).filter { $0.id != logId }.map(\.weight)
+        return Self.best(weights, kind: loadKind(for: exerciseId)) ?? 0
+    }
+
+    /// Récord personal: mejor peso y mejor 1RM estimado (Epley). En asistidos,
+    /// la menor asistencia y sin 1RM.
     func personalRecord(for exerciseId: UUID) -> (weight: Double, oneRepMax: Double)? {
-        let logs = allSetLogs(for: exerciseId).filter { $0.weight > 0 }
+        let logs = recordLogs(for: exerciseId)
         guard !logs.isEmpty else { return nil }
+        let kind = loadKind(for: exerciseId)
+        if kind.lowerIsBetter { return (logs.map(\.weight).min() ?? 0, 0) }
         return (logs.map(\.weight).max() ?? 0, logs.map(\.estimatedOneRepMax).max() ?? 0)
     }
 
     /// Fecha en la que se hizo el mejor peso de un ejercicio.
     func recordDate(for exerciseId: UUID) -> Date? {
-        allSetLogs(for: exerciseId).filter { $0.weight > 0 }.max { $0.weight < $1.weight }?.date
+        let kind = loadKind(for: exerciseId)
+        return recordLogs(for: exerciseId).max { Self.beats($1.weight, $0.weight, kind: kind) }?.date
     }
 
     private func checkRecord(weight: Double, exerciseId: UUID, excluding logId: UUID?, name: String) {
-        guard weight > 0 else { return }
-        let previous = bestWeight(for: exerciseId, excluding: logId)
-        guard weight > previous else { return }
-        if previous > 0 {
-            prCelebration = "¡Nuevo récord en \(name)! \(Self.kg(weight))"
+        let kind = loadKind(for: exerciseId)
+        let others = recordLogs(for: exerciseId).filter { $0.id != logId }
+        if kind.lowerIsBetter {
+            // Asistido: récord cuando necesitas menos ayuda que nunca.
+            guard let previous = others.map(\.weight).min(), weight < previous else { return }
+            prCelebration = String(localized: "¡Nuevo récord en \(name)! \(Self.weightText(weight, kind: kind))")
             notify(.achievement, title: "¡Nuevo récord!",
-                   message: "\(name): \(Self.kg(weight)). Superaste tu marca anterior de \(Self.kg(previous)).")
+                   message: String(localized: "\(name): \(Self.weightText(weight, kind: kind)). Antes necesitabas \(Self.kg(previous)) de ayuda."))
+            HapticManager.shared.goalAchieved()
+            return
+        }
+        guard weight > 0 else { return }
+        let previous = others.map(\.weight).max() ?? 0
+        guard weight > previous else { return }
+        let text = Self.weightText(weight, kind: kind)
+        if previous > 0 {
+            prCelebration = String(localized: "¡Nuevo récord en \(name)! \(text)")
+            notify(.achievement, title: "¡Nuevo récord!",
+                   message: String(localized: "\(name): \(text). Superaste tu marca anterior de \(Self.weightText(previous, kind: kind))."))
         } else {
-            prCelebration = "Primera marca en \(name): \(Self.kg(weight))"
+            prCelebration = String(localized: "Primera marca en \(name): \(text)")
             notify(.achievement, title: "Primera marca",
-                   message: "\(name): \(Self.kg(weight)). A partir de aquí, a superarla.")
+                   message: String(localized: "\(name): \(text). A partir de aquí, a superarla."))
         }
         HapticManager.shared.goalAchieved()
     }
@@ -376,9 +416,14 @@ final class WorkoutViewModel: ObservableObject {
     func exerciseDailyMaxWeight(for exerciseId: UUID) -> [(date: Date, weight: Double)] {
         let cal = Calendar.current
         var byDay: [Date: Double] = [:]
-        for log in allSetLogs(for: exerciseId) where log.weight > 0 {
+        let kind = loadKind(for: exerciseId)
+        for log in recordLogs(for: exerciseId) {
             let d = cal.startOfDay(for: log.date)
-            byDay[d] = Swift.max(byDay[d] ?? 0, log.weight)
+            if let current = byDay[d] {
+                byDay[d] = kind.lowerIsBetter ? Swift.min(current, log.weight) : Swift.max(current, log.weight)
+            } else {
+                byDay[d] = log.weight
+            }
         }
         return byDay.map { (date: $0.key, weight: $0.value) }.sorted { $0.date < $1.date }
     }
@@ -386,9 +431,11 @@ final class WorkoutViewModel: ObservableObject {
     func exerciseDailyVolume(for exerciseId: UUID) -> [(date: Date, volume: Double)] {
         let cal = Calendar.current
         var byDay: [Date: Double] = [:]
-        for log in allSetLogs(for: exerciseId) where log.weight > 0 {
-            let d = cal.startOfDay(for: log.date)
-            byDay[d, default: 0] += log.volume
+        let kind = loadKind(for: exerciseId)
+        for log in allSetLogs(for: exerciseId) {
+            let v = volume(log, kind: kind)
+            guard v > 0 else { continue }
+            byDay[cal.startOfDay(for: log.date), default: 0] += v
         }
         return byDay.map { (date: $0.key, volume: $0.value) }.sorted { $0.date < $1.date }
     }
@@ -397,6 +444,7 @@ final class WorkoutViewModel: ObservableObject {
     func exerciseDailyOneRepMax(for exerciseId: UUID) -> [(date: Date, oneRepMax: Double)] {
         let cal = Calendar.current
         var byDay: [Date: Double] = [:]
+        guard !loadKind(for: exerciseId).lowerIsBetter else { return [] }
         for log in allSetLogs(for: exerciseId) where log.weight > 0 {
             let d = cal.startOfDay(for: log.date)
             byDay[d] = Swift.max(byDay[d] ?? 0, (log.estimatedOneRepMax * 10).rounded() / 10)
@@ -413,6 +461,7 @@ final class WorkoutViewModel: ObservableObject {
         HapticManager.shared.success()
         scheduleSave()
         if Calendar.current.isDateInToday(date) { HealthManager.shared.saveBodyWeight(weight) }
+        if !AppDefaults.isTesting { Nutrition.shared.pushWeight(weight, date: date) }
     }
 
     /// Peso que llega de Salud (báscula): se apunta sin volver a escribirlo en Salud.
@@ -431,15 +480,18 @@ final class WorkoutViewModel: ObservableObject {
 
     /// Volumen (peso × reps) marcado hoy en un día de rutina.
     func volume(for day: WorkoutDay) -> Double {
-        (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + $1.setLogs.reduce(0) { $0 + $1.volume } }
+        volume(of: dailyWorkoutRecords[day] ?? [])
     }
 
     func completedSets(for day: WorkoutDay) -> Int {
         (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + $1.completedSets }
     }
 
+    /// Series previstas de un registro (las de hoy si se recortaron).
+    func plannedSets(_ r: WorkoutExercise) -> Int { getExercise(by: r.exerciseId).map(r.planned) ?? 0 }
+
     func totalSets(for day: WorkoutDay) -> Int {
-        (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + (getExercise(by: $1.exerciseId)?.totalSets ?? 0) }
+        (dailyWorkoutRecords[day] ?? []).reduce(0) { $0 + plannedSets($1) }
     }
 
     func progressForDay(_ day: WorkoutDay) -> Double {
@@ -447,10 +499,8 @@ final class WorkoutViewModel: ObservableObject {
         return total > 0 ? Double(completedSets(for: day)) / Double(total) : 0
     }
 
-    /// Minutos que faltan: 3 por serie pendiente, como el prototipo.
-    func remainingMinutes(for day: WorkoutDay) -> Int {
-        max(0, totalSets(for: day) - completedSets(for: day)) * 3
-    }
+    /// Minutos que faltan, con tus tiempos reales por serie (ver hora límite).
+    func remainingMinutes(for day: WorkoutDay) -> Int { remainingMinutesEstimate(for: day) }
 
     func isDayComplete(_ day: WorkoutDay) -> Bool {
         let total = totalSets(for: day)
@@ -500,7 +550,7 @@ final class WorkoutViewModel: ObservableObject {
             guard done > 0 else { continue }
             s.sessions += 1
             s.sets += done
-            s.volume += records.flatMap(\.setLogs).reduce(0) { $0 + $1.volume }
+            s.volume += volume(of: records)
         }
         return s
     }
@@ -525,7 +575,7 @@ final class WorkoutViewModel: ObservableObject {
         var best: (WorkoutDay, Double)? = nil
         for entry in history(in: weekInterval()) {
             for (day, records) in entry.byDay {
-                let total = records.reduce(0) { $0 + (getExercise(by: $1.exerciseId)?.totalSets ?? 0) }
+                let total = records.reduce(0) { $0 + plannedSets($1) }
                 let done = records.reduce(0) { $0 + $1.completedSets }
                 guard total > 0 else { continue }
                 let pct = Double(done) / Double(total)
@@ -536,17 +586,24 @@ final class WorkoutViewModel: ObservableObject {
     }
 
     /// Días de entrenamiento seguidos. Un día sin rutina (descanso) no rompe la
-    /// racha; un día con rutina y sin ninguna serie, sí.
+    /// racha; un día con rutina y sin ninguna serie, sí. En semana flexible o
+    /// secuencia no hay días fijos: rompen tres días seguidos sin entrenar.
     func consecutiveWorkoutDays() -> Int {
         let cal = Calendar.current
         var date = cal.startOfDay(for: Date())
         if !hasWorkoutForDate(date), let prev = cal.date(byAdding: .day, value: -1, to: date) { date = prev }
         var streak = 0
+        var restRun = 0
         for _ in 0..<400 {
             if hasWorkoutForDate(date) {
                 streak += 1
-            } else if let day = WorkoutDay.from(date: date), !(dailyWorkoutRecords[day] ?? []).isEmpty {
-                break
+                restRun = 0
+            } else if scheduleMode == .fixedWeek {
+                if let day = WorkoutDay.from(date: date), !(dailyWorkoutRecords[day] ?? []).isEmpty { break }
+            } else {
+                // Sin días fijos: dos días seguidos de descanso valen; el tercero corta.
+                restRun += 1
+                if restRun > 2 { break }
             }
             guard let prev = cal.date(byAdding: .day, value: -1, to: date) else { break }
             date = prev
@@ -621,7 +678,7 @@ final class WorkoutViewModel: ObservableObject {
                     // Registros antiguos sin series detalladas: una fila por serie sin datos.
                     if record.setLogs.isEmpty {
                         for i in 0..<record.completedSets {
-                            rows.append("\(df.string(from: date)),\(day.rawValue),\"\(name)\",\(i + 1),normal,,,")
+                            rows.append(String(localized: "\(df.string(from: date)),\(day.rawValue),\"\(name)\",\(i + 1),normal,,,"))
                         }
                     }
                 }
@@ -632,10 +689,7 @@ final class WorkoutViewModel: ObservableObject {
 
     // MARK: - Temporizador de descanso
 
-    private var sessionName: String {
-        let day = trainingDay
-        return label(for: day).map { "\(day.displayName) · \($0)" } ?? day.displayName
-    }
+    private var sessionName: String { sessionTitle(trainingDay) }
 
     func startTimer(duration: Int, isEnabled: Bool = true) {
         guard isEnabled, duration > 0 else { return }
@@ -829,7 +883,7 @@ final class WorkoutViewModel: ObservableObject {
         }
         defer {
             if !unreadable.isEmpty {
-                loadWarning = "No se pudieron leer estos datos guardados: \(unreadable.joined(separator: ", ")). Se ha conservado una copia; restaura una copia de seguridad si te falta algo."
+                loadWarning = String(localized: "No se pudieron leer estos datos guardados: \(unreadable.joined(separator: ", ")). Se ha conservado una copia; restaura una copia de seguridad si te falta algo.")
             }
         }
 
@@ -873,6 +927,7 @@ extension WorkoutExercise {
         r.completedSets = 0
         r.setLogs = []
         r.lastSetCompletedAt = nil
+        r.targetSets = nil
         return r
     }
 }

@@ -18,6 +18,9 @@ struct Routine: Codable, Identifiable, Equatable {
     var dayLabels: [WorkoutDay: String]
     var activeDays: [WorkoutDay]
     var updatedAt = Date()
+    var mode: ScheduleMode = .fixedWeek
+    /// Superseries que son circuito, AMRAP o EMOM.
+    var blocks: [String: BlockSettings] = [:]
 
     init(id: UUID = UUID(), name: String, plan: [WorkoutDay: [WorkoutExercise]],
          dayLabels: [WorkoutDay: String], activeDays: [WorkoutDay], updatedAt: Date = Date()) {
@@ -34,13 +37,15 @@ struct Routine: Codable, Identifiable, Equatable {
         dayLabels = try c.decodeIfPresent([WorkoutDay: String].self, forKey: .dayLabels) ?? [:]
         activeDays = try c.decodeIfPresent([WorkoutDay].self, forKey: .activeDays) ?? WorkoutDay.allCases
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        mode = (try? c.decodeIfPresent(ScheduleMode.self, forKey: .mode)) ?? .fixedWeek
+        blocks = (try? c.decodeIfPresent([String: BlockSettings].self, forKey: .blocks)) ?? [:]
     }
 
     /// Ejercicios distintos y series totales de la semana, para la lista.
     var summary: String {
         let records = plan.values.flatMap { $0 }
         let days = plan.filter { !$0.value.isEmpty }.count
-        return "\(days) días · \(records.count) ejercicios"
+        return String(localized: "\(days) días · \(records.count) ejercicios")
     }
 }
 
@@ -77,9 +82,12 @@ extension WorkoutViewModel {
 
     /// La plantilla actual empaquetada como rutina, sin el progreso de hoy.
     private func currentAsRoutine() -> Routine {
-        Routine(name: activeRoutineName,
-                plan: dailyWorkoutRecords.mapValues { $0.map { $0.resettingProgress() } },
-                dayLabels: dayLabels, activeDays: activeDays)
+        var r = Routine(name: activeRoutineName,
+                        plan: dailyWorkoutRecords.mapValues { $0.map { $0.resettingProgress() } },
+                        dayLabels: dayLabels, activeDays: activeDays)
+        r.mode = scheduleMode
+        r.blocks = blockSettings
+        return r
     }
 
     /// Guarda la actual en la estantería y pone otra en su sitio.
@@ -93,9 +101,13 @@ extension WorkoutViewModel {
         dayLabels = routine.dayLabels
         activeDays = routine.activeDays
         activeRoutineName = routine.name
+        scheduleMode = routine.mode
+        blockSettings = routine.blocks
+        trainingDay = todaySession
         HapticManager.shared.success()
         persistAll()
         publishSummary()
+        SystemCalendar.sync(self)
     }
 
     /// Nueva rutina vacía (o copia de la actual) y la activa.
@@ -105,9 +117,11 @@ extension WorkoutViewModel {
         let plan: [WorkoutDay: [WorkoutExercise]] = copyingCurrent
             ? dailyWorkoutRecords.mapValues { $0.map { WorkoutExercise(exerciseId: $0.exerciseId, supersetGroup: $0.supersetGroup) } }
             : Dictionary(uniqueKeysWithValues: WorkoutDay.allCases.map { ($0, []) })
-        let routine = Routine(name: clean, plan: plan,
+        var routine = Routine(name: clean, plan: plan,
                               dayLabels: copyingCurrent ? dayLabels : [:],
                               activeDays: copyingCurrent ? activeDays : WorkoutDay.allCases)
+        routine.mode = copyingCurrent ? scheduleMode : .fixedWeek
+        routine.blocks = copyingCurrent ? blockSettings : [:]
         activate(routine)
     }
 

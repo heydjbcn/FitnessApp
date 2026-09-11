@@ -1,0 +1,202 @@
+{
+  "sourceLanguage": "es",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChamaFit"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "FitnessApp"
+          }
+        }
+      }
+    },
+    "NSCalendarsFullAccessUsageDescription": {
+      "comment": "Privacy - Calendars Full Access Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per posar les teves properes sessions en un calendari «ChamaFit» i refer-lo quan canvies la rutina."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To add your upcoming sessions to a “ChamaFit” calendar and rebuild it when you change your routine."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Para poner tus próximas sesiones en un calendario «ChamaFit» y rehacerlo cuando cambias la rutina."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription": {
+      "comment": "Privacy - Camera Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per escanejar el codi de barres del que menges i apuntar-ho."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To scan the barcode of what you eat and log it."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Para escanear el código de barras de lo que comes y apuntarlo."
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription": {
+      "comment": "Privacy - Health Share Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit llegeix el teu ritme cardíac, son, passes i pes per mostrar la teva recuperació, i les calories dels entrenaments que registra l’Apple Watch."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit reads your heart rate, sleep, steps and weight to show your recovery, and the calories of workouts recorded on your Apple Watch."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChamaFit lee tu ritmo cardíaco, sueño, pasos y peso para enseñarte tu recuperación, y las calorías de los entrenos que registra el Apple Watch."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription": {
+      "comment": "Privacy - Health Update Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit desa cada sessió com a entrenament de força a Salut, a més del teu pes i l’aigua."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit saves each session as a strength workout in Health, plus your weight and water."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ChamaFit guarda cada sesión como entrenamiento de fuerza en Salud, además de tu peso y el agua."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "comment": "Privacy - Microphone Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per apuntar les sèries parlant en el mode entrenament («80 quilos per 8»). L’àudio no es desa."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To log your sets by voice in workout mode (“80 kilos for 8”). Audio is not stored."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Para apuntar tus series hablando en el modo entreno («80 kilos por 8»). El audio no se guarda."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "comment": "Privacy - Speech Recognition Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per entendre el que dius en el mode entrenament. Sempre que es pot, es reconeix al mateix iPhone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To understand what you say in workout mode. Whenever possible, it’s recognised on your iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Para entender lo que dices en el modo entreno. Siempre que el iPhone puede, se reconoce en el propio iPhone."
+          }
+        }
+      }
+    },
+    "Rutina de ChamaFit": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rutina de ChamaFit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChamaFit routine"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

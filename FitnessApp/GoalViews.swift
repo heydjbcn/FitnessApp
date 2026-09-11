@@ -34,7 +34,7 @@ struct WeekGoalRing: View {
         .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("home.weekGoal")
-        .accessibilityLabel("Sesiones esta semana: \(done) de \(goal)")
+        .accessibilityLabel(String(localized: "Sesiones esta semana: \(done) de \(goal)"))
     }
 }
 
@@ -59,13 +59,13 @@ struct GoalCard: View {
             }
             if editing {
                 HStack(spacing: 8) {
-                    Text(WorkoutViewModel.kg(draft)).font(.bri(24)).foregroundColor(p.ink).monospacedDigit()
+                    Text((WorkoutViewModel.kg(draft)).loc).font(.bri(24)).foregroundColor(p.ink).monospacedDigit()
                         .accessibilityIdentifier("goal.value")
                     Spacer()
-                    step("−5") { draft = max(0, draft - 5) }
-                    step("−2,5") { draft = max(0, draft - 2.5) }
-                    step("+2,5") { draft += 2.5 }
-                    step("+5") { draft += 5 }
+                    step("−\(Units.plain(Units.step * 2))") { draft = Units.stepped(draft, by: -2) }
+                    step("−\(Units.plain(Units.step))") { draft = Units.stepped(draft, by: -1) }
+                    step("+\(Units.plain(Units.step))") { draft = Units.stepped(draft, by: 1) }
+                    step("+\(Units.plain(Units.step * 2))") { draft = Units.stepped(draft, by: 2) }
                 }
                 HStack(spacing: 8) {
                     if exercise.goalWeight != nil {
@@ -81,7 +81,7 @@ struct GoalCard: View {
                 }
             } else if let g = viewModel.goalProgress(for: exercise) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(WorkoutViewModel.kg(g.best)).font(.bri(22)).foregroundColor(p.ink)
+                    Text((WorkoutViewModel.kg(g.best)).loc).font(.bri(22)).foregroundColor(p.ink)
                     Text("de \(WorkoutViewModel.kg(g.goal))").font(.fig(13, .medium)).foregroundColor(p.mute)
                     Spacer()
                     Text("\(Int((g.fraction * 100).rounded())) %").font(.bri(16)).foregroundStyle(p.hgrad)
@@ -93,7 +93,7 @@ struct GoalCard: View {
                     }
                 }
                 .frame(height: 8)
-                Text(etaText(g)).font(.fig(12, .medium)).foregroundColor(g.reached ? p.acc : p.mute)
+                Text((etaText(g)).loc).font(.fig(12, .medium)).foregroundColor(g.reached ? p.acc : p.mute)
                     .accessibilityIdentifier("goal.eta")
             } else {
                 Text("Pon un peso a batir y te digo cuándo llegarás a tu ritmo.")
@@ -108,14 +108,14 @@ struct GoalCard: View {
         if g.reached { return "¡Conseguido! Pon uno nuevo." }
         guard let eta = g.eta else { return "Aún no hay tendencia clara: sigue sumando sesiones." }
         let f = DateFormatter()
-        f.locale = Locale(identifier: "es_ES")
+        f.locale = AppLanguage.locale
         f.dateFormat = "d 'de' MMMM"
-        return "A este ritmo, hacia el \(f.string(from: eta))."
+        return String(localized: "A este ritmo, hacia el \(f.string(from: eta)).")
     }
 
     private func step(_ title: String, _ action: @escaping () -> Void) -> some View {
         Button { action(); HapticManager.shared.selectionFeedback() } label: {
-            Text(title).font(.fig(12, .bold)).foregroundColor(p.ink)
+            Text((title).loc).font(.fig(12, .bold)).foregroundColor(p.ink)
                 .frame(width: 44, height: 36)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(p.card))
         }
@@ -124,6 +124,6 @@ struct GoalCard: View {
 
     /// Por defecto, un 10 % por encima del récord redondeado a 2,5.
     static func startDraft(_ best: Double) -> Double {
-        best > 0 ? PlateMath.roundToLoadable(best * 1.1) : 20
+        best > 0 ? Units.toKg(PlateMath.roundToLoadable(Units.fromKg(best * 1.1), step: Units.step)) : Units.toKg(Units.weight == .kg ? 20 : 45)
     }
 }

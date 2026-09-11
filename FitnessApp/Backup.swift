@@ -26,6 +26,12 @@ struct ChamaFitBackup: Codable {
     /// Rutinas guardadas y nombre de la activa (opcionales: copias antiguas no los traen).
     var routines: [Routine]? = nil
     var activeRoutineName: String? = nil
+    /// Perfil de entreno y perfiles de material (desde la 1.1).
+    var trainingProfile: TrainingProfile? = nil
+    var equipmentProfiles: [EquipmentProfile]? = nil
+    /// Cómo se reparte la rutina activa y el programa en curso (desde la 1.1).
+    var scheduleMode: ScheduleMode? = nil
+    var program: ActiveProgram? = nil
 
     init(exercises: [Exercise], plan: [WorkoutDay: [WorkoutExercise]],
          history: [Date: [WorkoutDay: [WorkoutExercise]]], bodyWeight: [Date: Double],
@@ -53,6 +59,10 @@ struct ChamaFitBackup: Codable {
         profile = try c.decodeIfPresent([String: String].self, forKey: .profile) ?? [:]
         routines = try c.decodeIfPresent([Routine].self, forKey: .routines)
         activeRoutineName = try c.decodeIfPresent(String.self, forKey: .activeRoutineName)
+        trainingProfile = try? c.decodeIfPresent(TrainingProfile.self, forKey: .trainingProfile)
+        equipmentProfiles = try? c.decodeIfPresent([EquipmentProfile].self, forKey: .equipmentProfiles)
+        scheduleMode = try? c.decodeIfPresent(ScheduleMode.self, forKey: .scheduleMode)
+        program = try? c.decodeIfPresent(ActiveProgram.self, forKey: .program)
     }
 }
 
@@ -65,11 +75,16 @@ extension WorkoutViewModel {
         for key in Self.profileKeys {
             if let v = userDefaults.string(forKey: key), !v.isEmpty { profile[key] = v }
         }
-        return ChamaFitBackup(exercises: availableExercises, plan: dailyWorkoutRecords,
-                              history: workoutHistory, bodyWeight: bodyWeightHistory,
-                              activeDays: activeDays, dayLabels: dayLabels,
-                              notes: sessionNotes, profile: profile,
-                              routines: savedRoutines, activeRoutineName: activeRoutineName)
+        var backup = ChamaFitBackup(exercises: availableExercises, plan: dailyWorkoutRecords,
+                                    history: workoutHistory, bodyWeight: bodyWeightHistory,
+                                    activeDays: activeDays, dayLabels: dayLabels,
+                                    notes: sessionNotes, profile: profile,
+                                    routines: savedRoutines, activeRoutineName: activeRoutineName)
+        backup.trainingProfile = trainingProfile
+        backup.equipmentProfiles = equipmentProfiles
+        backup.scheduleMode = scheduleMode
+        backup.program = activeProgram
+        return backup
     }
 
     func backupData() throws -> Data {
@@ -84,7 +99,7 @@ extension WorkoutViewModel {
         var errorDescription: String? {
             switch self {
             case .unreadable: return "El fichero no es una copia de ChamaFit."
-            case .newerVersion(let v): return "La copia es de una versión más nueva de la app (formato \(v))."
+            case .newerVersion(let v): return String(localized: "La copia es de una versión más nueva de la app (formato \(v)).")
             }
         }
     }
@@ -131,6 +146,11 @@ extension WorkoutViewModel {
         for (key, value) in backup.profile where Self.profileKeys.contains(key) && (userDefaults.string(forKey: key) ?? "").isEmpty {
             userDefaults.set(value, forKey: key)
         }
+        if let e = backup.equipmentProfiles {
+            let mine = Set(equipmentProfiles.map(\.id))
+            equipmentProfiles += e.filter { !mine.contains($0.id) }
+        }
+        if let t = backup.trainingProfile, !trainingProfile.completed { trainingProfile = t }
         let known = Set(savedRoutines.map(\.id))
         savedRoutines += (backup.routines ?? []).filter { !known.contains($0.id) }.map { r in
             var r = r
@@ -193,6 +213,10 @@ extension WorkoutViewModel {
         }
         savedRoutines = backup.routines ?? []
         activeRoutineName = backup.activeRoutineName ?? "Mi rutina"
+        if let e = backup.equipmentProfiles { equipmentProfiles = e }
+        if let t = backup.trainingProfile { trainingProfile = t }
+        scheduleMode = backup.scheduleMode ?? .fixedWeek
+        activeProgram = backup.program
         stopTimer(silent: true)
         prCelebration = nil
         // Las series que traiga la plantilla pertenecen al día en que se hizo la

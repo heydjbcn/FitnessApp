@@ -33,6 +33,13 @@ struct FitnessAppApp: App {
             // La vuelta de Spotify tras autorizar (chamafit-spotify://callback)
             .onOpenURL { url in
                 if url.scheme == "chamafit-spotify" { SpotifyManager.shared.handle(url: url); return }
+                // chamafit://entreno (desde el Calendario): abre el modo entreno.
+                if url.scheme == "chamafit", url.host == "entreno" { workoutViewModel.pendingWorkoutOpen = true; return }
+                // chamafit://reto/<id>: invitación a un reto.
+                if url.scheme == "chamafit", url.host == "reto", let id = url.pathComponents.dropFirst().first {
+                    workoutViewModel.pendingChallengeJoin = id
+                    return
+                }
                 // Una rutina .chamafit recibida por AirDrop, WhatsApp o Archivos.
                 guard url.isFileURL, url.pathExtension.lowercased() == "chamafit" else { return }
                 let scoped = url.startAccessingSecurityScopedResource()

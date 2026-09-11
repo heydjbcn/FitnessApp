@@ -40,7 +40,7 @@ struct HistoryView: View {
                                   hasWorkout: { viewModel.hasWorkoutForDate($0) }, p: p)
                             .padding(.top, 10)
 
-                        Text(WeeklyCalendarView.longDate(date))
+                        Text((WeeklyCalendarView.longDate(date)).loc)
                             .font(.bri(18))
                             .em(-0.02, size: 18)
                             .foregroundColor(p.ink)
@@ -106,7 +106,7 @@ struct HistoryView: View {
             HStack(spacing: 8) {
                 weekTile("Sesiones", "\(now.sessions)", delta: Double(now.sessions - prev.sessions), unit: "")
                 weekTile("Series", "\(now.sets)", delta: Double(now.sets - prev.sets), unit: "")
-                weekTile("Tonelaje", tonelaje(now.volume), delta: now.volume - prev.volume, unit: "kg")
+                weekTile("Tonelaje", Units.tonnage(now.volume), delta: now.volume - prev.volume, unit: "kg")
                 weekTile("Minutos", "\(now.minutes)", delta: Double(now.minutes - prev.minutes), unit: "")
             }
             .padding(.top, 12)
@@ -118,17 +118,15 @@ struct HistoryView: View {
 
     private func weekTile(_ label: String, _ value: String, delta: Double, unit: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.fig(11, .medium)).foregroundColor(p.mute)
-            Text(value).font(.bri(18)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
+            Text((label).loc).font(.fig(11, .medium)).foregroundColor(p.mute)
+            Text((value).loc).font(.bri(18)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
             Group {
                 if delta == 0 {
                     Text("=").foregroundColor(p.mute)
                 } else {
                     let up = delta > 0
                     let abs = Swift.abs(delta)
-                    let text = unit == "kg"
-                        ? (abs >= 1000 ? String(format: "%.1f t", abs / 1000).replacingOccurrences(of: ".", with: ",") : "\(Int(abs.rounded())) kg")
-                        : "\(Int(abs.rounded()))"
+                    let text = unit == "kg" ? Units.tonnage(abs) : "\(Int(abs.rounded()))"
                     Text("\(up ? "▲" : "▼") \(text)")
                         .foregroundColor(up ? Pulso.ok(isDark: p.dark) : p.danger)
                 }
@@ -141,9 +139,6 @@ struct HistoryView: View {
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
     }
 
-    private func tonelaje(_ kg: Double) -> String {
-        kg >= 1000 ? String(format: "%.1f t", kg / 1000).replacingOccurrences(of: ".", with: ",") : "\(Int(kg.rounded())) kg"
-    }
 
     // MARK: - Cifras
 
@@ -153,7 +148,7 @@ struct HistoryView: View {
             stat(icon: "flame.fill", title: "Racha", value: "\(viewModel.consecutiveWorkoutDays())", sub: "días seguidos")
             stat(icon: "clock.fill", title: "Esta semana", value: "\(viewModel.weeklyTrainedMinutes())", sub: "min entrenados")
             stat(icon: "trophy.fill", title: "Mejor día", value: best?.day.shortLabel ?? "—",
-                 sub: best.map { "\(Int(($0.pct * 100).rounded()))% completado" } ?? "sin datos")
+                 sub: best.map { String(localized: "\(Int(($0.pct * 100).rounded()))% completado") } ?? "sin datos")
             stat(icon: "dumbbell.fill", title: "Ejercicios", value: "\(viewModel.availableExercises.count)", sub: "únicos")
         }
     }
@@ -164,11 +159,11 @@ struct HistoryView: View {
                 Image(systemName: icon).font(.system(size: 11, weight: .semibold)).foregroundColor(p.acc)
                 UpperLabel(text: title, p: p)
             }
-            Text(value)
+            Text((value).loc)
                 .font(.bri(26))
                 .foregroundColor(p.ink)
                 .padding(.top, 8)
-            Text(sub)
+            Text((sub).loc)
                 .font(.fig(12, .medium))
                 .foregroundColor(p.mute)
                 .padding(.top, 4)
@@ -214,14 +209,14 @@ struct HistoryView: View {
                     WeightSpark(values: spark.values, p: p)
                         .frame(height: 40)
                         .padding(.top, 8)
-                    Text(spark.trend)
+                    Text((spark.trend).loc)
                         .font(.fig(11, .medium))
                         .foregroundColor(p.mute)
                         .padding(.top, 4)
                 }
                 Spacer(minLength: 8)
                 Button {
-                    weightInput = viewModel.bodyWeightForDate(date).map { WorkoutViewModel.number($0) } ?? ""
+                    weightInput = viewModel.bodyWeightForDate(date).map { Units.number($0) } ?? ""
                     editingWeight = true
                     weightFocused = true
                 } label: {
@@ -242,12 +237,13 @@ struct HistoryView: View {
         guard values.count >= 2, let first = values.first, let last = values.last else { return nil }
         let delta = last - first
         let sign = delta > 0 ? "+" : delta < 0 ? "−" : ""
-        let text = String(format: "%.1f", abs(delta)).replacingOccurrences(of: ".", with: ",")
-        return (Array(values), "\(sign)\(text) kg en \(values.count) registros")
+        let text = AppLanguage.decimal(String(format: "%.1f", Units.fromKg(abs(delta))))
+        return (Array(values), String(localized: "\(sign)\(text) \(Units.symbol) en \(values.count) registros"))
     }
 
     private func saveWeight() {
-        if let w = Double(weightInput.replacingOccurrences(of: ",", with: ".")), w > 0 {
+        let current = viewModel.bodyWeightForDate(date)
+        if weightInput != current.map(Units.number), let w = Units.parse(weightInput), w > 0 {
             viewModel.updateBodyWeight(for: date, weight: w)
             HapticManager.shared.success()
         }
@@ -293,7 +289,7 @@ struct HistoryView: View {
                 .padding(.top, 8)
             } else {
                 if let note = viewModel.note(for: date) {
-                    Text(note)
+                    Text((note).loc)
                         .font(.fig(13, .medium))
                         .lineSpacing(3)
                         .foregroundColor(p.ink)
@@ -352,13 +348,13 @@ struct HistoryView: View {
                         HStack(spacing: 12) {
                             ExerciseIcon(exercise: item.exercise, size: 42, radius: 14, p: p)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.exercise.name).font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
+                                Text((item.exercise.name).loc).font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
                                 Text(historyMeta(item.record, item.exercise)).font(.fig(12, .medium)).foregroundColor(p.mute)
                                 GeometryReader { geo in
                                     ZStack(alignment: .leading) {
                                         RoundedRectangle(cornerRadius: 2).fill(p.soft)
                                         RoundedRectangle(cornerRadius: 2).fill(p.hgrad)
-                                            .frame(width: geo.size.width * min(1, Double(item.record.completedSets) / Double(max(1, item.exercise.totalSets))))
+                                            .frame(width: geo.size.width * min(1, Double(item.record.completedSets) / Double(max(1, item.record.planned(item.exercise)))))
                                     }
                                 }
                                 .frame(height: 4)
@@ -382,7 +378,7 @@ struct HistoryView: View {
 
     private func historyMeta(_ r: WorkoutExercise, _ ex: Exercise) -> String {
         let kg = r.setLogs.map(\.weight).max() ?? ex.weight
-        return "\(r.completedSets)/\(ex.totalSets) series" + (kg > 0 ? " · \(WorkoutViewModel.kg(kg))" : "")
+        return String(localized: "\(r.completedSets)/\(r.planned(ex)) series") + (kg > 0 ? " · \(WorkoutViewModel.kg(kg))" : "")
     }
 
     // MARK: - Récords y grupos musculares
@@ -416,9 +412,9 @@ struct HistoryView: View {
                                     .frame(width: 26, height: 26)
                                     .background(Circle().fill(i == 0 ? AnyShapeStyle(p.grad) : AnyShapeStyle(Color.clear)))
                                     .overlay(Circle().strokeBorder(i == 0 ? .clear : p.line, lineWidth: 1))
-                                Text(pr.exercise.name).font(.fig(14, .semibold)).foregroundColor(p.ink).lineLimit(1)
+                                Text((pr.exercise.name).loc).font(.fig(14, .semibold)).foregroundColor(p.ink).lineLimit(1)
                                 Spacer()
-                                Text(WorkoutViewModel.kg(pr.weight)).font(.bri(14)).foregroundColor(p.acc)
+                                Text((WorkoutViewModel.kg(pr.weight)).loc).font(.bri(14)).foregroundColor(p.acc)
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
@@ -447,7 +443,7 @@ struct HistoryView: View {
                         Text("Músculos esta semana").font(.fig(16, .bold)).foregroundColor(p.ink)
                     }
                     Spacer()
-                    Text(volumeText)
+                    Text((volumeText).loc)
                         .font(.fig(10, .bold)).tracking(0.8).foregroundColor(p.mute)
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Capsule().fill(p.soft))
@@ -457,7 +453,7 @@ struct HistoryView: View {
                 VStack(spacing: 10) {
                     ForEach(groups, id: \.group) { g in
                         HStack(spacing: 10) {
-                            Text(g.group).font(.fig(13, .semibold)).foregroundColor(p.ink)
+                            Text((g.group).loc).font(.fig(13, .semibold)).foregroundColor(p.ink)
                                 .frame(width: 78, alignment: .leading)
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
@@ -479,10 +475,7 @@ struct HistoryView: View {
     }
 
     private var volumeText: String {
-        let kg = viewModel.weeklyVolume()
-        return kg >= 1000
-            ? String(format: "%.1f T", kg / 1000).replacingOccurrences(of: ".", with: ",")
-            : "\(Int(kg)) KG"
+        Units.tonnage(viewModel.weeklyVolume()).uppercased()
     }
 }
 

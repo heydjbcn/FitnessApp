@@ -21,9 +21,9 @@ struct ImportRoutineSheet: View {
         PulsoSheet(p: p) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    UpperLabel(text: routine.author.map { "Rutina de \($0)" } ?? "Rutina compartida", p: p)
-                    Text(routine.name).font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
-                    Text(routine.summary).font(.fig(13, .medium)).foregroundColor(p.mute)
+                    UpperLabel(text: routine.author.map { String(localized: "Rutina de \($0)") } ?? "Rutina compartida", p: p)
+                    Text((routine.name).loc).font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
+                    Text((routine.summary).loc).font(.fig(13, .medium)).foregroundColor(p.mute)
                 }
                 Spacer()
                 CloseCircle(p: p) { dismiss() }
@@ -35,12 +35,12 @@ struct ImportRoutineSheet: View {
                         if let items = routine.days[day.rawValue], !items.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack(alignment: .firstTextBaseline) {
-                                    Text(day.displayName).font(.fig(15, .bold)).foregroundColor(p.ink)
-                                    if let l = routine.labels[day.rawValue] { Text(l).font(.fig(13, .semibold)).foregroundColor(p.acc) }
+                                    Text((day.displayName).loc).font(.fig(15, .bold)).foregroundColor(p.ink)
+                                    if let l = routine.labels[day.rawValue] { Text((l).loc).font(.fig(13, .semibold)).foregroundColor(p.acc) }
                                 }
                                 ForEach(Array(items.enumerated()), id: \.offset) { _, it in
                                     HStack {
-                                        Text(it.name).font(.fig(13, .medium)).foregroundColor(p.ink)
+                                        Text((it.name).loc).font(.fig(13, .medium)).foregroundColor(p.ink)
                                         Spacer()
                                         Text(it.segundos > 0 ? "\(it.totalSets) × \(it.segundos) s" : "\(it.totalSets) × \(it.repetitions)")
                                             .font(.fig(12, .semibold)).foregroundColor(p.mute)

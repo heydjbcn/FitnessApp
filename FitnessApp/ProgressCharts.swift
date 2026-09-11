@@ -34,7 +34,7 @@ struct ExerciseProgressChart: View {
     private var unit: String { mode == 1 ? "kg" : "kg" }
 
     private func format(_ v: Double) -> String {
-        if mode == 1 && v >= 1000 { return String(format: "%.1f t", v / 1000).replacingOccurrences(of: ".", with: ",") }
+        if mode == 1 && v >= 1000 { return AppLanguage.decimal(String(format: "%.1f t", v / 1000)) }
         return WorkoutViewModel.kg(v)
     }
 
@@ -45,7 +45,7 @@ struct ExerciseProgressChart: View {
                 PulsoSegmented(options: ["Peso máx", "Volumen", "1RM"], selection: $mode, onCard: false, p: p)
                 Spacer()
                 if let last = data.last {
-                    Text(format(last.value))
+                    Text((format(last.value)).loc)
                         .font(.bri(16))
                         .foregroundStyle(p.hgrad)
                 }
@@ -91,7 +91,7 @@ struct ExerciseProgressChart: View {
 
                 if let first = data.first?.value, let last = data.last?.value, first > 0 {
                     let delta = (last - first) / first * 100
-                    Text(delta >= 0 ? "▲ \(Int(delta.rounded())) % desde la primera sesión" : "▼ \(Int((-delta).rounded())) % desde la primera sesión")
+                    Text((delta >= 0 ? "▲ \(Int(delta.rounded())) % desde la primera sesión" : String(localized: "▼ \(Int((-delta).rounded())) % desde la primera sesión")).loc)
                         .font(.fig(12, .semibold))
                         .foregroundColor(delta >= 0 ? Pulso.ok(isDark: p.dark) : p.danger)
                 }

@@ -20,7 +20,8 @@ struct ActivityStyle: Equatable {
 final class LiveActivityManager {
     private var activity: Activity<RestActivityAttributes>?
 
-    var isAvailable: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
+    /// En pruebas no: no se llena de Live Activities el iPhone de Jordi.
+    var isAvailable: Bool { !AppDefaults.isTesting && ActivityAuthorizationInfo().areActivitiesEnabled }
 
     func start(endDate: Date, label: String, sessionName: String, style: ActivityStyle) {
         guard isAvailable else { return }

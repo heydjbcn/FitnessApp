@@ -23,7 +23,7 @@ struct SpotifyPill: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(spotify.trackTitle.isEmpty ? "Nada sonando" : spotify.trackTitle)
                         .font(.fig(13, .bold)).foregroundColor(p.ink).lineLimit(1)
-                    Text(spotify.trackArtist.isEmpty ? "Spotify" : "\(spotify.trackArtist) · Spotify")
+                    Text((spotify.trackArtist.isEmpty ? "Spotify" : String(localized: "\(spotify.trackArtist) · Spotify")).loc)
                         .font(.fig(12, .medium)).foregroundColor(p.mute).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

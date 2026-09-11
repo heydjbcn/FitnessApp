@@ -51,12 +51,19 @@ struct ExerciseDetailSheet: View {
                             SuggestionCard(suggestion: s, p: p).padding(.top, 12)
                         }
                         if ex.segundos == 0 {
-                            WarmupCard(work: viewModel.proposedSet(for: ex, record: todayRecord).weight, p: p)
-                                .padding(.top, 12)
+                            if ex.loadKind == .total {
+                                WarmupCard(work: viewModel.proposedSet(for: ex, record: todayRecord).weight, p: p,
+                                           bar: viewModel.activeEquipment.barWeightKg)
+                                    .padding(.top, 12)
+                            }
                             GoalCard(exercise: ex, p: p).padding(.top, 12)
                         }
                         if let rec = todayRecord { todaySets(rec).padding(.top, 20) }
                         TechniqueCard(name: ex.name, p: p).padding(.top, 12)
+                        LibraryCard(exercise: ex, recordId: todayRecord?.id, day: todayRecord == nil ? nil : day, p: p) {
+                            dismiss()
+                        }
+                        .padding(.top, 12)
                         platesButton.padding(.top, 12)
                         progress.padding(.top, 20)
                         history(ex).padding(.top, 20)
@@ -117,7 +124,7 @@ struct ExerciseDetailSheet: View {
                          gradient: true, glow: true, iconSize: 38, p: p)
             }
 
-            Text(ex.name)
+            Text((ex.name).loc)
                 .font(.bri(24))
                 .em(-0.02, size: 24)
                 .foregroundColor(p.ink)
@@ -142,7 +149,7 @@ struct ExerciseDetailSheet: View {
             }
 
             if !ex.info.isEmpty {
-                Text(ex.info)
+                Text((ex.info).loc)
                     .font(.fig(14, .medium))
                     .lineSpacing(5)
                     .foregroundColor(p.mute)
@@ -169,22 +176,27 @@ struct ExerciseDetailSheet: View {
         var rows: [(String, String)] = [("Series", "\(ex.totalSets)")]
         if ex.segundos > 0 { rows.append(("Segundos", "\(ex.segundos) s")) }
         else if ex.repetitions > 0 { rows.append(("Repeticiones", "\(ex.repetitions)")) }
-        if ex.weight > 0 { rows.append(("Peso", WorkoutViewModel.kg(ex.weight))) }
+        if ex.weight > 0 || ex.loadKind == .bodyweight {
+            rows.append((ex.loadKind.fieldLabel, WorkoutViewModel.weightText(ex.weight, kind: ex.loadKind)))
+        }
+        if ex.loadKind != .total { rows.append(("Tipo de carga", ex.loadKind.label)) }
         if ex.rir > 0 { rows.append(("RIR", "\(ex.rir)")) }
         rows.append(("Descanso", WorkoutViewModel.restText(ex.restDuration)))
         if let g = ex.muscleGroup { rows.append(("Grupo muscular", g)) }
-        if let pr = viewModel.personalRecord(for: exerciseId), pr.weight > 0 {
+        if let pr = viewModel.personalRecord(for: exerciseId), pr.weight > 0 || ex.loadKind.lowerIsBetter {
             let when = viewModel.recordDate(for: exerciseId).map { " · \(Self.shortDate($0))" } ?? ""
-            rows.append(("Récord personal", WorkoutViewModel.kg(pr.weight) + when))
-            rows.append(("1RM estimado", WorkoutViewModel.kg((pr.oneRepMax * 10).rounded() / 10)))
+            rows.append(("Récord personal", WorkoutViewModel.weightText(pr.weight, kind: ex.loadKind) + when))
+            if pr.oneRepMax > 0 {
+                rows.append(("1RM estimado", WorkoutViewModel.kg((pr.oneRepMax * 10).rounded() / 10)))
+            }
         }
 
         return VStack(spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
                 HStack {
-                    Text(row.0).font(.fig(14, .medium)).foregroundColor(p.mute)
+                    Text((row.0).loc).font(.fig(14, .medium)).foregroundColor(p.mute)
                     Spacer()
-                    Text(row.1).font(.bri(15)).foregroundColor(p.ink)
+                    Text((row.1).loc).font(.bri(15)).foregroundColor(p.ink)
                 }
                 .padding(.vertical, 11)
                 .overlay(alignment: .bottom) {
@@ -207,15 +219,16 @@ struct ExerciseDetailSheet: View {
                 Menu {
                     Button("Sin superserie") { setSuperset(nil) }
                     ForEach(0..<4, id: \.self) { g in
-                        Button("Superserie \(Self.ssLetter(g))") { setSuperset(g) }
+                        Button("Bloque \(Self.ssLetter(g))") { setSuperset(g) }
                     }
                 } label: {
-                    Text(rec.supersetGroup.map { "Superserie \(Self.ssLetter($0))" } ?? "+ Superserie")
+                    Text(rec.supersetGroup.map { "\(blockKind($0).label) \(Self.ssLetter($0))" } ?? "+ Superserie")
                         .font(.fig(12, .semibold))
                         .foregroundColor(p.acc)
                 }
                 .accessibilityIdentifier("detail.superset")
             }
+            if let g = rec.supersetGroup, let d = day { blockEditor(g, d) }
 
             if rec.setLogs.isEmpty {
                 Text("Aún no has marcado series hoy. Toca las bolitas del ejercicio en Inicio y aquí podrás ajustar peso, repeticiones, tipo de serie y RPE.")
@@ -241,7 +254,7 @@ struct ExerciseDetailSheet: View {
                                 .frame(width: 34, height: 34)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Borrar la serie \(idx + 1)")
+                        .accessibilityLabel(String(localized: "Borrar la serie \(idx + 1)"))
                     }
                 }
             }
@@ -291,15 +304,15 @@ struct ExerciseDetailSheet: View {
                 ForEach(entries, id: \.date) { e in
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text(WeeklyCalendarView.longDate(e.date)).font(.fig(14, .semibold)).foregroundColor(p.ink)
+                            Text((WeeklyCalendarView.longDate(e.date)).loc).font(.fig(14, .semibold)).foregroundColor(p.ink)
                             Spacer()
-                            Text(e.text).font(.fig(12, .semibold)).foregroundColor(p.mute)
+                            Text((e.text).loc).font(.fig(12, .semibold)).foregroundColor(p.mute)
                             Button { editingPast = viewModel.historyRef(for: ex.id, on: e.date) } label: {
                                 Image(systemName: "pencil").font(.system(size: 12, weight: .bold)).foregroundColor(p.acc)
                                     .frame(width: 28, height: 28).background(Circle().fill(p.card))
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Corregir las series del \(WeeklyCalendarView.longDate(e.date))")
+                            .accessibilityLabel(String(localized: "Corregir las series del \(WeeklyCalendarView.longDate(e.date))"))
                             .accessibilityIdentifier("history.edit.\(MonthGrid.stamp(e.date))")
                         }
                         // Cada serie de ese día: kg × reps, con su tipo y RPE si los tiene.
@@ -308,9 +321,9 @@ struct ExerciseDetailSheet: View {
                                 ForEach(Array(e.logs.enumerated()), id: \.element.id) { _, log in
                                     HStack(spacing: 3) {
                                         if let tag = log.type.shortTag {
-                                            Text(tag).font(.fig(9, .bold)).foregroundColor(p.acc)
+                                            Text((tag).loc).font(.fig(9, .bold)).foregroundColor(p.acc)
                                         }
-                                        Text((exercise?.segundos ?? 0) > 0 ? "\(log.reps) s" : "\(WorkoutViewModel.number(log.weight))×\(log.reps)")
+                                        Text((exercise?.segundos ?? 0) > 0 ? "\(log.reps) s" : "\(Units.number(log.weight))×\(log.reps)")
                                             .font(.fig(11, .semibold)).foregroundColor(p.ink)
                                         if let rpe = log.rpe {
                                             Text("@\(rpe)").font(.fig(9, .medium)).foregroundColor(p.mute)
@@ -347,12 +360,12 @@ struct ExerciseDetailSheet: View {
             .compactMap { date, byDay in
                 let recs = byDay.values.flatMap { $0 }.filter { $0.exerciseId == ex.id && $0.completedSets > 0 }
                 guard let r = recs.max(by: { $0.completedSets < $1.completedSets }) else { return nil }
-                let kg = r.setLogs.map(\.weight).max() ?? 0
-                let volume = r.setLogs.reduce(0) { $0 + $1.volume }
-                var text = "\(r.completedSets)/\(ex.totalSets) series"
-                if kg > 0 { text += " · máx \(WorkoutViewModel.kg(kg))" }
-                if volume > 0 { text += " · \(Int(volume)) kg" }
-                return (date, text, min(1, Double(r.completedSets) / Double(max(1, ex.totalSets))), r.setLogs)
+                let kg = WorkoutViewModel.best(r.setLogs.map(\.weight), kind: ex.loadKind) ?? 0
+                let volume = viewModel.volume(r.setLogs, exerciseId: ex.id)
+                var text = String(localized: "\(r.completedSets)/\(r.planned(ex)) series")
+                if kg > 0 { text += " · \(ex.loadKind.lowerIsBetter ? "mín" : "máx") \(WorkoutViewModel.weightText(kg, kind: ex.loadKind))" }
+                if volume > 0 { text += " · \(Units.tonnage(volume))" }
+                return (date, text, min(1, Double(r.completedSets) / Double(max(1, r.planned(ex)))), r.setLogs)
             }
     }
 
@@ -362,9 +375,50 @@ struct ExerciseDetailSheet: View {
     /// "3 jun"
     static func shortDate(_ date: Date) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "es_ES")
+        f.locale = AppLanguage.locale
         f.dateFormat = "d MMM"
         return f.string(from: date).replacingOccurrences(of: ".", with: "")
+    }
+
+    private func blockKind(_ g: Int) -> BlockKind { day.map { viewModel.block($0, g).kind } ?? .superset }
+
+    /// Qué tipo de bloque es y sus números (descanso por vuelta, minutos).
+    private func blockEditor(_ g: Int, _ d: WorkoutDay) -> some View {
+        let s = viewModel.block(d, g)
+        let set: (BlockSettings) -> Void = { viewModel.setBlock($0, d, g); HapticManager.shared.selectionFeedback() }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                ForEach(BlockKind.allCases) { k in
+                    TagChip(text: k.label, selected: s.kind == k, p: p) { var n = s; n.kind = k; set(n) }
+                        .accessibilityIdentifier("block.kind.\(k.rawValue)")
+                }
+            }
+            Text((s.kind.detail).loc).font(.fig(12, .medium)).foregroundColor(p.mute).fixedSize(horizontal: false, vertical: true)
+            if s.kind == .circuit {
+                stepperLine("Descanso entre vueltas", WorkoutViewModel.restText(s.restBetweenRounds),
+                            minus: { var n = s; n.restBetweenRounds = max(0, n.restBetweenRounds - 15); set(n) },
+                            plus: { var n = s; n.restBetweenRounds = min(600, n.restBetweenRounds + 15); set(n) })
+            } else if s.kind.timed {
+                stepperLine(s.kind == .amrap ? "Tiempo tope" : "Minutos", String(localized: "\(s.minutes) min"),
+                            minus: { var n = s; n.minutes = max(1, n.minutes - 1); set(n) },
+                            plus: { var n = s; n.minutes = min(60, n.minutes + 1); set(n) })
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
+        .accessibilityIdentifier("detail.block")
+    }
+
+    private func stepperLine(_ label: String, _ value: String, minus: @escaping () -> Void, plus: @escaping () -> Void) -> some View {
+        HStack {
+            Text((label).loc).font(.fig(13, .semibold)).foregroundColor(p.ink)
+            Spacer()
+            Button(action: minus) { Image(systemName: "minus") }.accessibilityIdentifier("block.minus")
+            Text((value).loc).font(.bri(15)).foregroundColor(p.ink).frame(minWidth: 64)
+            Button(action: plus) { Image(systemName: "plus") }.accessibilityIdentifier("block.plus")
+        }
+        .font(.system(size: 14, weight: .bold)).foregroundColor(p.acc)
+        .buttonStyle(.plain)
     }
 
     private func setSuperset(_ g: Int?) {
@@ -401,7 +455,7 @@ struct SetLogRow: View {
         HStack(spacing: 8) {
             Menu {
                 ForEach(SetType.allCases, id: \.self) { t in
-                    Button(t.label) { type = t; commit() }
+                    Button(t.label.loc) { type = t; commit() }
                 }
             } label: {
                 Text(type.shortTag ?? "\(index)")
@@ -414,9 +468,9 @@ struct SetLogRow: View {
                     )
             }
             .accessibilityIdentifier("setlog.type.\(index)")
-            .accessibilityLabel("Tipo de la serie \(index): \(type.label)")
+            .accessibilityLabel(String(localized: "Tipo de la serie \(index): \(type.label)"))
 
-            field($weight, suffix: "kg", keyboard: .decimalPad, width: 46)
+            field($weight, suffix: Units.symbol, keyboard: .decimalPad, width: 46)
             Text("×").font(.fig(14, .semibold)).foregroundColor(p.mute)
             field($reps, suffix: "reps", keyboard: .numberPad, width: 30)
 
@@ -439,7 +493,7 @@ struct SetLogRow: View {
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
         .onAppear {
-            weight = WorkoutViewModel.number(log.weight)
+            weight = Units.number(log.weight)
             reps = "\(log.reps)"
             type = log.type
             rpe = log.rpe.map { "\($0)" } ?? ""
@@ -455,7 +509,7 @@ struct SetLogRow: View {
                 .frame(width: width)
                 .multilineTextAlignment(.trailing)
                 .onChange(of: text.wrappedValue) { _, _ in commit() }
-            Text(suffix).font(.fig(11, .medium)).foregroundColor(p.mute)
+            Text((suffix).loc).font(.fig(11, .medium)).foregroundColor(p.mute)
         }
         .padding(.horizontal, 10)
         .frame(height: 38)
@@ -464,7 +518,8 @@ struct SetLogRow: View {
 
     private func commit() {
         var updated = log
-        if let w = Double(weight.replacingOccurrences(of: ",", with: ".")) { updated.weight = w }
+        // Solo si ha cambiado lo escrito: así abrir en libras no mueve ni un gramo lo guardado.
+        if weight != Units.number(log.weight), let w = Units.parse(weight) { updated.weight = w }
         if let r = Int(reps) { updated.reps = r }
         updated.type = type
         updated.rpe = Int(rpe)

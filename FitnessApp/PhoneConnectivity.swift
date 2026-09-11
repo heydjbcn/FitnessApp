@@ -37,9 +37,10 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
             return [
                 "id": rec.id.uuidString,
                 "name": ex.name,
-                "totalSets": ex.totalSets,
+                "totalSets": rec.planned(ex),
                 "completed": rec.completedSets,
-                "weight": last?.weight ?? ex.weight,
+                "weight": (Units.fromKg(last?.weight ?? ex.weight) * 10).rounded() / 10,
+                "unit": Units.symbol,
                 "reps": last?.reps ?? ex.repetitions,
                 "seconds": ex.segundos,
                 "rest": ex.restDuration,
@@ -47,7 +48,7 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
             ]
         }
         var ctx: [String: Any] = [
-            "day": day.rawValue,
+            "day": vm.slotName(day),
             "label": vm.label(for: day) ?? "",
             "exercises": exercises,
             "accent1": vm.activityStyle.accent1,
@@ -83,7 +84,8 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
         guard let action = message["action"] as? String,
               let idStr = message["id"] as? String, let id = UUID(uuidString: idStr),
               let vm = viewModel else { return }
-        let day = vm.trainingDay
+        // El día del registro que ha tocado el reloj (no hace falta que sea el de Inicio).
+        let day = WorkoutDay.allCases.first { vm.dailyWorkoutRecords[$0]?.contains { $0.id == id } == true } ?? vm.trainingDay
         switch action {
         case "completeSet": vm.completeSet(for: id, in: day)
         case "undoSet": vm.undoLastSet(for: id, in: day)

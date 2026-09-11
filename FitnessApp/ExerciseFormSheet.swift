@@ -23,6 +23,7 @@ struct ExerciseFormSheet: View {
     @State private var name = ""
     @State private var info = ""
     @State private var setupNote = ""
+    @State private var videoLink = ""
     @State private var muscleGroup: String? = nil
     @State private var days: Set<WorkoutDay> = []
     @State private var icon = "dumbbell.fill"
@@ -130,11 +131,11 @@ struct ExerciseFormSheet: View {
 
     private func stepTitle(_ title: String, _ desc: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text((title).loc)
                 .font(.bri(18))
                 .em(-0.02, size: 18)
                 .foregroundColor(p.ink)
-            Text(desc)
+            Text((desc).loc)
                 .font(.fig(13, .medium))
                 .lineSpacing(3)
                 .foregroundColor(p.mute)
@@ -202,6 +203,14 @@ struct ExerciseFormSheet: View {
                 .padding(.bottom, 6)
             PulsoField(placeholder: "Ej. asiento 4, agarre ancho", text: $setupNote, p: p)
 
+            UpperLabel(text: "Vídeo de la técnica (opcional)", p: p)
+                .padding(.top, 16)
+                .padding(.bottom, 6)
+            PulsoField(placeholder: "Pega un enlace de YouTube, Instagram…", text: $videoLink, keyboard: .URL, p: p)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("form.video")
+
             UpperLabel(text: "Grupo muscular", p: p)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
@@ -210,7 +219,7 @@ struct ExerciseFormSheet: View {
                     ForEach(MuscleGroup.all, id: \.self) { g in
                         let on = muscleGroup == g
                         Button { muscleGroup = on ? nil : g } label: {
-                            Text(g)
+                            Text((g).loc)
                                 .font(.fig(13, on ? .bold : .semibold))
                                 .foregroundColor(on ? p.onacc : p.mute)
                                 .padding(.horizontal, 14)
@@ -241,7 +250,7 @@ struct ExerciseFormSheet: View {
                         HapticManager.shared.selectionFeedback()
                     } label: {
                         VStack(spacing: 6) {
-                            Text(d.shortLabel).font(.bri(13))
+                            Text((d.shortLabel).loc).font(.bri(13))
                             if on {
                                 Image(systemName: "checkmark").font(.system(size: 11, weight: .heavy))
                                     .frame(height: 14)
@@ -264,7 +273,7 @@ struct ExerciseFormSheet: View {
             .padding(.top, 18)
 
             (Text("Días: ").foregroundColor(p.mute)
-             + Text(daysText).foregroundColor(p.ink).font(.fig(13, .semibold)))
+             + Text((daysText).loc).foregroundColor(p.ink).font(.fig(13, .semibold)))
                 .font(.fig(13, .medium))
                 .padding(.top, 14)
         }
@@ -341,7 +350,7 @@ struct ExerciseFormSheet: View {
                         VStack(spacing: 6) {
                             Image(systemName: opt.symbol).font(.system(size: 18, weight: .semibold))
                                 .frame(height: 22)
-                            Text(opt.label).font(.fig(11, on ? .semibold : .medium)).lineLimit(1)
+                            Text((opt.label).loc).font(.fig(11, on ? .semibold : .medium)).lineLimit(1)
                         }
                         .foregroundColor(on ? p.acc : p.mute)
                         .frame(maxWidth: .infinity)
@@ -370,6 +379,18 @@ struct ExerciseFormSheet: View {
                 }
             }
             .padding(.top, 16)
+
+            UpperLabel(text: "Tipo de carga", p: p).padding(.top, 20).padding(.bottom, 8)
+            FlowLayout(spacing: 6) {
+                ForEach(LoadKind.allCases) { k in
+                    TagChip(text: k.label, selected: params.loadKind == k, p: p) { params.loadKind = k }
+                        .accessibilityIdentifier("form.load.\(k.rawValue)")
+                }
+            }
+            Text((params.loadKind.help).loc)
+                .font(.fig(12, .medium)).foregroundColor(p.mute)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
         }
     }
 
@@ -386,11 +407,11 @@ struct ExerciseFormSheet: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(key == .sets)
-                Text(key.label).font(.fig(14, .semibold)).foregroundColor(p.ink)
+                Text((key.label).loc).font(.fig(14, .semibold)).foregroundColor(p.ink)
                 Spacer(minLength: 0)
                 HStack(spacing: 4) {
                     stepper("−") { params.bump(key, -1) }
-                    Text(params.display(key))
+                    Text((params.display(key)).loc)
                         .font(.bri(15))
                         .foregroundColor(p.ink)
                         .frame(minWidth: 64)
@@ -408,7 +429,7 @@ struct ExerciseFormSheet: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .strokeBorder(p.line, lineWidth: 1.5)
                         .frame(width: 24, height: 24)
-                    Text(key.label).font(.fig(14, .semibold))
+                    Text((key.label).loc).font(.fig(14, .semibold))
                     Spacer()
                     Text("Añadir").font(.fig(12, .medium))
                 }
@@ -427,7 +448,7 @@ struct ExerciseFormSheet: View {
             action()
             HapticManager.shared.selectionFeedback()
         } label: {
-            Text(symbol)
+            Text((symbol).loc)
                 .font(.fig(18, .bold))
                 .foregroundColor(p.ink)
                 .frame(width: 34, height: 34)
@@ -457,7 +478,7 @@ struct ExerciseFormSheet: View {
                            down: { restSec = restSec <= 0 ? 45 : restSec - 15 })
                 VStack(spacing: 2) {
                     Text("TIEMPO").font(.fig(10, .bold)).tracking(0.8).opacity(0.85)
-                    Text(restPreview).font(.bri(22))
+                    Text((restPreview).loc).font(.bri(22))
                 }
                 .foregroundColor(p.onacc)
                 .padding(.vertical, 10)
@@ -486,7 +507,7 @@ struct ExerciseFormSheet: View {
                         .font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
                     Text("\(params.summary) · descanso \(restPreview)")
                         .font(.fig(12, .medium)).foregroundColor(p.mute)
-                    Text(daysText).font(.fig(12, .semibold)).foregroundColor(p.acc)
+                    Text((daysText).loc).font(.fig(12, .semibold)).foregroundColor(p.acc)
                 }
                 Spacer(minLength: 0)
             }
@@ -505,9 +526,9 @@ struct ExerciseFormSheet: View {
     private func restColumn(value: String, unit: String, up: @escaping () -> Void, down: @escaping () -> Void) -> some View {
         VStack(spacing: 6) {
             chevron("chevron.up", up).accessibilityIdentifier("rest.\(unit).up")
-            Text(value).font(.bri(40)).foregroundColor(p.ink).frame(minWidth: 56)
+            Text((value).loc).font(.bri(40)).foregroundColor(p.ink).frame(minWidth: 56)
             chevron("chevron.down", down).accessibilityIdentifier("rest.\(unit).down")
-            Text(unit.uppercased()).font(.fig(11, .medium)).tracking(0.66).foregroundColor(p.mute)
+            Text((unit.uppercased()).loc).font(.fig(11, .medium)).tracking(0.66).foregroundColor(p.mute)
         }
     }
 
@@ -543,6 +564,7 @@ struct ExerciseFormSheet: View {
             name = ex.name
             info = ex.info
             setupNote = ex.setupNote ?? ""
+            videoLink = ex.videoURL ?? ""
             muscleGroup = ex.muscleGroup
             days = Set(viewModel.days(for: ex.id))
             icon = ExerciseSymbols.symbol(for: ex)
@@ -564,12 +586,14 @@ struct ExerciseFormSheet: View {
     }
 
     private func applyCatalog(_ c: CatalogExercise) {
-        name = c.name
+        name = c.name.loc
         muscleGroup = c.muscleGroup
         icon = c.icon
         params.reps = .init(on: c.reps > 0, value: Double(max(1, c.reps)))
+        params.seconds = .init(on: c.reps == 0, value: Double(c.seconds > 0 ? c.seconds : 30))
         params.kg = .init(on: c.weight > 0, value: c.weight > 0 ? c.weight : 20)
         params.sets = .init(on: true, value: Double(c.sets))
+        params.loadKind = c.details?.load ?? .total
     }
 
     private func save() {
@@ -580,11 +604,13 @@ struct ExerciseFormSheet: View {
             let t = setupNote.trimmingCharacters(in: .whitespacesAndNewlines)
             return t.isEmpty ? nil : t
         }()
+        let cleanVideo = ExerciseVideos.normalized(videoLink)
 
         if var ex = editing {
             ex.name = cleanName
             ex.info = cleanInfo
             ex.setupNote = cleanSetup
+            ex.videoURL = cleanVideo
             ex.muscleGroup = muscleGroup
             ex.sfSymbolIcon = icon
             ex.imageData = imageData
@@ -598,6 +624,7 @@ struct ExerciseFormSheet: View {
                               info: cleanInfo, imageData: imageData, restDuration: restDuration,
                               sfSymbolIcon: icon, iconColor: "accent", segundos: 0, rir: 0,
                               muscleGroup: muscleGroup, setupNote: cleanSetup)
+            ex.videoURL = cleanVideo
             params.apply(to: &ex)
             viewModel.createExercise(ex, days: days)
         }
@@ -628,7 +655,7 @@ struct FormParams {
             case .reps: return 1...100
             case .kg: return 0...500
             case .sets: return 1...12
-            case .seconds: return 5...600
+            case .seconds: return 5...3600
             case .rir: return 0...6
             }
         }
@@ -636,6 +663,7 @@ struct FormParams {
 
     var reps = Value(on: true, value: 10)
     var kg = Value(on: true, value: 20)
+    var loadKind: LoadKind = .total
     var sets = Value(on: true, value: 4)
     var seconds = Value(on: false, value: 30)
     var rir = Value(on: false, value: 2)
@@ -648,6 +676,7 @@ struct FormParams {
         sets = Value(on: true, value: Double(max(1, ex.totalSets)))
         seconds = Value(on: ex.segundos > 0, value: Double(ex.segundos > 0 ? ex.segundos : 30))
         rir = Value(on: ex.rir > 0, value: Double(ex.rir > 0 ? ex.rir : 2))
+        loadKind = ex.loadKind
     }
 
     private subscript(key: Key) -> Value {
@@ -669,6 +698,11 @@ struct FormParams {
     }
 
     mutating func bump(_ key: Key, _ dir: Double) {
+        if key == .kg {
+            // El peso va por la rejilla de la unidad elegida (2,5 kg o 5 lb).
+            self[key].value = min(key.range.upperBound, Units.stepped(self[key].value, by: Int(dir)))
+            return
+        }
         let v = (self[key].value + dir * key.step)
         self[key].value = min(key.range.upperBound, max(key.range.lowerBound, v))
     }
@@ -676,17 +710,17 @@ struct FormParams {
     func display(_ key: Key) -> String {
         let v = self[key].value
         switch key {
-        case .kg: return WorkoutViewModel.kg(v)
+        case .kg: return WorkoutViewModel.weightText(v, kind: loadKind)
         case .seconds: return "\(Int(v)) s"
         default: return "\(Int(v))"
         }
     }
 
     var summary: String {
-        var parts = ["\(Int(sets.value)) series"]
-        if seconds.on { parts.append("\(Int(seconds.value)) s") } else if reps.on { parts.append("\(Int(reps.value)) reps") }
-        if kg.on && kg.value > 0 { parts.append(WorkoutViewModel.kg(kg.value)) }
-        if rir.on { parts.append("RIR \(Int(rir.value))") }
+        var parts = [String(localized: "\(Int(sets.value)) series")]
+        if seconds.on { parts.append("\(Int(seconds.value)) s") } else if reps.on { parts.append(String(localized: "\(Int(reps.value)) reps")) }
+        if kg.on && kg.value > 0 { parts.append(WorkoutViewModel.weightText(kg.value, kind: loadKind)) }
+        if rir.on { parts.append(String(localized: "RIR \(Int(rir.value))")) }
         return parts.joined(separator: " · ")
     }
 
@@ -694,6 +728,7 @@ struct FormParams {
         ex.totalSets = Int(sets.value)
         ex.repetitions = reps.on ? Int(reps.value) : 0
         ex.weight = kg.on ? kg.value : 0
+        ex.loadKind = loadKind
         ex.segundos = seconds.on ? Int(seconds.value) : 0
         ex.rir = rir.on ? Int(rir.value) : 0
     }

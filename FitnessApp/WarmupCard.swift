@@ -25,9 +25,9 @@ struct SuggestionCard: View {
                 HStack(alignment: .firstTextBaseline) {
                     UpperLabel(text: "Hoy toca", p: p)
                     Spacer()
-                    Text(suggestion.text).font(.bri(17)).foregroundColor(p.ink)
+                    Text((suggestion.text).loc).font(.bri(17)).foregroundColor(p.ink)
                 }
-                Text(suggestion.reason)
+                Text((suggestion.reason).loc)
                     .font(.fig(12, .medium))
                     .lineSpacing(2)
                     .foregroundColor(p.mute)
@@ -49,7 +49,7 @@ struct WarmupCard: View {
 
     @State private var done: Set<Int> = []
 
-    private var sets: [PlateMath.WarmupSet] { PlateMath.warmup(for: work, bar: bar) }
+    private var sets: [PlateMath.WarmupSet] { PlateMath.warmupKg(for: work, barKg: bar) }
 
     var body: some View {
         if !sets.isEmpty {
@@ -74,7 +74,7 @@ struct WarmupCard: View {
                                 .foregroundColor(on ? p.mute : p.ink)
                                 .strikethrough(on)
                             Spacer()
-                            Text(PlateMath.sideText(target: s.weight, bar: bar) + (s.weight > bar ? " por lado" : ""))
+                            Text(PlateMath.sideTextKg(target: s.weight, barKg: bar) + (s.weight > bar + 0.01 ? " por lado" : ""))
                                 .font(.fig(12, .medium))
                                 .foregroundColor(p.mute)
                         }

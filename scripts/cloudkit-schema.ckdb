@@ -1,0 +1,55 @@
+DEFINE SCHEMA
+
+    RECORD TYPE Profile (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP SORTABLE,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        profileId       STRING QUERYABLE,
+        name            STRING,
+        code            STRING QUERYABLE,
+        weekSessions    INT64,
+        weekSets        INT64,
+        weekVolume      DOUBLE,
+        streak          INT64,
+        records         LIST<STRING>,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Challenge (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        challengeId     STRING QUERYABLE,
+        title           STRING,
+        metric          STRING,
+        start           TIMESTAMP,
+        end             TIMESTAMP,
+        creator         STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE ChallengeEntry (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        challengeId     STRING QUERYABLE,
+        profileId       STRING QUERYABLE,
+        name            STRING,
+        score           DOUBLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );

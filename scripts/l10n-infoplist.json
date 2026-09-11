@@ -1,0 +1,22 @@
+{
+  "CFBundleDisplayName": {"en": "ChamaFit", "ca": "ChamaFit"},
+  "NSCalendarsFullAccessUsageDescription": {
+    "en": "To add your upcoming sessions to a “ChamaFit” calendar and rebuild it when you change your routine.",
+    "ca": "Per posar les teves properes sessions en un calendari «ChamaFit» i refer-lo quan canvies la rutina."},
+  "NSCameraUsageDescription": {
+    "en": "To scan the barcode of what you eat and log it.",
+    "ca": "Per escanejar el codi de barres del que menges i apuntar-ho."},
+  "NSHealthShareUsageDescription": {
+    "en": "ChamaFit reads your heart rate, sleep, steps and weight to show your recovery, and the calories of workouts recorded on your Apple Watch.",
+    "ca": "ChamaFit llegeix el teu ritme cardíac, son, passes i pes per mostrar la teva recuperació, i les calories dels entrenaments que registra l’Apple Watch."},
+  "NSHealthUpdateUsageDescription": {
+    "en": "ChamaFit saves each session as a strength workout in Health, plus your weight and water.",
+    "ca": "ChamaFit desa cada sessió com a entrenament de força a Salut, a més del teu pes i l’aigua."},
+  "NSMicrophoneUsageDescription": {
+    "en": "To log your sets by voice in workout mode (“80 kilos for 8”). Audio is not stored.",
+    "ca": "Per apuntar les sèries parlant en el mode entrenament («80 quilos per 8»). L’àudio no es desa."},
+  "NSSpeechRecognitionUsageDescription": {
+    "en": "To understand what you say in workout mode. Whenever possible, it’s recognised on your iPhone.",
+    "ca": "Per entendre el que dius en el mode entrenament. Sempre que es pot, es reconeix al mateix iPhone."},
+  "Rutina de ChamaFit": {"en": "ChamaFit routine", "ca": "Rutina de ChamaFit"}
+}

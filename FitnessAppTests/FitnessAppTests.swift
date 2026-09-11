@@ -1349,3 +1349,951 @@ struct Tramo0Tests {
         #expect(!without.contains("RECUPERACIÓN") && with.contains("RECUPERACIÓN"))
     }
 }
+
+// MARK: - Tramo 1: perfil de entreno y material
+
+@Suite(.serialized) @MainActor
+struct Tramo1Tests {
+
+    @Test func profilePersistsAndDrivesWeeklyGoal() {
+        let box = TestBox(); defer { box.tearDown() }
+        #expect(!box.vm.trainingProfile.completed, "sin onboarding, perfil por defecto")
+        var p = box.vm.trainingProfile
+        p.goal = .strength; p.level = .advanced; p.daysPerWeek = 5; p.minutes = 75
+        p.focusGroups = ["Espalda"]; p.avoidExercises = ["Fondos"]; p.limitations = "hombro derecho"
+        p.equipmentProfileId = EquipmentProfile.homeId; p.completed = true
+        box.vm.trainingProfile = p
+        #expect(box.vm.weeklySessionGoal == 5, "el objetivo semanal sale del perfil")
+        let again = WorkoutViewModel(defaults: box.defaults)
+        #expect(again.trainingProfile == p)
+        #expect(again.activeEquipment.name == "Casa")
+    }
+
+    @Test func profileDecodeIsTolerant() throws {
+        let json = #"{"goal":"cosa-rara","daysPerWeek":4,"futureField":true}"#
+        let p = try JSONDecoder().decode(TrainingProfile.self, from: Data(json.utf8))
+        #expect(p.goal == .hypertrophy && p.daysPerWeek == 4 && p.minutes == 60 && !p.completed)
+        let e = try JSONDecoder().decode(EquipmentProfile.self, from: Data(#"{"name":"Hotel","items":["dumbbell","laser"]}"#.utf8))
+        #expect(e.items == [.dumbbell], "material desconocido se ignora")
+    }
+
+    @Test func requestFromProfile() {
+        let box = TestBox(); defer { box.tearDown() }
+        var p = TrainingProfile()
+        p.goal = .fatLoss; p.level = .beginner; p.daysPerWeek = 7; p.minutes = 90
+        p.limitations = "rodilla"; p.equipmentProfileId = EquipmentProfile.bodyweightId; p.completed = true
+        box.vm.trainingProfile = p
+        let r = box.vm.routineRequestFromProfile()
+        #expect(r.goal == "Perder grasa" && r.level == "Principiante")
+        #expect(r.daysPerWeek == 6, "el generador llega hasta 6")
+        #expect(r.minutes == 75, "el valor más cercano de los que ofrece")
+        #expect(r.equipment == "Peso corporal")
+        #expect(r.prompt.contains("rodilla"), "las limitaciones llegan a la IA")
+        #expect(box.vm.coachContext().contains("PERFIL:"), "y al coach")
+    }
+
+    @Test func editingPresetEquipmentKeepsIt() {
+        let box = TestBox(); defer { box.tearDown() }
+        var home = box.vm.equipmentProfiles.first { $0.id == EquipmentProfile.homeId }!
+        home.items.insert(.kettlebell)
+        box.vm.saveEquipmentProfile(home)
+        let list = box.vm.equipmentProfiles
+        #expect(list.filter { $0.id == EquipmentProfile.homeId }.count == 1, "no se duplica")
+        #expect(list.first { $0.id == EquipmentProfile.homeId }!.items.contains(.kettlebell))
+        box.vm.saveEquipmentProfile(EquipmentProfile(name: "Hotel", items: [.dumbbell, .cardio]))
+        #expect(box.vm.equipmentProfiles.count == 4)
+    }
+
+    @Test func profileTravelsInBackup() throws {
+        let box = TestBox(); defer { box.tearDown() }
+        _ = box.add("Press", sets: 3, weight: 60, on: .monday)
+        var p = TrainingProfile(); p.goal = .endurance; p.completed = true
+        box.vm.trainingProfile = p
+        box.vm.saveEquipmentProfile(EquipmentProfile(name: "Hotel", items: [.dumbbell]))
+        let data = try box.vm.backupData()
+
+        let other = TestBox(); defer { other.tearDown() }
+        try other.vm.restore(from: data, mode: .replace)
+        #expect(other.vm.trainingProfile.goal == .endurance)
+        #expect(other.vm.equipmentProfiles.contains { $0.name == "Hotel" })
+
+        // Fusionar no pisa un perfil ya hecho.
+        let third = TestBox(); defer { third.tearDown() }
+        var mine = TrainingProfile(); mine.goal = .strength; mine.completed = true
+        third.vm.trainingProfile = mine
+        try third.vm.restore(from: data, mode: .merge)
+        #expect(third.vm.trainingProfile.goal == .strength)
+        #expect(third.vm.equipmentProfiles.contains { $0.name == "Hotel" })
+    }
+}
+
+// MARK: - Tramo 2: tipo de carga y libras
+
+@Suite(.serialized) @MainActor
+struct Tramo2Tests {
+
+    /// Libras solo dentro de esta tarea: las demás suites, que corren a la vez, siguen en kg.
+    func withPounds(_ body: () throws -> Void) rethrows {
+        try Units.$override.withValue(.lb) { try body() }
+    }
+
+    @Test func poundsRoundTripWithoutDrift() {
+        withPounds {
+            #expect(Units.format(100) == "220,5 lb")
+            let kg = Units.parse("185")!
+            #expect(Units.number(kg) == "185", "lo escrito vuelve igual")
+            var w = kg
+            for _ in 0..<20 { w = Units.stepped(w, by: 1) }
+            for _ in 0..<20 { w = Units.stepped(w, by: -1) }
+            #expect(Units.number(w) == "185", "subir y bajar no deriva")
+            #expect(Units.number(Units.stepped(60, by: 1)) == "135", "60 kg = 132,3 lb → encaja en 135")
+            #expect(Units.number(Units.stepped(60, by: -1)) == "130")
+            #expect(Units.tonnage(10_000) == "22.046 lb" || Units.tonnage(10_000) == "22,0k lb")
+        }
+        #expect(Units.format(42.5) == "42,5 kg")
+        #expect(Units.stepped(41, by: 1) == 42.5 && Units.stepped(40, by: 1) == 42.5)
+        #expect(Units.parse("62,5") == 62.5 && Units.parse("x") == nil)
+    }
+
+    @Test func platesAndWarmupInPounds() {
+        withPounds {
+            let side = PlateMath.sideText(target: 225, bar: 45, plates: Units.plates)
+            #expect(side == "45 + 45")
+            let warm = PlateMath.warmupKg(for: Units.toKg(225), barKg: Units.toKg(45))
+            #expect(warm.map { Units.number($0.weight) } == ["45", "115", "160", "190"])
+        }
+        #expect(PlateMath.warmupKg(for: 100, barKg: 20).map(\.weight) == [20, 50, 70, 85])
+    }
+
+    @Test func loadKindDecodesTolerant() throws {
+        let old = try JSONDecoder().decode(Exercise.self, from: Data(#"{"name":"Press","repetitions":8,"weight":60}"#.utf8))
+        #expect(old.loadKind == .total)
+        let odd = try JSONDecoder().decode(Exercise.self, from: Data(#"{"name":"X","loadKind":"hovercraft"}"#.utf8))
+        #expect(odd.loadKind == .total)
+        var e = Exercise(name: "Remo", repetitions: 10, weight: 20, loadKind: .perDumbbell)
+        e = try JSONDecoder().decode(Exercise.self, from: JSONEncoder().encode(e))
+        #expect(e.loadKind == .perDumbbell)
+    }
+
+    @Test func volumeByLoadKind() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (db, _) = box.add("Press mancuernas", sets: 3, weight: 20, reps: 10, on: .monday)
+        let (dips, _) = box.add("Fondos lastrados", sets: 3, weight: 10, reps: 10, on: .monday)
+        let (pull, _) = box.add("Dominadas asistidas", sets: 3, weight: 30, reps: 10, on: .monday)
+        for (ex, kind) in [(db, LoadKind.perDumbbell), (dips, .bodyweight), (pull, .assisted)] {
+            let i = box.vm.availableExercises.firstIndex { $0.id == ex.id }!
+            box.vm.availableExercises[i].loadKind = kind
+        }
+        let log = SetLog(reps: 10, weight: 20, date: Date())
+        #expect(box.vm.volume(log, kind: .perDumbbell) == 400, "dos mancuernas")
+        #expect(box.vm.volume(log, kind: .assisted) == 0, "sin peso corporal no se inventa")
+        box.vm.bodyWeightHistory[TestBox.daysAgo(10)] = 80
+        #expect(box.vm.volume(log, kind: .assisted) == 600, "(80 − 20) × 10")
+        #expect(box.vm.volume(SetLog(reps: 10, weight: 10, date: Date()), kind: .bodyweight) == 900)
+        #expect(WorkoutViewModel.weightText(20, kind: .perDumbbell) == "2 × 20 kg")
+        #expect(WorkoutViewModel.weightText(0, kind: .bodyweight) == "peso corporal")
+    }
+
+    @Test func assistedRecordsAndSuggestion() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Dominadas asistidas", sets: 3, weight: 30, reps: 8, on: .monday)
+        let i = box.vm.availableExercises.firstIndex { $0.id == ex.id }!
+        box.vm.availableExercises[i].loadKind = .assisted
+        for (ago, w) in [(6, 30.0), (3, 25.0)] {
+            let date = TestBox.daysAgo(ago)
+            var rec = WorkoutExercise(exerciseId: ex.id)
+            rec.setLogs = (0..<3).map { SetLog(reps: 8, weight: w, rpe: 7, date: date.addingTimeInterval(3600 + Double($0) * 200)) }
+            rec.completedSets = 3
+            box.vm.workoutHistory[date] = [.monday: [rec]]
+        }
+        let pr = box.vm.personalRecord(for: ex.id)
+        #expect(pr?.weight == 25 && pr?.oneRepMax == 0, "récord = menos ayuda, sin 1RM")
+        let s = box.vm.suggestion(for: box.vm.availableExercises[i], recovery: nil)
+        #expect(s?.trend == .up && s?.weight == 22.5, "progresar es quitar ayuda")
+        #expect(s?.text == "asist. 22,5 kg × 8")
+        #expect(box.vm.exerciseDailyOneRepMax(for: ex.id).isEmpty)
+    }
+}
+
+// MARK: - Tramo 3: biblioteca y sustituciones
+
+@Suite(.serialized) @MainActor
+struct Tramo3Tests {
+
+    @Test func libraryIsComplete() {
+        let names = ExerciseCatalog.all.map(\.name)
+        #expect(names.count >= 80)
+        #expect(Set(names).count == names.count, "sin nombres repetidos")
+        for n in names {
+            let d = ExerciseLibrary.details(for: n)
+            #expect(d != nil, "\(n) sin ficha")
+            #expect(TechniqueGuide.entry(for: n) != nil, "\(n) sin técnica")
+            #expect(ExerciseVideos.catalogLink(for: n) != nil, "\(n) sin vídeo")
+            guard let d else { continue }
+            #expect(d.mistakes.count >= 2, "\(n): errores")
+            #expect(!d.alternatives.isEmpty, "\(n): alternativas")
+            for a in d.alternatives {
+                #expect(ExerciseCatalog.entry(named: a) != nil, "\(n) → alternativa desconocida \(a)")
+                #expect(ExerciseLibrary.fold(a) != ExerciseLibrary.fold(n), "\(n) se sugiere a sí mismo")
+            }
+        }
+    }
+
+    @Test func alternativesRespectEquipmentAndAvoid() {
+        let box = TestBox(); defer { box.tearDown() }
+        let gym = box.vm.alternatives(for: "Press de banca").map(\.name)
+        #expect(gym.contains("Press de pecho en máquina"))
+        box.vm.setActiveEquipment(EquipmentProfile.bodyweightId)
+        #expect(box.vm.alternatives(for: "Press de banca").map(\.name) == ["Flexiones"], "sin material solo lo que se puede")
+        var p = box.vm.trainingProfile; p.avoidExercises = ["Flexiones"]; box.vm.trainingProfile = p
+        #expect(!box.vm.alternatives(for: "Press de banca").map(\.name).contains("Flexiones"))
+    }
+
+    @Test func substituteTodayRevertsNextDay() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (bench, rec) = box.add("Press de banca", sets: 3, weight: 60, on: .monday)
+        let alt = box.vm.exerciseFromCatalog(ExerciseCatalog.entry(named: "Press de banca con mancuernas")!)
+        #expect(alt.loadKind == .perDumbbell, "hereda el tipo de carga del catálogo")
+        box.vm.substitute(recordId: rec.id, in: .monday, with: alt, forever: false)
+        #expect(box.vm.dailyWorkoutRecords[.monday]?.first?.exerciseId == alt.id)
+        #expect(box.vm.temporarySwapOriginal(rec.id)?.id == bench.id)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 22, reps: 10)
+        // Cambio de día: lo hecho va al historial con el ejercicio que se hizo y la plantilla vuelve.
+        box.vm.adoptSession(date: TestBox.daysAgo(1))
+        box.vm.ensureSession()
+        #expect(box.vm.dailyWorkoutRecords[.monday]?.first?.exerciseId == bench.id)
+        let hist = box.vm.workoutHistory[TestBox.daysAgo(1)]?[.monday]?.first
+        #expect(hist?.exerciseId == alt.id && hist?.setLogs.count == 1)
+    }
+
+    @Test func substituteForeverWithSetsDoneSplits() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, rec) = box.add("Dominadas", sets: 3, weight: 0, reps: 8, on: .monday)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 0, reps: 6)
+        let alt = box.vm.exerciseFromCatalog(ExerciseCatalog.entry(named: "Jalón al pecho")!)
+        box.vm.substitute(recordId: rec.id, in: .monday, with: alt, forever: true)
+        let today = box.vm.dailyWorkoutRecords[.monday] ?? []
+        #expect(today.count == 2 && today[0].setLogs.count == 1 && today[1].exerciseId == alt.id,
+                "la serie hecha se queda en dominadas y el jalón entra detrás")
+        box.vm.adoptSession(date: TestBox.daysAgo(1))
+        box.vm.ensureSession()
+        #expect(box.vm.dailyWorkoutRecords[.monday]?.map(\.exerciseId) == [alt.id], "mañana solo queda el jalón")
+    }
+
+    @Test func customVideoLink() {
+        #expect(ExerciseVideos.normalized("youtu.be/abc123") == "https://youtu.be/abc123")
+        #expect(ExerciseVideos.normalized("no es un enlace") == nil)
+        var e = Exercise(name: "Mi ejercicio raro", repetitions: 10, weight: 0)
+        #expect(ExerciseVideos.url(for: e).absoluteString.contains("results?search_query="), "sin enlace: búsqueda")
+        e.videoURL = "https://youtu.be/abc123"
+        #expect(ExerciseVideos.url(for: e).absoluteString == "https://youtu.be/abc123")
+        #expect(ExerciseVideos.url(forName: "press de BANCA").absoluteString.contains("watch?v="), "sin tildes ni mayúsculas")
+    }
+}
+
+// MARK: - Tramo 4: modos de rutina y programas
+
+@Suite(.serialized) @MainActor
+struct Tramo4Tests {
+
+    /// Lunes, miércoles y viernes con un ejercicio cada uno (sesiones A, B, C).
+    func threeSessions(_ box: TestBox) -> [WorkoutDay: UUID] {
+        var ids: [WorkoutDay: UUID] = [:]
+        for (d, n) in [(WorkoutDay.monday, "Sentadilla"), (.wednesday, "Press de banca"), (.friday, "Peso muerto")] {
+            ids[d] = box.add(n, sets: 1, weight: 60, on: d).0.id
+        }
+        return ids
+    }
+
+    /// Una sesión hecha en esa fecha con ese hueco.
+    func done(_ box: TestBox, _ slot: WorkoutDay, on date: Date, _ exId: UUID) {
+        var rec = WorkoutExercise(exerciseId: exId)
+        rec.setLogs = [SetLog(reps: 5, weight: 60, date: date.addingTimeInterval(3600 * 18))]
+        rec.completedSets = 1
+        rec.lastSetCompletedAt = date.addingTimeInterval(3600 * 18)
+        box.vm.workoutHistory[date, default: [:]][slot] = [rec]
+    }
+
+    /// Lunes a domingo de la semana pasada.
+    var lastWeek: [Date] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let start = cal.dateInterval(of: .weekOfYear, for: Date().addingTimeInterval(-7 * 86_400))!.start
+        return (0..<7).map { Calendar.current.date(byAdding: .day, value: $0, to: Calendar.current.startOfDay(for: start))! }
+    }
+
+    @Test func fixedWeekIsTheWeekday() {
+        let box = TestBox(); defer { box.tearDown() }
+        _ = threeSessions(box)
+        let w = lastWeek
+        #expect(box.vm.nextSession(on: w[0]) == .monday)
+        #expect(box.vm.nextSession(on: w[1]) == nil, "martes, descanso")
+        #expect(box.vm.slotName(.wednesday) == "Miércoles")
+    }
+
+    @Test func sequenceFollowsTheLastDone() {
+        let box = TestBox(); defer { box.tearDown() }
+        let ids = threeSessions(box)
+        box.vm.scheduleMode = .sequence
+        let w = lastWeek
+        #expect(box.vm.nextSession(on: w[0]) == .monday, "sin historial, la A")
+        #expect(box.vm.slotName(.wednesday) == "Sesión B" && box.vm.slotShort(.friday) == "C")
+        done(box, .monday, on: w[0], ids[.monday]!)
+        #expect(box.vm.nextSession(on: w[1]) == .wednesday, "el martes toca la B")
+        done(box, .wednesday, on: w[1], ids[.wednesday]!)
+        done(box, .friday, on: w[3], ids[.friday]!)
+        #expect(box.vm.nextSession(on: w[4]) == .monday, "tras la C vuelve la A")
+        #expect(box.vm.nextSession(on: w[3]) == .friday, "el día que se hizo, esa")
+    }
+
+    @Test func elasticWeekKeepsPending() {
+        let box = TestBox(); defer { box.tearDown() }
+        let ids = threeSessions(box)
+        box.vm.scheduleMode = .elasticWeek
+        let w = lastWeek
+        #expect(box.vm.nextSession(on: w[1]) == .monday, "el martes, la del lunes sigue pendiente")
+        done(box, .monday, on: w[1], ids[.monday]!)
+        #expect(box.vm.nextSession(on: w[2]) == .wednesday)
+        #expect(box.vm.nextSession(on: w[3]) == .wednesday, "el jueves aún está la del miércoles")
+        done(box, .wednesday, on: w[3], ids[.wednesday]!)
+        #expect(box.vm.nextSession(on: w[4]) == .friday)
+        done(box, .friday, on: w[4], ids[.friday]!)
+        #expect(box.vm.nextSession(on: w[5]) == nil, "sábado: todo hecho, descanso")
+        #expect(box.vm.pendingThisWeek(on: w[6]).isEmpty)
+    }
+
+    @Test func routineKeepsItsMode() {
+        let box = TestBox(); defer { box.tearDown() }
+        _ = threeSessions(box)
+        box.vm.scheduleMode = .sequence
+        box.vm.createRoutine(named: "Otra", copyingCurrent: false)
+        #expect(box.vm.scheduleMode == .fixedWeek, "la nueva empieza en semana fija")
+        let old = box.vm.savedRoutines.first!
+        #expect(old.mode == .sequence)
+        box.vm.activate(old)
+        #expect(box.vm.scheduleMode == .sequence)
+    }
+
+    @Test func streakWithoutFixedDays() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Sentadilla", sets: 1, weight: 60, on: .monday)
+        box.vm.scheduleMode = .sequence
+        for ago in [1, 3, 5, 9] { done(box, .monday, on: TestBox.daysAgo(ago), ex.id) }
+        #expect(box.vm.consecutiveWorkoutDays() == 3, "huecos de 1 día valen; el de 3 corta")
+    }
+
+    @Test func programAdvancesDeloadsAndRestores() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (squat, _) = box.add("Sentadilla", sets: 3, weight: 100, reps: 8, on: .monday)
+        let t = ProgramTemplates.template("fivebyfive")!
+        box.vm.startProgram(t, now: TestBox.daysAgo(30))
+        #expect(box.vm.activeRoutineName == "5×5 fuerza" && box.vm.scheduleMode == .sequence)
+        #expect(box.vm.getExercise(by: squat.id)?.totalSets == 5 && box.vm.getExercise(by: squat.id)?.repetitions == 5,
+                "reutiliza tu sentadilla con las series del programa")
+        #expect(box.vm.programWeek()?.index == 0)
+        // Nueve sesiones = semana 4, la de descarga.
+        for ago in stride(from: 27, through: 3, by: -3) {
+            done(box, .monday, on: TestBox.daysAgo(ago), squat.id)
+        }
+        #expect(box.vm.programWeek()?.index == 3 && box.vm.programWeek()?.week.deload == true)
+        box.vm.syncProgramWeek()
+        #expect(box.vm.getExercise(by: squat.id)?.totalSets == 3, "descarga: dos series menos")
+        let s = box.vm.suggestion(for: box.vm.getExercise(by: squat.id)!, recovery: nil)
+        #expect(s?.trend == .down && s?.weight == 53.75, "90 % de 60 kg redondeado a 1,25")
+        box.vm.endProgram()
+        #expect(box.vm.activeProgram == nil)
+        #expect(box.vm.getExercise(by: squat.id)?.totalSets == 3 && box.vm.getExercise(by: squat.id)?.repetitions == 8,
+                "vuelve a como estaba")
+    }
+
+    @Test func templatesAreValid() {
+        for t in ProgramTemplates.all {
+            #expect(t.sessions.count == t.slots.count, "\(t.name): huecos")
+            #expect(Set(t.slots).count == t.slots.count)
+            for item in t.sessions.flatMap(\.items) {
+                #expect(ExerciseCatalog.entry(named: item.name) != nil, "\(t.name): \(item.name) no está en el catálogo")
+            }
+        }
+        let home = EquipmentProfile.presets.first { $0.id == EquipmentProfile.homeId }!
+        var p = TrainingProfile(); p.goal = .fatLoss; p.level = .beginner; p.daysPerWeek = 3
+        #expect(ProgramTemplates.recommended(for: p, equipment: home).first?.fits(home) == true)
+        let none = EquipmentProfile.presets.first { $0.id == EquipmentProfile.bodyweightId }!
+        #expect(ProgramTemplates.recommended(for: p, equipment: none).first?.id == "bodyweight")
+    }
+}
+
+// MARK: - Tramo 4b: circuitos, AMRAP, EMOM y el reloj de intervalos
+
+@Suite(.serialized) @MainActor
+struct Tramo4bTests {
+
+    @Test func circuitRestsAtTheEndOfTheRound() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, a) = box.add("Sentadilla", sets: 3, weight: 60, rest: 30, on: .monday)
+        let (_, b) = box.add("Flexiones", sets: 3, weight: 0, rest: 30, on: .monday)
+        box.vm.setSupersetGroup(0, for: a.id, in: .monday)
+        box.vm.setSupersetGroup(0, for: b.id, in: .monday)
+        box.vm.setBlock(BlockSettings(kind: .circuit, restBetweenRounds: 120), .monday, 0)
+        box.vm.completeSet(for: a.id, in: .monday)
+        #expect(!box.vm.timerActive, "entre ejercicios del circuito no se descansa")
+        box.vm.completeSet(for: b.id, in: .monday)
+        #expect(box.vm.timerActive && box.vm.currentTimerDuration == 120, "al cerrar la vuelta, el descanso del circuito")
+        box.vm.stopTimer(silent: true)
+    }
+
+    @Test func amrapLogsRoundsAndClosesTheBlock() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, a) = box.add("Burpees", sets: 5, weight: 0, reps: 10, on: .monday)
+        let (_, b) = box.add("Sentadilla sin peso", sets: 5, weight: 0, reps: 15, on: .monday)
+        let (_, c) = box.add("Plancha", sets: 3, weight: 0, on: .monday)
+        box.vm.setSupersetGroup(1, for: a.id, in: .monday)
+        box.vm.setSupersetGroup(1, for: b.id, in: .monday)
+        box.vm.setBlock(BlockSettings(kind: .amrap, minutes: 8), .monday, 1)
+        #expect(box.vm.blockPhases(.monday, 1).map(\.seconds) == [480])
+        box.vm.logRound(.monday, 1)
+        box.vm.logRound(.monday, 1)
+        let recs = box.vm.blockMembers(.monday, 1)
+        #expect(recs.allSatisfy { $0.setLogs.count == 2 && $0.completedSets == 2 })
+        #expect(recs.last?.setLogs.last?.reps == 15)
+        #expect(box.vm.nextRecord(in: .monday)?.id == a.id, "sin cerrar, sigue tocando el bloque")
+        box.vm.closeBlock(.monday, 1)
+        #expect(box.vm.nextRecord(in: .monday)?.id == c.id, "cerrado: pasa a lo siguiente")
+        #expect(box.vm.blockMembers(.monday, 1).allSatisfy { $0.completedSets == $0.setLogs.count }, "las series son las hechas")
+    }
+
+    @Test func emomRotatesExercises() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (_, a) = box.add("Swing con kettlebell", sets: 5, weight: 16, reps: 15, on: .monday)
+        let (_, b) = box.add("Flexiones", sets: 5, weight: 0, reps: 10, on: .monday)
+        box.vm.setSupersetGroup(0, for: a.id, in: .monday)
+        box.vm.setSupersetGroup(0, for: b.id, in: .monday)
+        box.vm.setBlock(BlockSettings(kind: .emom, minutes: 5), .monday, 0)
+        #expect(box.vm.blockPhases(.monday, 0).map(\.name) == ["Swing con kettlebell", "Flexiones", "Swing con kettlebell", "Flexiones", "Swing con kettlebell"])
+    }
+
+    @Test func intervalEngineFollowsTheWallClock() {
+        let e = IntervalEngine()
+        var changes: [Int] = []
+        var ended = false
+        e.onPhaseChange = { _, i in changes.append(i) }
+        e.onFinish = { ended = true }
+        e.load([.init(name: "Calienta", seconds: 10, kind: .warmup), .init(name: "Trabajo", seconds: 20, kind: .work),
+                .init(name: "Descanso", seconds: 10, kind: .rest)])
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        e.start(now: t0)
+        e.tick(now: t0.addingTimeInterval(5))
+        #expect(e.index == 0 && e.remaining == 5)
+        // La app estuvo 25 s en el fondo: salta dos fases de golpe.
+        e.tick(now: t0.addingTimeInterval(32))
+        #expect(e.index == 2 && e.remaining == 8)
+        e.pause(now: t0.addingTimeInterval(33))
+        e.tick(now: t0.addingTimeInterval(100))
+        #expect(e.index == 2 && e.remaining == 7, "en pausa no corre")
+        e.start(now: t0.addingTimeInterval(100))
+        e.tick(now: t0.addingTimeInterval(108))
+        #expect(ended && e.finished && changes == [0, 1, 2])
+        #expect(Int(e.elapsed(now: t0.addingTimeInterval(108))) == 40, "sin contar la pausa")
+    }
+}
+
+// MARK: - Tramo 5: hora límite, «hoy me cuesta», experimentos
+
+@Suite(.serialized) @MainActor
+struct Tramo5Tests {
+
+    /// Lunes: sentadilla (principal), press, curl y elevaciones; 4 series de 2 min cada una.
+    func monday(_ box: TestBox) -> [String: WorkoutExercise] {
+        var out: [String: WorkoutExercise] = [:]
+        for n in ["Sentadilla", "Press de banca", "Curl con barra", "Elevaciones laterales"] {
+            out[n] = box.add(n, sets: 4, weight: 40, reps: 10, rest: 90, on: .monday).1
+        }
+        return out
+    }
+
+    @Test func estimateUsesRealGaps() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, rest: 90, on: .monday)
+        #expect(box.vm.secondsPerSet(ex) == 130, "sin historial: descanso + 10 reps × 3 s + 10")
+        var rec = WorkoutExercise(exerciseId: ex.id)
+        let t = TestBox.daysAgo(2).addingTimeInterval(3600 * 18)
+        rec.setLogs = (0..<5).map { SetLog(reps: 8, weight: 60, date: t.addingTimeInterval(Double($0) * 200)) }
+        rec.completedSets = 5
+        box.vm.workoutHistory[TestBox.daysAgo(2)] = [.monday: [rec]]
+        #expect(box.vm.secondsPerSet(ex) == 200, "mediana de los huecos de verdad")
+    }
+
+    @Test func deadlineTrimsByPriority() {
+        let box = TestBox(); defer { box.tearDown() }
+        let r = monday(box)
+        let now = Date()
+        let full = box.vm.remainingSeconds(.monday)
+        // Con tiempo de sobra no se toca nada.
+        #expect(box.vm.timePlan(for: .monday, until: now.addingTimeInterval(full + 600), now: now).cuts.isEmpty)
+        // Un poco justo: primero una serie menos en los aislamientos.
+        let tight = box.vm.timePlan(for: .monday, until: now.addingTimeInterval(full - 200), now: now)
+        #expect(tight.fits)
+        #expect(tight.cuts.allSatisfy { $0.name == "Curl con barra" || $0.name == "Elevaciones laterales" })
+        #expect(tight.cuts.allSatisfy { $0.to == 3 })
+        // Muy justo: fuera aislamientos, pero la sentadilla nunca se toca.
+        let short = box.vm.timePlan(for: .monday, until: now.addingTimeInterval(900), now: now)
+        #expect(short.cuts.contains { $0.name == "Elevaciones laterales" && $0.to == 0 })
+        #expect(!short.cuts.contains { $0.name == "Sentadilla" })
+        box.vm.applyTimePlan(short, day: .monday, deadline: now.addingTimeInterval(900))
+        #expect(box.vm.sessionDeadline != nil)
+        #expect(box.vm.dailyWorkoutRecords[.monday]?.first { $0.id == r["Elevaciones laterales"]!.id }?.targetSets == 0)
+        #expect(box.vm.nextRecord(in: .monday)?.id == r["Sentadilla"]!.id)
+        #expect(box.vm.totalSets(for: .monday) < 16)
+        // Mañana todo vuelve.
+        box.vm.adoptSession(date: TestBox.daysAgo(1))
+        box.vm.ensureSession()
+        #expect(box.vm.dailyWorkoutRecords[.monday]?.allSatisfy { $0.targetSets == nil } == true)
+        #expect(box.vm.totalSets(for: .monday) == 16)
+    }
+
+    @Test func lightSessionKeepsWhatIsDone() {
+        let box = TestBox(); defer { box.tearDown() }
+        let r = monday(box)
+        box.vm.completeSet(for: r["Curl con barra"]!.id, in: .monday)
+        box.vm.stopTimer(silent: true)
+        box.vm.lightenSession(.monday)
+        let recs = box.vm.dailyWorkoutRecords[.monday]!
+        #expect(recs.first { $0.id == r["Sentadilla"]!.id }?.targetSets == 3, "una serie menos")
+        #expect(recs.first { $0.id == r["Elevaciones laterales"]!.id }?.targetSets == 0, "aislamiento sin empezar, fuera")
+        #expect(recs.first { $0.id == r["Curl con barra"]!.id }?.targetSets == 3, "empezado: se queda, con una menos")
+        #expect(box.vm.isLightToday)
+        box.vm.clearSessionTargets(.monday)
+        #expect(!box.vm.isLightToday && box.vm.totalSets(for: .monday) == 16)
+    }
+
+    @Test func lightDaysDontCountAsStagnation() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, reps: 8, on: .monday)
+        func session(_ ago: Int, reps: Int) {
+            var rec = WorkoutExercise(exerciseId: ex.id)
+            rec.setLogs = (0..<3).map { SetLog(reps: reps, weight: 60, rpe: 8, date: TestBox.daysAgo(ago).addingTimeInterval(3600 * 18 + Double($0) * 180)) }
+            rec.completedSets = 3
+            box.vm.workoutHistory[TestBox.daysAgo(ago)] = [.monday: [rec]]
+        }
+        session(7, reps: 5)
+        session(3, reps: 5)
+        #expect(box.vm.suggestion(for: ex, recovery: nil)?.trend == .down, "dos sesiones sin llegar: baja")
+        UserDefaultsHelper.markLight(box, TestBox.daysAgo(3))
+        #expect(box.vm.suggestion(for: ex, recovery: nil)?.trend != .down, "si una fue ligera, no cuenta")
+    }
+
+    @Test func experimentVerdictIsHonest() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, reps: 8, on: .monday)
+        var e = ExperimentsView.newDraft(.rest, exercise: ex.id)
+        e.start = TestBox.daysAgo(40)
+        box.vm.startExperiment(e)
+        func session(_ ago: Int, weight: Double) {
+            var rec = WorkoutExercise(exerciseId: ex.id)
+            rec.setLogs = [SetLog(reps: 5, weight: weight, date: TestBox.daysAgo(ago).addingTimeInterval(3600 * 18))]
+            rec.completedSets = 1
+            box.vm.workoutHistory[TestBox.daysAgo(ago)] = [.monday: [rec]]
+        }
+        session(30, weight: 100)
+        session(27, weight: 90)
+        #expect(box.vm.verdict(e).hasPrefix("Aún no se puede saber"))
+        #expect(box.vm.condition(e, on: TestBox.daysAgo(30)) == "A" && box.vm.condition(e, on: TestBox.daysAgo(27)) == "B")
+        // A: 100, 101, 99, 100 · B: 90, 91, 89, 90 → diferencia clara.
+        for (i, w) in [101.0, 91, 99, 89, 100, 90].enumerated() { session(24 - i * 3, weight: w) }
+        let r = box.vm.result(e)
+        #expect(r.a.count == 4 && r.b.count == 4 && r.clear)
+        #expect(box.vm.verdict(e).contains("Descanso de 3 min"))
+        // Hoy: 8 sesiones antes → toca A, y el descanso del press es el largo.
+        #expect(box.vm.condition(e, on: Date()) == "A")
+        #expect(box.vm.experimentRest(for: ex) == 180)
+        // Ruido: mismas medias con mucha variación → no hay ganador.
+        var noisy = ExperimentsView.newDraft(.custom)
+        noisy.metric = .e1rm; noisy.exerciseId = ex.id; noisy.start = TestBox.daysAgo(40)
+        let rr = ExperimentResult(a: [100, 80, 120, 95], b: [98, 115, 82, 101])
+        #expect(!rr.clear)
+        _ = noisy
+    }
+}
+
+@MainActor
+enum UserDefaultsHelper {
+    /// Marca un día como «ligero» como lo haría la app.
+    static func markLight(_ box: TestBox, _ date: Date) {
+        var days = (box.defaults.array(forKey: "LightDays") as? [Date]) ?? []
+        days.append(Calendar.current.startOfDay(for: date))
+        box.defaults.set(days, forKey: "LightDays")
+    }
+}
+
+// MARK: - Tramo 6: voz
+
+@MainActor
+struct VoiceParserTests {
+    typealias P = VoiceCommandParser
+
+    @Test(arguments: [
+        ("80 kilos por 8", VoiceCommand.set(weight: 80, unit: .kg, reps: 8, rpe: nil)),
+        ("ochenta kilos por ocho", .set(weight: 80, unit: .kg, reps: 8, rpe: nil)),
+        ("Ochenta y dos y medio por seis, RPE nueve", .set(weight: 82.5, unit: nil, reps: 6, rpe: 9)),
+        ("8 repeticiones RPE 9", .set(weight: nil, unit: nil, reps: 8, rpe: 9)),
+        ("100 libras 5 reps", .set(weight: 100, unit: .lb, reps: 5, rpe: nil)),
+        ("62,5 por 10", .set(weight: 62.5, unit: nil, reps: 10, rpe: nil)),
+        ("ciento veinte por cinco", .set(weight: 120, unit: nil, reps: 5, rpe: nil)),
+        ("80x8", .set(weight: 80, unit: nil, reps: 8, rpe: nil)),
+        ("12 reps con 20 kg", .set(weight: 20, unit: .kg, reps: 12, rpe: nil)),
+        ("eighty pounds times eight", .set(weight: 80, unit: .lb, reps: 8, rpe: nil)),
+        ("one hundred and five kilos for five", .set(weight: 105, unit: .kg, reps: 5, rpe: nil)),
+        ("vuitanta quilos per vuit", .set(weight: 80, unit: .kg, reps: 8, rpe: nil)),
+        ("vint-i-dos i mig per dotze", .set(weight: 22.5, unit: nil, reps: 12, rpe: nil)),
+        ("hecho", .done), ("Hecha", .done), ("done", .done), ("Fet!", .done),
+        ("siguiente", .next), ("next", .next), ("Següent", .next),
+        ("deshacer", .undo), ("desfés", .undo),
+        ("descanso", .rest),
+        ("está ocupada", .busy), ("Està ocupada", .busy),
+        ("hola qué tal", .unknown), ("", .unknown),
+    ] as [(String, VoiceCommand)])
+    func parses(_ input: String, _ expected: VoiceCommand) {
+        #expect(P.parse(input) == expected, "«\(input)»")
+    }
+
+    @Test func languageDisambiguates() {
+        #expect(P.parse("set done", language: "en") == .done, "en inglés «set» no es 7")
+        #expect(P.parse("set per deu", language: "ca") == .set(weight: 7, unit: nil, reps: 10, rpe: nil), "en catalán sí")
+        #expect(P.parse("once repeticiones") == .set(weight: nil, unit: nil, reps: 11, rpe: nil))
+    }
+}
+
+// MARK: - Tramo 7: intervalos y movilidad
+
+@Suite(.serialized) @MainActor
+struct Tramo7Tests {
+
+    @Test func tabataPhases() {
+        let t = IntervalPlan.presets.first { $0.name == "Tabata" }!
+        let ph = t.phases
+        #expect(ph.filter { $0.kind == .work }.count == 8)
+        #expect(ph.filter { $0.kind == .rest }.count == 7, "sin descanso tras la última")
+        #expect(ph.first?.kind == .warmup && ph.last?.kind == .cooldown)
+        #expect(t.totalSeconds == ph.reduce(0) { $0 + $1.seconds })
+        #expect(t.workSeconds == 160)
+        let blocks = IntervalPlan(name: "x", work: 40, rest: 20, rounds: 3, blocks: 2, blockRest: 90)
+        #expect(blocks.phases.map(\.seconds) == [40, 20, 40, 20, 40, 90, 40, 20, 40, 20, 40])
+        #expect(blocks.totalSeconds == 410)
+    }
+
+    @Test func hiitCountsTodayAndLeavesTomorrow() {
+        let box = TestBox(); defer { box.tearDown() }
+        _ = box.add("Press", sets: 3, weight: 60, on: .monday)
+        box.vm.trainingDay = .monday
+        let start = Date().addingTimeInterval(-600)
+        box.vm.logTimedSession(name: "Intervalos · Tabata", group: "Cardio", icon: "timer",
+                               workIntervals: Array(repeating: 20, count: 8), start: start, end: Date())
+        let rec = box.vm.dailyWorkoutRecords[.monday]!.last!
+        #expect(box.vm.getExercise(by: rec.exerciseId)?.name == "Intervalos · Tabata")
+        #expect(rec.setLogs.count == 8 && rec.completedSets == 8)
+        #expect(box.vm.hasWorkoutForDate(Date()), "cuenta como entreno de hoy")
+        #expect(box.vm.nextRecord(in: .monday)?.exerciseId != rec.exerciseId, "no se propone como pendiente")
+        box.vm.adoptSession(date: TestBox.daysAgo(1))
+        box.vm.ensureSession()
+        #expect(box.vm.dailyWorkoutRecords[.monday]!.count == 1, "mañana ya no está en la plantilla")
+        #expect(box.vm.workoutHistory[TestBox.daysAgo(1)]?[.monday]?.count == 2, "pero sí en el historial")
+    }
+
+    @Test func mobilityLinks() {
+        let box = TestBox(); defer { box.tearDown() }
+        let r = box.vm.mobilityRoutines.first!
+        #expect(r.phases.filter { $0.kind == .work }.count == r.items.count)
+        box.vm.setWarmupLink(r, for: .friday)
+        #expect(box.vm.warmupLink(.friday)?.id == r.id)
+        box.vm.setWarmupLink(nil, for: .friday)
+        #expect(box.vm.warmupLink(.friday) == nil)
+        for it in MobilityRoutine.presets.flatMap(\.items) {
+            #expect(ExerciseCatalog.entry(named: it.name) != nil, "\(it.name) en el catálogo")
+        }
+    }
+}
+
+// MARK: - Tramo 8: nutrición conectada con Dieta
+
+/// Respuestas grabadas: el servidor de Dieta sin red.
+nonisolated final class DietaStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var routes: [String: (Int, String)] = [:]
+    nonisolated(unsafe) static var requests: [URLRequest] = []
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        var req = request
+        if req.httpBody == nil, let stream = req.httpBodyStream {
+            stream.open(); var data = Data(); var buf = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable { let n = stream.read(&buf, maxLength: 4096); if n <= 0 { break }; data.append(buf, count: n) }
+            stream.close(); req.httpBody = data
+        }
+        Self.requests.append(req)
+        let key = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
+        let (code, body) = Self.routes[key] ?? (404, #"{"error":"no"}"#)
+        let resp = HTTPURLResponse(url: request.url!, statusCode: code, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+
+    static var session: URLSession {
+        let c = URLSessionConfiguration.ephemeral
+        c.protocolClasses = [DietaStub.self]
+        return URLSession(configuration: c)
+    }
+}
+
+@Suite(.serialized) @MainActor
+struct Tramo8Tests {
+
+    /// Un plan de la semana de hoy: desayuno y cena del día de hoy.
+    func planJSON() -> String {
+        var cal = Calendar(identifier: .gregorian); cal.firstWeekday = 2
+        let monday = cal.dateInterval(of: .weekOfYear, for: Date())!.start
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let wd = DietaPlan.weekday(of: Date())
+        return """
+        {"id":"p1","userId":"u","startDate":"\(f.string(from: monday))","createdAt":"2026-09-07T08:12:33.120Z","cost":10,
+         "meals":[
+          {"id":"m2","planId":"p1","recipeId":"r2","weekday":\(wd),"slot":"cena","grams":300,"eaten":false,
+           "recipe":{"id":"r2","title":"Merluza con patata","kcal":100,"protein":12,"fiber":1,"photoUrl":null}},
+          {"id":"m1","planId":"p1","recipeId":"r1","weekday":\(wd),"slot":"desayuno","grams":200,"eaten":true,
+           "recipe":{"id":"r1","title":"Porridge","kcal":150,"protein":5,"fiber":3,"photoUrl":"p.jpg"}},
+          {"id":"m3","planId":"p1","recipeId":"r3","weekday":\((wd + 1) % 7),"slot":"comida","grams":400,"eaten":false,
+           "recipe":{"id":"r3","title":"Lentejas","kcal":120,"protein":8}}],
+         "days":[{"weekday":\(wd),"targets":{"kcal":2100,"protein":136,"isGymDay":true},"kcal":2000,"protein":130,"fiber":30,"cobertura":0.95}]}
+        """
+    }
+
+    func store() -> Nutrition {
+        let suite = "nutrition-\(UUID().uuidString)"
+        let n = Nutrition(defaults: UserDefaults(suiteName: suite)!)
+        n.session = DietaStub.session
+        n.baseURL = "https://dieta.test"
+        DietaStub.requests = []
+        return n
+    }
+
+    @Test func decodesThePlanAndComputesToday() throws {
+        let plan = try DietaClient.decoder.decode(DietaPlan.self, from: Data(planJSON().utf8))
+        let today = plan.meals(on: Date())
+        #expect(today.map(\.slot) == ["desayuno", "cena"], "ordenado por comida del día")
+        #expect(today[1].kcal == 300 && today[1].protein == 36, "300 g × 100 kcal/100 g")
+        #expect(plan.targets(on: Date())?.kcal == 2100)
+        #expect(DietaPlan.weekday(of: Date(timeIntervalSince1970: 0)) == 4, "1-ene-1970 fue jueves")
+    }
+
+    @Test func connectRefreshAndMarkEaten() async {
+        let n = store()
+        DietaStub.routes = ["POST /auth/login": (200, #"{"token":"t0k","userId":"u"}"#),
+                            "GET /plan/current": (200, planJSON()),
+                            "PATCH /plan/meals/m2": (200, #"{"id":"m2","eaten":true}"#),
+                            "GET /weight": (200, #"[{"id":"w","date":"2026-09-01T00:00:00.000Z","kg":82.4}]"#)]
+        #expect(await n.connect(email: "a@b.c", password: "x"))
+        #expect(n.connected && n.meals().count == 2)
+        #expect(n.eaten().kcal == 300, "solo el desayuno está comido")
+        n.addLog(FoodLog(name: "Plátano", kcal: 105, protein: 1.3))
+        n.addWater(250); n.addWater(500); n.addWater(-250)
+        #expect(n.water() == 500)
+        #expect(Int(n.eaten().kcal) == 405)
+        await n.setEaten(n.meals()[1], true)
+        #expect(n.meals()[1].eaten)
+        let patch = DietaStub.requests.first { $0.httpMethod == "PATCH" }
+        #expect(patch?.value(forHTTPHeaderField: "Authorization") == "Bearer t0k")
+        #expect(String(data: patch?.httpBody ?? Data(), encoding: .utf8)?.contains(#""eaten":true"#) == true)
+        // Peso de Dieta → ChamaFit, sin pisar lo que ya hay.
+        let box = TestBox(); defer { box.tearDown() }
+        let key = Calendar.current.startOfDay(for: try! DietaClient.decoder.decode([DietaWeight].self,
+                     from: Data(#"[{"date":"2026-09-01T00:00:00.000Z","kg":82.4}]"#.utf8))[0].date)
+        await n.pullWeights(into: box.vm)
+        #expect(box.vm.bodyWeightHistory[key] == 82.4)
+    }
+
+    @Test func errorsAreUnderstandable() async {
+        let n = store()
+        DietaStub.routes = ["POST /auth/login": (401, #"{"error":"Credenciales incorrectas"}"#)]
+        #expect(!(await n.connect(email: "a", password: "b")))
+        #expect(n.lastError == DietaError.unauthorized.errorDescription)
+        // Sin plan esta semana: no es un error.
+        n.token = "t"
+        DietaStub.routes = ["GET /plan/current": (404, #"{"error":"No hay plan para esta semana"}"#)]
+        await n.refresh()
+        #expect(n.plan == nil && n.lastError == nil)
+    }
+
+    @Test func productsFromDietaAndOpenFoodFacts() {
+        let dieta = #"{"enCatalogo":true,"product":{"name":"Yogur natural"},"nutrition":{"brands":"Hacendado","kcal":61,"protein":3.5},"verdict":null}"#
+        let d = DietaClient.parseDietaProduct(Data(dieta.utf8), ean: "848")
+        #expect(d == FoodProduct(ean: "848", name: "Yogur natural", brand: "Hacendado", kcal: 61, protein: 3.5, source: "Dieta"))
+        #expect(DietaClient.parseDietaProduct(Data(#"{"enCatalogo":true,"product":{"name":"x"},"nutrition":null}"#.utf8), ean: "1") == nil)
+        let off = #"{"status":1,"product":{"product_name":"Galletas","brands":"X","nutriments":{"energy_100g":2092,"proteins_100g":6}}}"#
+        let o = OpenFoodFacts.parse(Data(off.utf8), ean: "7")
+        #expect(o?.name == "Galletas" && Int(o!.kcal) == 500, "de kJ a kcal")
+        #expect(OpenFoodFacts.parse(Data(#"{"status":0}"#.utf8), ean: "7") == nil)
+    }
+}
+
+// MARK: - Tramo 9: amigos y retos (lo que no depende de iCloud)
+
+@Suite(.serialized) @MainActor
+struct Tramo9Tests {
+
+    @Test func challengeScoresFromHistory() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 50, reps: 10, on: .monday)
+        for ago in [1, 2, 3, 6] {
+            var rec = WorkoutExercise(exerciseId: ex.id)
+            rec.setLogs = (0..<3).map { SetLog(reps: 10, weight: 50, date: TestBox.daysAgo(ago).addingTimeInterval(3600 * 18 + Double($0) * 120)) }
+            rec.completedSets = 3
+            box.vm.workoutHistory[TestBox.daysAgo(ago)] = [.monday: [rec]]
+        }
+        let start = TestBox.daysAgo(5), end = Date()
+        #expect(box.vm.challengeScore(.sessions, from: start, to: end) == 3, "solo lo que cae dentro del reto")
+        #expect(box.vm.challengeScore(.sets, from: start, to: end) == 9)
+        #expect(box.vm.challengeScore(.volume, from: start, to: end) == 4500)
+        #expect(box.vm.challengeScore(.streak, from: TestBox.daysAgo(7), to: end) == 3)
+    }
+
+    @Test func codesAndRanking() {
+        let codes = (0..<200).map { _ in Social.makeCode() }
+        #expect(codes.allSatisfy { $0.count == 6 && !$0.contains("0") && !$0.contains("O") && !$0.contains("1") && !$0.contains("I") })
+        let ranked = Social.rank([.init(profileId: "a", name: "Ana", score: 3), .init(profileId: "b", name: "Bea", score: 5),
+                                  .init(profileId: "c", name: "Alba", score: 3)])
+        #expect(ranked.map(\.name) == ["Bea", "Alba", "Ana"])
+    }
+
+    @Test func summaryRespectsPrivacy() {
+        let box = TestBox(); defer { box.tearDown() }
+        let s = Social(defaults: box.defaults)
+        let code = s.myCode
+        #expect(s.myCode == code && s.myId == s.myId, "estables")
+        var p = SharePrefs(); p.volume = false; p.records = false; p.streak = false
+        s.prefs = p
+        let mine = s.mySummary(box.vm, name: "Jordi")
+        #expect(mine.weekSessions != nil && mine.weekVolume == nil && mine.streak == nil && mine.records == nil)
+        #expect(!Social.available, "en pruebas iCloud no se toca")
+    }
+}
+
+// MARK: - Tramo 10: calendario del iPhone
+
+@Suite(.serialized) @MainActor
+struct Tramo10Tests {
+
+    func weekMonday() -> Date {
+        var cal = Calendar(identifier: .gregorian); cal.firstWeekday = 2
+        return Calendar.current.startOfDay(for: cal.dateInterval(of: .weekOfYear, for: Date().addingTimeInterval(7 * 86_400))!.start)
+    }
+
+    @Test func fixedWeekPlan() {
+        let box = TestBox(); defer { box.tearDown() }
+        for d in [WorkoutDay.monday, .wednesday, .friday] { _ = box.add("E\(d.rawValue)", sets: 3, weight: 40, on: d) }
+        let plan = box.vm.calendarPlan(from: weekMonday(), days: 14)
+        #expect(plan.count == 6, "tres por semana, dos semanas")
+        #expect(plan.first?.slot == .monday && plan.first?.title == "Lunes")
+        #expect(plan.allSatisfy { $0.minutes >= 10 })
+    }
+
+    @Test func sequenceSpreadsOverTrainingDays() {
+        let box = TestBox(); defer { box.tearDown() }
+        for d in [WorkoutDay.monday, .thursday] { _ = box.add("E\(d.rawValue)", sets: 3, weight: 40, on: d) }
+        box.vm.scheduleMode = .sequence
+        let plan = box.vm.calendarPlan(from: weekMonday(), days: 14)
+        #expect(plan.map(\.title) == ["Sesión A", "Sesión B", "Sesión A", "Sesión B"])
+    }
+
+    @Test func estimateOfAWholeSession() {
+        let box = TestBox(); defer { box.tearDown() }
+        _ = box.add("Press", sets: 4, weight: 60, reps: 10, rest: 90, on: .monday)
+        // 4 × 130 s − 65 + 60 = 515 s ≈ 9 min → mínimo 10.
+        #expect(box.vm.estimatedSessionMinutes(.monday) == 10)
+        _ = box.add("Remo", sets: 4, weight: 60, reps: 10, rest: 90, on: .monday)
+        #expect(box.vm.estimatedSessionMinutes(.monday) == 17)
+    }
+}
+
+// MARK: - Tramo 12: coach que actúa
+
+@Suite(.serialized) @MainActor
+struct Tramo12Tests {
+
+    @Test func streamWithToolUseIsReassembled() {
+        let lines = [
+            #"data: {"type":"message_start","message":{"id":"m"}}"#,
+            #"data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}"#,
+            #"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Miro tu "}}"#,
+            #"data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"historial."}}"#,
+            #"data: {"type":"content_block_stop","index":0}"#,
+            #"data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"tu_1","name":"exercise_stats","input":{}}}"#,
+            #"data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"name\": \"Pr"}}"#,
+            #"data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"ess\"}"}}"#,
+            #"data: {"type":"content_block_stop","index":1}"#,
+            #"data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#,
+            #"data: {"type":"message_stop"}"#,
+        ]
+        var acc = SSEAccumulator()
+        let text = lines.compactMap { acc.feed($0) }.joined()
+        #expect(text == "Miro tu historial.")
+        #expect(acc.stopReason == "tool_use" && acc.done)
+        #expect(acc.toolCalls.count == 1 && acc.toolCalls[0].name == "exercise_stats" && acc.toolCalls[0].input["name"] as? String == "Press")
+        #expect(acc.assistantContent.count == 2 && acc.assistantContent[1]["id"] as? String == "tu_1")
+    }
+
+    @Test func toolsAnswerFromData() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press de banca", sets: 3, weight: 60, reps: 8, on: .monday)
+        var ex2 = ex; ex2.setupNote = "Asiento en el 4"; box.vm.updateBaseExercise(ex2)
+        var rec = WorkoutExercise(exerciseId: ex.id)
+        rec.setLogs = [SetLog(reps: 8, weight: 62.5, rpe: 8, date: TestBox.daysAgo(2).addingTimeInterval(3600 * 18))]
+        rec.completedSets = 1
+        box.vm.workoutHistory[TestBox.daysAgo(2)] = [.monday: [rec]]
+        box.vm.sessionNotes[TestBox.daysAgo(2)] = "Me molestaba el hombro"
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let h = box.vm.runCoachTool("history", ["from": f.string(from: TestBox.daysAgo(7)), "to": f.string(from: Date())])
+        #expect(h.contains("Press de banca 1 series") && h.contains("62,5 kg × 8") && h.contains("hombro"))
+        #expect(box.vm.runCoachTool("exercise_stats", ["name": "press de banca"]).contains("Récord: 62,5 kg"))
+        #expect(box.vm.runCoachTool("search_notes", ["query": "asiento"]).contains("Asiento en el 4"))
+        #expect(box.vm.runCoachTool("search_notes", ["query": "hombro"]).contains("Me molestaba"))
+        #expect(box.vm.runCoachTool("consistency_report", [:]).contains("Racha actual"))
+    }
+
+    @Test func proposalsAreValidatedAppliedAndUndone() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (bench, _) = box.add("Press de banca", sets: 3, weight: 60, reps: 8, on: .monday)
+        _ = box.add("Curl con barra", sets: 3, weight: 20, reps: 10, on: .monday)
+        let answer = box.vm.runCoachTool("propose_changes", ["reason": "Más volumen de pecho", "changes": [
+            ["kind": "substitute", "day": "Lunes", "exercise": "Curl con barra", "new_exercise": "Curl martillo"],
+            ["kind": "sets_reps", "exercise": "Press de banca", "sets": 5, "reps": 5],
+            ["kind": "add", "day": "Lunes", "exercise": "Cruce de poleas", "sets": 3, "reps": 12],
+            ["kind": "remove", "exercise": "Ejercicio fantasma"],
+        ]])
+        #expect(answer.contains("3 cambios") && answer.contains("fantasma"))
+        guard let pr = CoachProposals.shared.latest else { Issue.record("sin propuesta"); return }
+        #expect(box.vm.getExercise(by: bench.id)?.totalSets == 3, "proponer no aplica nada")
+        let undo = box.vm.apply(pr)
+        let monday = box.vm.dailyWorkoutRecords[.monday]!.compactMap { box.vm.getExercise(by: $0.exerciseId)?.name }
+        #expect(monday == ["Press de banca", "Curl martillo", "Cruce de poleas"])
+        #expect(box.vm.getExercise(by: bench.id)?.totalSets == 5 && box.vm.getExercise(by: bench.id)?.repetitions == 5)
+        box.vm.undoCoach(undo!)
+        let back = box.vm.dailyWorkoutRecords[.monday]!.compactMap { box.vm.getExercise(by: $0.exerciseId)?.name }
+        #expect(back == ["Press de banca", "Curl con barra"], "deshacer lo deja como estaba")
+        #expect(box.vm.getExercise(by: bench.id)?.totalSets == 3)
+        CoachProposals.shared.latest = nil
+    }
+
+    @Test func pastedRoutineCreatesWhatIsMissing() {
+        let box = TestBox(); defer { box.tearDown() }
+        let g = GeneratedRoutine(name: "De WhatsApp", notes: "", days: [
+            .init(day: "Lunes", label: "Torso", exercises: [.init(name: "press de banca", sets: 4, reps: 8, restSeconds: 120),
+                                                             .init(name: "Remo Kroc", sets: 3, reps: 12, restSeconds: 90)]),
+            .init(day: "Jueves", label: "Pierna", exercises: [.init(name: "Sentadilla", sets: 5, reps: 5, restSeconds: 180)])])
+        #expect(box.vm.applyParsedRoutine(g, named: "") == 3)
+        #expect(box.vm.activeRoutineName == "De WhatsApp")
+        let kroc = box.vm.availableExercises.first { $0.name == "Remo Kroc" }
+        #expect(kroc?.totalSets == 3 && kroc?.repetitions == 12 && kroc?.restDuration == 90, "el que no está en el catálogo se crea")
+        #expect(box.vm.label(for: .thursday) == "Pierna")
+        #expect(box.vm.availableExercises.filter { ExerciseLibrary.fold($0.name) == "press de banca" }.count == 1)
+    }
+}

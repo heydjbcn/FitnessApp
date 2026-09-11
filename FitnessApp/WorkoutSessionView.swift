@@ -30,6 +30,17 @@ struct WorkoutSessionView: View {
     /// Cuenta atrás de un ejercicio por tiempo en curso.
     @State private var timedEnd: Date? = nil
     @State private var timedSpoken = -1
+    /// Bloque AMRAP/EMOM abierto con su reloj.
+    @State private var runningBlock: BlockTarget? = nil
+    @State private var busy: BusyTarget? = nil
+    @StateObject private var voice = VoiceInput()
+    @State private var warmup: MobilityRoutine? = nil
+    @State private var warmupDismissed = false
+    /// Lo último que se oyó y qué se hizo con ello.
+    @State private var heard: String? = nil
+    @State private var showingDeadline = false
+    struct BusyTarget: Identifiable { let recordId: UUID; let exerciseId: UUID; var id: UUID { recordId } }
+    struct BlockTarget: Identifiable { let group: Int; var id: Int { group } }
 
     private var p: Palette { themeManager.p }
 
@@ -67,6 +78,32 @@ struct WorkoutSessionView: View {
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = keepScreenOn || AppDefaults.isTesting }
         .onReceive(Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()) { now in tickTimed(now) }
+        .sheet(item: $busy) { b in
+            if let ex = viewModel.getExercise(by: b.exerciseId) {
+                BusySheet(exercise: ex, recordId: b.recordId, day: day,
+                          onLater: { if let r = viewModel.dailyWorkoutRecords[day]?.first(where: { $0.id == b.recordId }) { skip(r) } },
+                          onSwapped: { advance() })
+                    .environmentObject(viewModel)
+                    .environmentObject(themeManager)
+            }
+        }
+        .fullScreenCover(item: $warmup, onDismiss: { warmupDismissed = true }) { r in
+            PhaseRunnerView(title: r.name, phases: r.phases, cues: { TechniqueGuide.entry(for: $0.name)?.cues }) { work, start, end in
+                viewModel.logMobility(r, completed: work, start: start, end: end)
+            }
+            .environmentObject(viewModel)
+            .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showingDeadline) {
+            TimeBudgetSheet(day: day)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .fullScreenCover(item: $runningBlock, onDismiss: { advance() }) { b in
+            BlockRunnerView(day: day, group: b.group)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
         .confirmationDialog("¿Terminar el entreno?", isPresented: $confirmFinish, titleVisibility: .visible) {
             Button("Terminar y ver resumen") { finish() }
         } message: {
@@ -82,12 +119,21 @@ struct WorkoutSessionView: View {
         return HStack(spacing: 12) {
             CloseCircle(p: p) { dismiss() }
             VStack(alignment: .leading, spacing: 1) {
-                Text(viewModel.label(for: day) ?? day.displayName)
+                Text((viewModel.label(for: day) ?? viewModel.slotName(day)).loc)
                     .font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
                 TimelineView(.periodic(from: .now, by: 1)) { ctx in
                     let start = viewModel.sessionBounds(for: day)?.start ?? openedAt
                     Text("\(clock(ctx.date.timeIntervalSince(start))) · \(done)/\(total) series")
                         .font(.fig(12, .medium)).foregroundColor(p.mute).monospacedDigit()
+                }
+                if let d = viewModel.sessionDeadline {
+                    let late = viewModel.isRunningLate(day)
+                    Button { showingDeadline = true } label: {
+                        Text((late ? "Vas tarde para las \(TimeBudgetSheet.time(d)) · recortar" : String(localized: "Límite \(TimeBudgetSheet.time(d))")).loc)
+                            .font(.fig(11, .bold)).foregroundColor(late ? p.danger : p.acc)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("session.deadline")
                 }
             }
             Spacer()
@@ -110,20 +156,37 @@ struct WorkoutSessionView: View {
         return VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
+                    if let w = viewModel.warmupLink(day), !warmupDismissed, viewModel.completedSets(for: day) == 0 {
+                        HStack(spacing: 10) {
+                            Image(systemName: "figure.flexibility").foregroundColor(p.acc)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Calentamiento: \(w.name)").font(.fig(14, .bold)).foregroundColor(p.ink)
+                                Text("\(w.totalSeconds / 60) min, antes de empezar").font(.fig(12, .medium)).foregroundColor(p.mute)
+                            }
+                            Spacer()
+                            Button("Empezar") { warmup = w }.font(.fig(13, .bold)).foregroundColor(p.acc)
+                                .accessibilityIdentifier("session.warmup")
+                            Button { warmupDismissed = true } label: { Image(systemName: "xmark") }
+                                .font(.system(size: 12, weight: .bold)).foregroundColor(p.mute)
+                        }
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(p.soft))
+                        .padding(.top, 12)
+                    }
                     ExerciseIcon(exercise: ex, size: 76, radius: 24, gradient: true, p: p)
                         .padding(.top, 18)
                     if let g = rec.supersetGroup {
-                        DayTag(text: "Superserie \(ExerciseDetailSheet.ssLetter(g))", icon: "arrow.triangle.2.circlepath",
+                        DayTag(text: "\(viewModel.block(day, g).kind.label) \(ExerciseDetailSheet.ssLetter(g))", icon: "arrow.triangle.2.circlepath",
                                filled: true, p: p)
                             .padding(.top, 12)
                     }
-                    Text(ex.name)
+                    Text((ex.name).loc)
                         .font(.bri(30)).em(-0.03, size: 30)
                         .foregroundColor(p.ink)
                         .multilineTextAlignment(.center)
                         .padding(.top, 10)
                         .accessibilityIdentifier("session.exercise")
-                    Text("Serie \(rec.completedSets + 1) de \(ex.totalSets)")
+                    Text("Serie \(rec.completedSets + 1) de \(rec.planned(ex))")
                         .font(.fig(15, .semibold)).foregroundStyle(p.hgrad)
                         .padding(.top, 4)
                     if let note = ex.setupText {
@@ -139,7 +202,9 @@ struct WorkoutSessionView: View {
                         timedPanel(ex).padding(.top, 20)
                     } else {
                         valuesPanel(ex).padding(.top, 20)
-                        if rec.completedSets == 0 { WarmupCard(work: weight, p: p).padding(.top, 12) }
+                        if rec.completedSets == 0 && ex.loadKind == .total {
+                            WarmupCard(work: weight, p: p, bar: viewModel.activeEquipment.barWeightKg).padding(.top, 12)
+                        }
                     }
                 }
                 .padding(.horizontal, 22)
@@ -148,7 +213,22 @@ struct WorkoutSessionView: View {
 
             // Pie: saltar y el botón gordo.
             VStack(spacing: 10) {
-                if !timed || timedEnd == nil {
+                if let g = rec.supersetGroup, viewModel.block(day, g).kind.timed {
+                    let b = viewModel.block(day, g)
+                    Button { runningBlock = BlockTarget(group: g) } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "timer").font(.system(size: 22, weight: .heavy))
+                            Text("Empezar \(b.kind.label) de \(b.minutes) min").font(.bri(22))
+                        }
+                        .foregroundColor(p.onacc)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 84)
+                        .background(RoundedRectangle(cornerRadius: 30, style: .continuous).fill(p.hgrad))
+                        .shadow(color: p.glow1, radius: 18, y: 12)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("session.block")
+                } else if !timed || timedEnd == nil {
                     Button { done(rec, ex) } label: {
                         HStack(spacing: 10) {
                             Image(systemName: timed ? "play.fill" : "checkmark").font(.system(size: 22, weight: .heavy))
@@ -163,7 +243,26 @@ struct WorkoutSessionView: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("session.done")
                 }
+                if let heard = voice.listening ? (voice.transcript.isEmpty ? "Te escucho…" : voice.transcript) : heard {
+                    Text((heard).loc)
+                        .font(.fig(13, .semibold)).foregroundColor(voice.listening ? p.acc : p.mute)
+                        .lineLimit(2).multilineTextAlignment(.center)
+                        .accessibilityIdentifier("session.heard")
+                }
+                if let problem = voice.problem {
+                    Text((problem).loc).font(.fig(12, .medium)).foregroundColor(p.danger).multilineTextAlignment(.center)
+                }
                 HStack(spacing: 14) {
+                    Button { listen(rec, ex) } label: {
+                        Image(systemName: voice.listening ? "waveform" : "mic.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(voice.listening ? p.onacc : p.ink)
+                            .frame(width: 40, height: 40)
+                            .background(Circle().fill(voice.listening ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
+                            .symbolEffect(.variableColor.iterative, isActive: voice.listening)
+                    }
+                    .accessibilityIdentifier("session.mic")
+                    .accessibilityLabel(voice.listening ? "Dejar de escuchar" : "Apuntar hablando")
                     if rec.completedSets > 0 {
                         Button { viewModel.undoLastSet(for: rec.id, in: day); load() } label: {
                             Label("Deshacer", systemImage: "arrow.uturn.backward").font(.fig(13, .semibold))
@@ -171,8 +270,12 @@ struct WorkoutSessionView: View {
                         .accessibilityIdentifier("session.undo")
                     }
                     Spacer()
+                    Button { busy = BusyTarget(recordId: rec.id, exerciseId: ex.id) } label: {
+                        Label("Está ocupada", systemImage: "person.2.fill").font(.fig(13, .semibold))
+                    }
+                    .accessibilityIdentifier("session.busy")
                     Button { skip(rec) } label: {
-                        Label("Saltar ejercicio", systemImage: "forward.fill").font(.fig(13, .semibold))
+                        Label("Saltar", systemImage: "forward.fill").font(.fig(13, .semibold))
                     }
                     .accessibilityIdentifier("session.skip")
                 }
@@ -186,10 +289,11 @@ struct WorkoutSessionView: View {
 
     private func valuesPanel(_ ex: Exercise) -> some View {
         VStack(spacing: 10) {
-            if ex.weight > 0 || weight > 0 {
-                bigStepper(label: "Peso", value: WorkoutViewModel.kg(weight), id: "weight",
-                           minus: { weight = max(0, weight - 2.5) }, plus: { weight += 2.5 },
-                           fine: [("−1", { weight = max(0, weight - 1) }), ("+1", { weight += 1 })])
+            if ex.weight > 0 || weight > 0 || ex.loadKind == .bodyweight || ex.loadKind == .assisted {
+                bigStepper(label: ex.loadKind.fieldLabel, value: WorkoutViewModel.kg(weight), id: "weight",
+                           minus: { weight = Units.stepped(weight, by: -1) }, plus: { weight = Units.stepped(weight, by: 1) },
+                           fine: [("−\(Units.plain(Units.fineStep))", { weight = Units.stepped(weight, by: -1, step: Units.fineStep) }),
+                                  ("+\(Units.plain(Units.fineStep))", { weight = Units.stepped(weight, by: 1, step: Units.fineStep) })])
             }
             bigStepper(label: "Repeticiones", value: "\(reps)", id: "reps",
                        minus: { reps = max(0, reps - 1) }, plus: { reps += 1 }, fine: [])
@@ -214,15 +318,15 @@ struct WorkoutSessionView: View {
                             plus: @escaping () -> Void, fine: [(String, () -> Void)]) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.fig(12, .medium)).foregroundColor(p.mute)
-                Text(value).font(.bri(34)).foregroundColor(p.ink).monospacedDigit()
+                Text((label).loc).font(.fig(12, .medium)).foregroundColor(p.mute)
+                Text((value).loc).font(.bri(34)).foregroundColor(p.ink).monospacedDigit()
                     .accessibilityIdentifier("session.\(id)")
             }
             .frame(minWidth: 110, alignment: .leading)
             Spacer(minLength: 0)
             ForEach(fine.indices, id: \.self) { i in
                 Button { fine[i].1(); HapticManager.shared.selectionFeedback() } label: {
-                    Text(fine[i].0).font(.fig(13, .bold)).foregroundColor(p.ink)
+                    Text((fine[i].0).loc).font(.fig(13, .bold)).foregroundColor(p.ink)
                         .frame(width: 42, height: 50)
                         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.card))
                 }
@@ -313,6 +417,55 @@ struct WorkoutSessionView: View {
         advance()
     }
 
+    // MARK: - Voz
+
+    private func listen(_ rec: WorkoutExercise, _ ex: Exercise) {
+        heard = nil
+        voice.toggle { text in apply(VoiceCommandParser.parse(text, language: VoiceInput.language), text: text) }
+    }
+
+    /// Lo que se ha dicho, hecho. Lo que no se diga (peso, reps) se queda como estaba.
+    func apply(_ command: VoiceCommand, text: String) {
+        guard let cur = current else { return }
+        let (rec, ex) = (cur.record, cur.exercise)
+        switch command {
+        case .set(let w, let unit, let r, let e):
+            if let w {
+                weight = unit == .lb ? w / Units.lbPerKg : unit == .kg ? w : Units.toKg(w)
+            }
+            if let r { reps = r }
+            if let e { rpe = e }
+            let what = [w.map { _ in WorkoutViewModel.kg(weight) }, r.map { "\($0) \(ex.segundos > 0 ? "s" : "reps")" }, e.map { String(localized: "RPE \($0)") }]
+                .compactMap { $0 }.joined(separator: " × ")
+            heard = "«\(text)» → \(what)"
+            if ex.segundos > 0 {
+                viewModel.completeSet(for: rec.id, in: day, weight: weight, reps: r ?? ex.segundos, rpe: rpe)
+                advance()
+            } else {
+                done(rec, ex)
+            }
+            VoiceCoach.shared.say("Apuntado", interrupt: true)
+        case .done:
+            heard = String(localized: "«\(text)» → hecho")
+            done(rec, ex)
+        case .next:
+            heard = String(localized: "«\(text)» → siguiente")
+            skip(rec)
+        case .undo:
+            heard = String(localized: "«\(text)» → deshecho")
+            if rec.completedSets > 0 { viewModel.undoLastSet(for: rec.id, in: day); load() }
+        case .rest:
+            heard = String(localized: "«\(text)» → descanso")
+            if !viewModel.timerActive { viewModel.timerLabel = "Descanso"; viewModel.startTimer(duration: max(30, ex.restDuration)) }
+        case .busy:
+            heard = String(localized: "«\(text)» → está ocupada")
+            busy = BusyTarget(recordId: rec.id, exerciseId: ex.id)
+        case .unknown:
+            heard = String(localized: "No te he entendido: «\(text)». Prueba «80 kilos por 8» o «hecho».")
+            HapticManager.shared.warning()
+        }
+    }
+
     private func skip(_ rec: WorkoutExercise) {
         skipped.insert(rec.id)
         HapticManager.shared.selectionFeedback()
@@ -382,7 +535,7 @@ private struct RestOverlay: View {
                 if let next = viewModel.nextUpText(in: day) {
                     VStack(spacing: 4) {
                         UpperLabel(text: "Siguiente", p: p)
-                        Text(next).font(.fig(17, .bold)).foregroundColor(p.ink).multilineTextAlignment(.center)
+                        Text((next).loc).font(.fig(17, .bold)).foregroundColor(p.ink).multilineTextAlignment(.center)
                     }
                     .padding(.top, 26).padding(.horizontal, 30)
                 }
@@ -419,7 +572,7 @@ struct SessionSummaryView: View {
                         .frame(maxWidth: .infinity).padding(.top, 30)
                     Text("¡Buen entreno!").font(.bri(32)).em(-0.03, size: 32).foregroundColor(p.ink)
                         .frame(maxWidth: .infinity).padding(.top, 10)
-                    Text(subtitle).font(.fig(14, .medium)).foregroundColor(p.mute)
+                    Text((subtitle).loc).font(.fig(14, .medium)).foregroundColor(p.mute)
                         .frame(maxWidth: .infinity).padding(.top, 4)
 
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -435,9 +588,9 @@ struct SessionSummaryView: View {
                         ForEach(summary.records, id: \.name) { r in
                             HStack {
                                 Image(systemName: "trophy.fill").foregroundStyle(p.hgrad)
-                                Text(r.name).font(.fig(15, .semibold)).foregroundColor(p.ink)
+                                Text((r.name).loc).font(.fig(15, .semibold)).foregroundColor(p.ink)
                                 Spacer()
-                                Text(WorkoutViewModel.kg(r.weight)).font(.bri(16)).foregroundColor(p.acc)
+                                Text((WorkoutViewModel.kg(r.weight)).loc).font(.bri(16)).foregroundColor(p.acc)
                             }
                             .padding(12)
                             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
@@ -445,7 +598,7 @@ struct SessionSummaryView: View {
                     }
 
                     if let prev = summary.previous {
-                        UpperLabel(text: "Frente a la última vez · \(WeeklyCalendarView.longDate(prev.date).lowercased())", p: p)
+                        UpperLabel(text: String(localized: "Frente a la última vez · \(WeeklyCalendarView.longDate(prev.date).lowercased())"), p: p)
                             .padding(.top, 22).padding(.bottom, 8)
                         HStack(spacing: 10) {
                             delta("Tonelaje", now: summary.volume, before: prev.volume, percent: true)
@@ -474,15 +627,15 @@ struct SessionSummaryView: View {
     }
 
     private var subtitle: String {
-        let name = summary.label.map { "\(summary.day.displayName) · \($0)" } ?? summary.day.displayName
-        return "\(name) · \(WeeklyCalendarView.longDate(Date()).lowercased())"
+        let name = summary.label.map { "\(summary.slotName) · \($0)" } ?? summary.slotName
+        return String(localized: "\(name) · \(WeeklyCalendarView.longDate(Date()).lowercased())")
     }
 
     private func stat(_ label: String, _ value: String, _ icon: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon).font(.system(size: 14, weight: .semibold)).foregroundColor(p.acc)
-            Text(value).font(.bri(24)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
-            Text(label).font(.fig(12, .medium)).foregroundColor(p.mute)
+            Text((value).loc).font(.bri(24)).foregroundColor(p.ink).lineLimit(1).minimumScaleFactor(0.7)
+            Text((label).loc).font(.fig(12, .medium)).foregroundColor(p.mute)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -498,8 +651,8 @@ struct SessionSummaryView: View {
             text = "\(diff >= 0 ? "+" : "")\(Int(diff))"
         }
         return VStack(alignment: .leading, spacing: 4) {
-            Text(text).font(.bri(22)).foregroundColor(diff >= 0 ? p.acc : Pulso.danger(isDark: p.dark))
-            Text(label).font(.fig(12, .medium)).foregroundColor(p.mute)
+            Text((text).loc).font(.bri(22)).foregroundColor(diff >= 0 ? p.acc : Pulso.danger(isDark: p.dark))
+            Text((label).loc).font(.fig(12, .medium)).foregroundColor(p.mute)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -526,7 +679,7 @@ struct SessionShareCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("CHAMAFIT").font(.fig(13, .bold)).tracking(2).foregroundColor(p.mute)
                 Spacer()
-                Text(summary.day.displayName).font(.bri(46)).em(-0.03, size: 46).foregroundColor(p.ink)
+                Text((summary.slotName).loc).font(.bri(46)).em(-0.03, size: 46).foregroundColor(p.ink)
                 if let label = summary.label {
                     GradientText(text: label, font: .bri(38), p: p, tracking: -0.03 * 38).lineLimit(2)
                 }
@@ -535,12 +688,12 @@ struct SessionShareCard: View {
                     row("\(summary.sets)", "series")
                     row(WorkoutViewModel.tonnageText(summary.volume), "levantados")
                     if let r = summary.records.first {
-                        row("🏆 \(WorkoutViewModel.kg(r.weight))", "récord en \(r.name)")
+                        row("🏆 \(WorkoutViewModel.kg(r.weight))", String(localized: "récord en \(r.name)"))
                     }
                 }
                 .padding(.top, 36)
                 Spacer()
-                Text(WeeklyCalendarView.longDate(Date())).font(.fig(14, .semibold)).foregroundColor(p.mute)
+                Text((WeeklyCalendarView.longDate(Date())).loc).font(.fig(14, .semibold)).foregroundColor(p.mute)
             }
             .padding(34)
         }
@@ -549,8 +702,8 @@ struct SessionShareCard: View {
 
     private func row(_ big: String, _ small: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(big).font(.bri(40)).foregroundStyle(p.hgrad)
-            Text(small).font(.fig(16, .semibold)).foregroundColor(p.ink)
+            Text((big).loc).font(.bri(40)).foregroundStyle(p.hgrad)
+            Text((small).loc).font(.fig(16, .semibold)).foregroundColor(p.ink)
         }
     }
 }
@@ -573,8 +726,8 @@ struct TimedSetSheet: View {
         PulsoSheet(p: p) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    UpperLabel(text: "Serie \(setNumber) · por tiempo", p: p)
-                    Text(exercise.name).font(.bri(20)).foregroundColor(p.ink)
+                    UpperLabel(text: String(localized: "Serie \(setNumber) · por tiempo"), p: p)
+                    Text((exercise.name).loc).font(.bri(20)).foregroundColor(p.ink)
                 }
                 Spacer()
                 CloseCircle(p: p) { dismiss() }

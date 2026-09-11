@@ -41,8 +41,8 @@ struct SetQuickEditor: View {
         PulsoSheet(p: p) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    UpperLabel(text: "Serie \(setNumber) · \(existing == nil ? "marcar" : "editar")", p: p)
-                    Text(exercise.name)
+                    UpperLabel(text: String(localized: "Serie \(setNumber) · \((existing == nil ? "marcar" : "editar").loc)"), p: p)
+                    Text((exercise.name).loc)
                         .font(.bri(20)).em(-0.02, size: 20)
                         .foregroundColor(p.ink)
                         .lineLimit(1)
@@ -54,9 +54,10 @@ struct SetQuickEditor: View {
             .padding(.top, 22)
 
             VStack(spacing: 10) {
-                stepperRow(label: "Peso", value: WorkoutViewModel.kg(weight),
-                           minus: { weight = max(0, weight - 2.5) }, plus: { weight += 2.5 },
-                           fine: [("−1", { weight = max(0, weight - 1) }), ("+1", { weight += 1 })])
+                stepperRow(label: exercise.loadKind.fieldLabel, value: WorkoutViewModel.kg(weight),
+                           minus: { weight = Units.stepped(weight, by: -1) }, plus: { weight = Units.stepped(weight, by: 1) },
+                           fine: [("−\(Units.plain(Units.fineStep))", { weight = Units.stepped(weight, by: -1, step: Units.fineStep) }),
+                                  ("+\(Units.plain(Units.fineStep))", { weight = Units.stepped(weight, by: 1, step: Units.fineStep) })])
                 stepperRow(label: exercise.segundos > 0 ? "Segundos" : "Repeticiones", value: "\(reps)",
                            minus: { reps = max(0, reps - 1) }, plus: { reps += 1 },
                            fine: [("−5", { reps = max(0, reps - 5) }), ("+5", { reps += 5 })])
@@ -65,7 +66,7 @@ struct SetQuickEditor: View {
                     ForEach(SetType.allCases, id: \.self) { t in
                         let on = type == t
                         Button { type = t; HapticManager.shared.selectionFeedback() } label: {
-                            Text(t.label)
+                            Text((t.label).loc)
                                 .font(.fig(12, on ? .bold : .semibold))
                                 .foregroundColor(on ? p.onacc : p.mute)
                                 .frame(maxWidth: .infinity)
@@ -111,8 +112,8 @@ struct SetQuickEditor: View {
                             fine: [(String, () -> Void)]) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.fig(11, .medium)).foregroundColor(p.mute)
-                Text(value).font(.bri(24)).foregroundColor(p.ink).monospacedDigit()
+                Text((label).loc).font(.fig(11, .medium)).foregroundColor(p.mute)
+                Text((value).loc).font(.bri(24)).foregroundColor(p.ink).monospacedDigit()
             }
             .frame(minWidth: 96, alignment: .leading)
             Spacer(minLength: 0)
@@ -140,7 +141,7 @@ struct SetQuickEditor: View {
 
     private func smallButton(_ title: String, _ action: @escaping () -> Void) -> some View {
         Button { action(); HapticManager.shared.selectionFeedback() } label: {
-            Text(title)
+            Text((title).loc)
                 .font(.fig(12, .bold))
                 .foregroundColor(p.ink)
                 .frame(width: 40, height: 44)

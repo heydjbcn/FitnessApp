@@ -12,6 +12,16 @@ import SwiftUI
 
 enum CoachEngine: String { case apple, claude }
 
+/// Un turno del chat y, si el coach propuso cambios, su estado.
+struct CoachTurn {
+    var question: String
+    var answer: String
+    var proposal: CoachProposal? = nil
+    /// Copia de antes de aplicar (para deshacer).
+    var undo: Data? = nil
+    var discarded = false
+}
+
 struct CoachAIView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
@@ -25,7 +35,8 @@ struct CoachAIView: View {
     @State private var showingContext = false
 
     @State private var prompt = ""
-    @State private var thread: [(question: String, answer: String)] = []
+    @State private var thread: [CoachTurn] = []
+    @State private var showingTextToPlan = false
     @State private var loading = false
     @State private var errorMsg: String?
     @State private var keyDraft = ""
@@ -67,6 +78,11 @@ struct CoachAIView: View {
             if needsKey { keyEntry } else { chat }
         }
         .sheet(isPresented: $showingContext) { contextSheet }
+        .sheet(isPresented: $showingTextToPlan) {
+            TextToPlanSheet(engine: engine)
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
         .sheet(isPresented: $showingGenerator) {
             RoutineGeneratorSheet(engine: engine)
                 .environmentObject(viewModel)
@@ -156,9 +172,9 @@ struct CoachAIView: View {
                 Text("Activa el Coach con Claude")
                     .font(.bri(20)).em(-0.02, size: 20).foregroundColor(p.ink)
                     .padding(.top, 16)
-                Text(appleOK
+                Text((appleOK
                      ? "Pega tu API key de Anthropic (de pago por uso, se guarda en el llavero de este iPhone). Sin key, usa «iPhone · gratis»."
-                     : "Pega tu API key de Anthropic. Es de pago por uso y se guarda en el llavero de este iPhone. \(OnDeviceCoach.unavailableReason)")
+                     : String(localized: "Pega tu API key de Anthropic. Es de pago por uso y se guarda en el llavero de este iPhone. \(OnDeviceCoach.unavailableReason)")).loc)
                     .font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
                     .padding(.top, 6)
                 UpperLabel(text: "API key", p: p).padding(.top, 18).padding(.bottom, 6)
@@ -205,13 +221,15 @@ struct CoachAIView: View {
                             actionChip("Crear rutina con IA", icon: "wand.and.stars") { showingGenerator = true }
                                 .accessibilityIdentifier("coach.generate")
                         }
+                        actionChip("Pegar una rutina (WhatsApp, entrenador…)", icon: "doc.on.clipboard") { showingTextToPlan = true }
+                            .accessibilityIdentifier("coach.paste")
                         .padding(.top, 6)
                         if thread.isEmpty && !loading {
                             UpperLabel(text: "Prueba a preguntar", p: p).padding(.top, 6)
                             ForEach(suggestions, id: \.self) { s in
                                 Button { prompt = s; send() } label: {
                                     HStack {
-                                        Text(s).font(.fig(14, .medium)).foregroundColor(p.ink)
+                                        Text((s).loc).font(.fig(14, .medium)).foregroundColor(p.ink)
                                             .multilineTextAlignment(.leading)
                                         Spacer()
                                         Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundColor(p.acc)
@@ -225,6 +243,7 @@ struct CoachAIView: View {
                         ForEach(Array(thread.enumerated()), id: \.offset) { i, turn in
                             bubble(turn.question, mine: true)
                             if !turn.answer.isEmpty { bubble(turn.answer, mine: false).id(i) }
+                            if let pr = turn.proposal, !turn.discarded { proposalCard(pr, i) }
                         }
                         if loading && (thread.last?.answer.isEmpty ?? true) {
                             HStack(spacing: 8) {
@@ -235,7 +254,7 @@ struct CoachAIView: View {
                             .id("loading")
                         }
                         if let e = errorMsg {
-                            Text(e).font(.fig(13, .medium)).foregroundColor(p.danger)
+                            Text((e).loc).font(.fig(13, .medium)).foregroundColor(p.danger)
                                 .padding(.horizontal, 14).padding(.vertical, 10)
                                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.danger.opacity(0.12)))
                         }
@@ -278,9 +297,44 @@ struct CoachAIView: View {
         }
     }
 
+    /// Cambios propuestos: Aplicar / Descartar y, tras aplicar, Deshacer.
+    private func proposalCard(_ pr: CoachProposal, _ i: Int) -> some View {
+        let applied = thread[i].undo != nil
+        return VStack(alignment: .leading, spacing: 8) {
+            Label(applied ? "Cambios aplicados" : "Cambios propuestos", systemImage: applied ? "checkmark.seal.fill" : "wand.and.stars")
+                .font(.fig(13, .bold)).foregroundColor(p.acc)
+            if !pr.reason.isEmpty { Text((pr.reason).loc).font(.fig(12, .medium)).foregroundColor(p.mute) }
+            ForEach(Array(pr.changes.enumerated()), id: \.offset) { _, c in
+                Label(c.text.loc, systemImage: "arrow.right").font(.fig(13, .semibold)).foregroundColor(p.ink)
+            }
+            HStack(spacing: 8) {
+                if applied {
+                    SoftButton(title: "Deshacer", icon: "arrow.uturn.backward", height: 38, fontSize: 13, p: p) {
+                        if let d = thread[i].undo { viewModel.undoCoach(d) }
+                        thread[i].undo = nil
+                        thread[i].discarded = true
+                        HapticManager.shared.warning()
+                    }
+                    .accessibilityIdentifier("coach.undo")
+                } else {
+                    SoftButton(title: "Descartar", height: 38, fontSize: 13, p: p) { thread[i].discarded = true }
+                        .accessibilityIdentifier("coach.discard")
+                    PrimaryButton(title: "Aplicar", icon: "checkmark", height: 38, fontSize: 13, p: p) {
+                        thread[i].undo = viewModel.apply(pr) ?? Data()
+                    }
+                    .accessibilityIdentifier("coach.apply")
+                }
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(p.acc.opacity(0.5), lineWidth: 1.5))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("coach.proposal")
+    }
+
     private func actionChip(_ title: String, icon: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon).font(.fig(13, .bold))
+            Label(title.loc, systemImage: icon).font(.fig(13, .bold))
                 .foregroundColor(p.onacc)
                 .frame(maxWidth: .infinity).frame(height: 40)
                 .background(Capsule().fill(p.hgrad))
@@ -293,7 +347,7 @@ struct CoachAIView: View {
         HStack {
             if mine { Spacer(minLength: 40) }
             Group {
-                if mine { Text(text) } else { Text((try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)) }
+                if mine { Text((text).loc) } else { Text((try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)) }
             }
             .font(.fig(14, mine ? .semibold : .medium))
             .lineSpacing(4)
@@ -324,19 +378,27 @@ struct CoachAIView: View {
         errorMsg = nil
         focused = false
         let history = thread.filter { !$0.answer.isEmpty }.map { ($0.question, $0.answer) }
-        thread.append((q, ""))
+        thread.append(CoachTurn(question: q, answer: ""))
         let index = thread.count - 1
         let useApple = engine == .apple
         let ctx = viewModel.coachContext(compact: useApple, recovery: includeHealth ? health.recovery : nil)
+        CoachProposals.shared.latest = nil
+        let vm = viewModel
         streamTask = Task {
             do {
-                let stream = useApple
-                    ? OnDeviceCoach.stream(q, context: ctx, history: history)
-                    : coach.stream(q, context: ctx, history: history)
+                let stream: AsyncThrowingStream<String, Error>
+                if AppDefaults.has("--fake-ai") {
+                    stream = Self.fakeStream(q, vm: vm)
+                } else if useApple {
+                    stream = OnDeviceCoach.stream(q, context: ctx, history: history, tools: true)
+                } else {
+                    stream = coach.streamWithTools(q, context: ctx, history: history) { name, input in vm.runCoachTool(name, input) }
+                }
                 for try await text in stream where index < thread.count {
                     thread[index].answer = text
                 }
                 if thread[index].answer.isEmpty { thread[index].answer = "(sin respuesta)" }
+                if index < thread.count { thread[index].proposal = CoachProposals.shared.latest }
             } catch is CancellationError {
             } catch {
                 if index < thread.count, thread[index].answer.isEmpty { thread.remove(at: index) }
@@ -345,4 +407,19 @@ struct CoachAIView: View {
             loading = false
         }
     }
+
+    /// Pruebas de UI (--fake-ai): sin red, el «coach» propone cambiar el primer ejercicio de hoy.
+    static func fakeStream(_ q: String, vm: WorkoutViewModel) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { c in
+            let day = vm.trainingDay
+            if let first = vm.dailyWorkoutRecords[day]?.first.flatMap({ vm.getExercise(by: $0.exerciseId) }),
+               let alt = vm.alternatives(for: first.name).first {
+                _ = vm.runCoachTool("propose_changes", ["reason": "Prueba", "changes": [
+                    ["kind": "substitute", "day": day.rawValue, "exercise": first.name, "new_exercise": alt.name]]])
+            }
+            c.yield("Te propongo un cambio para hoy.")
+            c.finish()
+        }
+    }
 }
+

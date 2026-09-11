@@ -18,6 +18,8 @@ import WidgetKit
 enum AppAction: Equatable {
     case markSet, undoSet, startRest, extendRest, stopRest, today, openWorkout
     case logWeight(Double)
+    /// Serie con peso (en la unidad de la app) y repeticiones dichos a Siri.
+    case logSet(weight: Double, reps: Int)
 }
 
 /// Puente entre los intents (que no conocen el modelo) y la app. La app lo
@@ -137,10 +139,26 @@ struct StartWorkoutIntent: AppIntent {
     }
 }
 
+/// «Apunta una serie en ChamaFit» → Siri pregunta peso y repeticiones.
+struct LogSetIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Apuntar serie"
+    static let description = IntentDescription("Apunta la siguiente serie del entreno de hoy con el peso y las repeticiones que digas.")
+    /// En la unidad que tengas elegida en la app (kg o lb). 0 = peso corporal.
+    @Parameter(title: "Peso", inclusiveRange: (0, 700)) var weight: Double
+    @Parameter(title: "Repeticiones", inclusiveRange: (1, 100)) var reps: Int
+    static var parameterSummary: some ParameterSummary { Summary("Apuntar \(\.$weight) por \(\.$reps)") }
+    init() {}
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let text = await MainActor.run { AppActionBridge.shared.run(.logSet(weight: weight, reps: reps)) }
+        return .result(dialog: "\(text)")
+    }
+}
+
 struct LogBodyWeightIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Apuntar peso corporal"
     static let description = IntentDescription("Guarda tu peso de hoy en ChamaFit (y en Salud si le has dado permiso).")
-    @Parameter(title: "Peso (kg)", inclusiveRange: (20, 300)) var weight: Double
+    /// En la unidad que tengas elegida en la app (kg o lb).
+    @Parameter(title: "Peso", inclusiveRange: (20, 700)) var weight: Double
     init() {}
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = await MainActor.run { AppActionBridge.shared.run(.logWeight(weight)) }

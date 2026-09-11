@@ -25,6 +25,7 @@ enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
     var id: String { self.rawValue }
 
     var shortName: String {
+        if !AppLanguage.isSpanish { return shortLabel.uppercased(with: AppLanguage.locale) }
         switch self {
         case .monday: return "LUN"
         case .tuesday: return "MAR"
@@ -36,11 +37,19 @@ enum WorkoutDay: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Nombre completo del día ("Lunes", "Martes"…).
-    var displayName: String { rawValue }
+    /// Nombre completo del día en el idioma de la app ("Lunes", "Monday", "Dilluns").
+    var displayName: String {
+        guard !AppLanguage.isSpanish else { return rawValue }
+        let f = DateFormatter(); f.locale = AppLanguage.locale
+        return f.standaloneWeekdaySymbols[calendarWeekday - 1].capitalized(with: AppLanguage.locale)
+    }
 
     /// Nombre corto con acentuación ("Lun", "Mié", "Sáb"…).
     var shortLabel: String {
+        if !AppLanguage.isSpanish {
+            let f = DateFormatter(); f.locale = AppLanguage.locale
+            return f.shortStandaloneWeekdaySymbols[calendarWeekday - 1].replacingOccurrences(of: ".", with: "").capitalized(with: AppLanguage.locale)
+        }
         switch self {
         case .monday: return "Lun"
         case .tuesday: return "Mar"

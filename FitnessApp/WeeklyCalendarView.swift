@@ -32,6 +32,7 @@ struct WeeklyCalendarView: View {
     @State private var routineName = ""
     @State private var routineToDelete: Routine? = nil
     @State private var generating = false
+    @State private var showingPrograms = false
 
     // MARK: - Rutinas guardadas
 
@@ -47,14 +48,24 @@ struct WeeklyCalendarView: View {
                     }
                 }
             }
+            Section("Cómo se reparte") {
+                Picker("Cómo se reparte", selection: Binding(get: { viewModel.scheduleMode },
+                                                             set: { viewModel.setScheduleMode($0) })) {
+                    ForEach(ScheduleMode.allCases) { m in
+                        Label(m.label.loc, systemImage: m.icon).tag(m)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
             Section {
+                Button { showingPrograms = true } label: { Label("Programas de varias semanas…", systemImage: "chart.line.uptrend.xyaxis") }
                 Button { routineName = ""; namingNew = true } label: { Label("Nueva rutina…", systemImage: "plus") }
                 Button { routineName = viewModel.activeRoutineName; renaming = true } label: { Label("Renombrar la actual…", systemImage: "pencil") }
                 Button { generating = true } label: { Label("Crear rutina con IA…", systemImage: "wand.and.stars") }
                 ShareLink(item: RoutineFile(make: { [viewModel, userManager] in
                               (viewModel.activeRoutineName, try viewModel.routineFileData(author: userManager.userName))
                           }),
-                          preview: SharePreview("Rutina \(viewModel.activeRoutineName)")) {
+                          preview: SharePreview(String(localized: "Rutina \(viewModel.activeRoutineName)"))) {
                     Label("Compartir esta rutina…", systemImage: "square.and.arrow.up")
                 }
             }
@@ -69,8 +80,8 @@ struct WeeklyCalendarView: View {
             HStack(spacing: 10) {
                 IconTile(symbol: "list.bullet.rectangle.portrait", size: 34, radius: 11, p: p)
                 VStack(alignment: .leading, spacing: 1) {
-                    UpperLabel(text: "Rutina activa", p: p)
-                    Text(viewModel.activeRoutineName).font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
+                    UpperLabel(text: String(localized: "Rutina activa · \(viewModel.scheduleMode.label)"), p: p)
+                    Text((viewModel.activeRoutineName).loc).font(.fig(15, .bold)).foregroundColor(p.ink).lineLimit(1)
                 }
                 Spacer()
                 if !saved.isEmpty {
@@ -89,7 +100,8 @@ struct WeeklyCalendarView: View {
     }
 
     private var p: Palette { themeManager.p }
-    private var today: WorkoutDay { Self.getCurrentDay() }
+    /// La sesión de hoy según el modo de la rutina.
+    private var today: WorkoutDay { viewModel.todaySession }
 
     /// El día de entrenamiento de hoy.
     static func getCurrentDay() -> WorkoutDay {
@@ -121,6 +133,11 @@ struct WeeklyCalendarView: View {
             }
         }
         .onAppear { viewModel.updateTimerEnabledState(themeManager.isTimerEnabled) }
+        .sheet(isPresented: $showingPrograms) {
+            ProgramsSheet()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
         .alert("Nueva rutina", isPresented: $namingNew) {
             TextField("Nombre (Fuerza, Hipertrofia…)", text: $routineName)
             Button("Vacía") { viewModel.createRoutine(named: routineName, copyingCurrent: false) }
@@ -197,19 +214,19 @@ struct WeeklyCalendarView: View {
                     dayBadge(day)
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(day.displayName)
+                            Text((viewModel.slotName(day)).loc)
                                 .font(.fig(16, .bold))
                                 .foregroundColor(p.ink)
                             if let label = viewModel.label(for: day) {
-                                Text(label)
+                                Text((label).loc)
                                     .font(.fig(13, .medium))
                                     .foregroundColor(p.acc)
                                     .lineLimit(1)
                             }
                         }
-                        Text(records.isEmpty
-                             ? "Día libre · sin ejercicios"
-                             : "\(records.count) ejercicios · \(total) series · ~\(total * 3) min")
+                        Text((records.isEmpty
+                             ? (viewModel.scheduleMode == .sequence ? "Libre · añade ejercicios para crear otra sesión" : "Día libre · sin ejercicios")
+                             : String(localized: "\(records.count) ejercicios · \(total) series · ~\(total * 3) min")).loc)
                             .font(.fig(13, .medium))
                             .foregroundColor(p.mute)
                     }
@@ -250,7 +267,7 @@ struct WeeklyCalendarView: View {
     /// Cuadro de 46 de la izquierda: hoy en degradado, completado con ✓, el resto gris.
     @ViewBuilder private func dayBadge(_ day: WorkoutDay) -> some View {
         if day == today {
-            Text(day.shortLabel)
+            Text((viewModel.slotShort(day)).loc)
                 .font(.bri(13))
                 .foregroundColor(p.onacc)
                 .frame(width: 46, height: 46)
@@ -263,7 +280,7 @@ struct WeeklyCalendarView: View {
                 .frame(width: 46, height: 46)
                 .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(p.soft))
         } else {
-            Text(day.shortLabel)
+            Text((viewModel.slotShort(day)).loc)
                 .font(.bri(13))
                 .foregroundColor(p.mute)
                 .frame(width: 46, height: 46)
@@ -436,18 +453,18 @@ struct WeeklyCalendarView: View {
         let sub: String
         if let first = items.first {
             let sets = items.reduce(0) { $0 + $1.record.completedSets }
-            sub = first.day == weekday ? "Entrenamiento · \(sets) series" : "Hiciste la rutina del \(first.day.displayName.lowercased())"
+            sub = first.day == weekday ? "Entrenamiento · \(sets) series" : String(localized: "Hiciste la rutina del \(first.day.displayName.lowercased())")
         } else if !planned.isEmpty, let weekday {
-            sub = "Rutina del \(weekday.displayName.lowercased()) · \(planned.count) ejercicios"
+            sub = String(localized: "Rutina del \(weekday.displayName.lowercased()) · \(planned.count) ejercicios")
         } else {
             sub = "Día libre · sin ejercicios"
         }
 
         return VStack(alignment: .leading, spacing: 0) {
-            Text(Self.longDate(selectedDate))
+            Text((Self.longDate(selectedDate)).loc)
                 .font(.fig(16, .bold))
                 .foregroundColor(p.ink)
-            Text(sub)
+            Text((sub).loc)
                 .font(.fig(13, .medium))
                 .foregroundColor(p.mute)
                 .padding(.top, 3)
@@ -456,7 +473,7 @@ struct WeeklyCalendarView: View {
                 if !items.isEmpty {
                     ForEach(items, id: \.record.id) { item in
                         ExerciseListRow(exercise: item.exercise,
-                                        meta: "\(item.record.completedSets)/\(item.exercise.totalSets) series · \(viewModel.meta(for: item.exercise))",
+                                        meta: String(localized: "\(item.record.completedSets)/\(item.record.planned(item.exercise)) series · \(viewModel.meta(for: item.exercise))"),
                                         p: p) {
                             detail = DetailTarget(exerciseId: item.exercise.id, workoutExerciseId: nil, day: nil,
                                                   focusDate: selectedDate)
@@ -471,7 +488,7 @@ struct WeeklyCalendarView: View {
                         }
                     }
                     if planned.isEmpty {
-                        SoftButton(title: "+ Añadir ejercicio al \(weekday.displayName.lowercased())",
+                        SoftButton(title: String(localized: "+ Añadir ejercicio al \(weekday.displayName.lowercased())"),
                                    height: 44, p: p) {
                             formDay = HomeView.FormTarget(day: weekday)
                         }
@@ -489,7 +506,7 @@ struct WeeklyCalendarView: View {
     /// "Jueves, 10 de septiembre"
     static func longDate(_ date: Date) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "es_ES")
+        f.locale = AppLanguage.locale
         f.dateFormat = "EEEE, d 'de' MMMM"
         let s = f.string(from: date)
         return s.prefix(1).uppercased() + s.dropFirst()

@@ -16,6 +16,12 @@ struct WorkoutExercise: Identifiable, Codable, Equatable {
     var setLogs: [SetLog] = []
     /// Agrupación de superserie (mismo número = mismo grupo). nil = individual.
     var supersetGroup: Int? = nil
+    /// Series previstas solo para hoy (hora límite, «hoy me cuesta»). nil = las
+    /// del ejercicio; 0 = fuera de la sesión de hoy. Se borra al cambiar de día.
+    var targetSets: Int? = nil
+
+    /// Las series que tocan hoy en este registro.
+    func planned(_ exercise: Exercise) -> Int { targetSets ?? exercise.totalSets }
 
     // isCompleted se calculará en el ViewModel usando el Exercise base
 
@@ -30,7 +36,7 @@ struct WorkoutExercise: Identifiable, Codable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, exerciseId, completedSets, lastSetCompletedAt, setLogs, supersetGroup
+        case id, exerciseId, completedSets, lastSetCompletedAt, setLogs, supersetGroup, targetSets
     }
 
     // Decode compatible: los datos guardados antes NO tienen setLogs/supersetGroup.
@@ -42,5 +48,6 @@ struct WorkoutExercise: Identifiable, Codable, Equatable {
         lastSetCompletedAt = try c.decodeIfPresent(Date.self, forKey: .lastSetCompletedAt)
         setLogs = try c.decodeIfPresent([SetLog].self, forKey: .setLogs) ?? []
         supersetGroup = try c.decodeIfPresent(Int.self, forKey: .supersetGroup)
+        targetSets = try? c.decodeIfPresent(Int.self, forKey: .targetSets)
     }
 }

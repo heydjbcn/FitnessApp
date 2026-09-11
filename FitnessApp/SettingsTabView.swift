@@ -10,6 +10,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AppIntents
+import Combine
 
 struct SettingsTabView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
@@ -29,6 +30,12 @@ struct SettingsTabView: View {
     @State private var showingProfile = false
     @State private var showingNotifications = false
     @State private var showingCoach = false
+    @State private var showingTrainingProfile = false
+    @State private var showingExperiments = false
+    @State private var showingNutrition = false
+    @State private var showingFriends = false
+    @State private var showingAbout = false
+    @State private var calendarSync = SystemCalendar.enabled
     @State private var importingBackup = false
     @State private var pendingRestore: URL? = nil
     @State private var restoreError: String? = nil
@@ -56,6 +63,14 @@ struct SettingsTabView: View {
                         section("Coach y datos")
                         extrasCard
                         tutorialCard.padding(.top, 20)
+                        Button { showingAbout = true } label: {
+                            navRow(icon: "info.circle", title: "Acerca de ChamaFit", sub: String(localized: "Versión \(AboutView.version) · privacidad, créditos y ayuda"))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .pulsoCard(p, radius: 22)
+                        .padding(.top, 12)
+                        .accessibilityIdentifier("settings.about")
                         Text("ChamaFit · rediseño «Pulso»")
                             .font(.fig(11, .medium))
                             .foregroundColor(p.mute)
@@ -79,6 +94,30 @@ struct SettingsTabView: View {
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
+        .sheet(isPresented: $showingTrainingProfile) {
+            TrainingProfileSheet()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showingAbout) {
+            AboutView().environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showingFriends) {
+            FriendsView()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showingNutrition) {
+            NutritionSettingsSheet()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showingExperiments) {
+            ExperimentsView()
+                .environmentObject(viewModel)
+                .environmentObject(themeManager)
+        }
         .sheet(isPresented: $showingCoach) {
             CoachAIView()
                 .environmentObject(viewModel)
@@ -97,9 +136,11 @@ struct SettingsTabView: View {
 
     private var profileBits: String {
         var bits: [String] = []
-        if !userManager.userAge.isEmpty { bits.append("\(userManager.userAge) años") }
-        if !userManager.userHeight.isEmpty { bits.append("\(userManager.userHeight) cm") }
-        if !userManager.userWeight.isEmpty { bits.append("\(userManager.userWeight) kg") }
+        if !userManager.userAge.isEmpty { bits.append(String(localized: "\(userManager.userAge) años")) }
+        if !userManager.userHeight.isEmpty { bits.append(String(localized: "\(userManager.userHeight) cm")) }
+        if let kg = Double(userManager.userWeight.replacingOccurrences(of: ",", with: ".")), kg > 0 {
+            bits.append(Units.format(kg))
+        }
         return bits.isEmpty ? "Añade edad, altura y peso" : bits.joined(separator: " · ")
     }
 
@@ -110,7 +151,7 @@ struct SettingsTabView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(userManager.userName.isEmpty ? "Tu perfil" : userManager.userName)
                         .font(.fig(17, .bold)).foregroundColor(p.ink).lineLimit(1)
-                    Text(profileBits).font(.fig(13, .medium)).foregroundColor(p.mute)
+                    Text((profileBits).loc).font(.fig(13, .medium)).foregroundColor(p.mute)
                 }
                 Spacer()
                 Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundColor(p.mute)
@@ -123,6 +164,16 @@ struct SettingsTabView: View {
     }
 
     // MARK: - Apariencia
+
+    private var unitIndex: Binding<Int> {
+        Binding(get: { Units.weight == .kg ? 0 : 1 },
+                set: {
+                    Units.weight = $0 == 0 ? .kg : .lb
+                    viewModel.objectWillChange.send()
+                    viewModel.publishSummary()
+                    PhoneConnectivity.shared.sendTodayContext()
+                })
+    }
 
     private var themeIndex: Binding<Int> {
         Binding(get: { themeManager.isDarkMode ? 0 : 1 },
@@ -172,6 +223,28 @@ struct SettingsTabView: View {
 
     private var trainingCard: some View {
         VStack(spacing: 0) {
+            Button { showingTrainingProfile = true } label: {
+                navRow(icon: "person.text.rectangle", title: "Tu perfil de entreno",
+                       sub: viewModel.trainingProfile.completed
+                           ? "\(viewModel.trainingProfile.goal.label) · \(viewModel.trainingProfile.level.label) · \(viewModel.activeEquipment.name)"
+                           : "Objetivo, nivel, material y preferencias")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.trainingProfile")
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+            HStack(spacing: 12) {
+                IconTile(symbol: "scalemass", p: p)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Unidad de peso").font(.fig(15, .semibold)).foregroundColor(p.ink)
+                    Text("Tus datos no cambian: solo cómo se ven").font(.fig(12, .medium)).foregroundColor(p.mute)
+                }
+                Spacer(minLength: 8)
+                PulsoSegmented(options: ["kg", "lb"], selection: unitIndex, onCard: false, p: p)
+                    .frame(width: 110)
+                    .accessibilityIdentifier("settings.unit")
+            }
+            .padding(.vertical, 12)
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
             toggleRow(icon: "timer", title: "Timer de descanso", sub: "Arranca solo al marcar una serie",
                       isOn: Binding(get: { themeManager.isTimerEnabled },
                                     set: { themeManager.isTimerEnabled = $0; viewModel.updateTimerEnabledState($0) }),
@@ -236,8 +309,8 @@ struct SettingsTabView: View {
         HStack(spacing: 12) {
             IconTile(symbol: icon, p: p)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.fig(15, .semibold)).foregroundColor(p.ink)
-                Text(sub).font(.fig(12, .medium)).foregroundColor(p.mute)
+                Text((title).loc).font(.fig(15, .semibold)).foregroundColor(p.ink)
+                Text((sub).loc).font(.fig(12, .medium)).foregroundColor(p.mute)
             }
             Spacer(minLength: 8)
             PulsoToggle(isOn: isOn, p: p)
@@ -291,7 +364,7 @@ struct SettingsTabView: View {
                 }
             }
             if let err = spotify.lastError {
-                Text(err).font(.fig(12, .medium)).foregroundColor(p.danger).padding(.top, 8)
+                Text((err).loc).font(.fig(12, .medium)).foregroundColor(p.danger).padding(.top, 8)
             }
             if spotify.isConnected {
                 HStack(spacing: 10) {
@@ -307,7 +380,7 @@ struct SettingsTabView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(spotify.trackTitle.isEmpty ? "Nada sonando" : spotify.trackTitle)
                             .font(.fig(13, .bold)).foregroundColor(p.ink).lineLimit(1)
-                        Text(spotify.trackArtist).font(.fig(12, .medium)).foregroundColor(p.mute).lineLimit(1)
+                        Text((spotify.trackArtist).loc).font(.fig(12, .medium)).foregroundColor(p.mute).lineLimit(1)
                     }
                     Spacer()
                     Button { spotify.togglePlayPause() } label: {
@@ -326,7 +399,7 @@ struct SettingsTabView: View {
                     ForEach([("Píldora", SpotifyManager.Presentation.compact), ("Pestaña", .minimized), ("Oculto", .hidden)], id: \.1) { item in
                         let on = spotify.presentation == item.1
                         Button { spotify.setPresentation(item.1) } label: {
-                            Text(item.0).font(.fig(12, on ? .bold : .semibold))
+                            Text((item.0).loc).font(.fig(12, on ? .bold : .semibold))
                                 .foregroundColor(on ? p.onacc : p.mute)
                                 .frame(maxWidth: .infinity).frame(height: 30)
                                 .background(Capsule().fill(on ? AnyShapeStyle(p.hgrad) : AnyShapeStyle(p.soft)))
@@ -372,6 +445,25 @@ struct SettingsTabView: View {
 
     private var extrasCard: some View {
         VStack(spacing: 0) {
+            Button { showingFriends = true } label: {
+                navRow(icon: "person.2.fill", title: "Amigos y retos", sub: "Por iCloud · solo se comparten resúmenes")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.friends")
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+            Button { showingNutrition = true } label: {
+                navRow(icon: "fork.knife", title: "Nutrición",
+                       sub: Nutrition.shared.connected ? "Conectado a Dieta · agua y registro rápido" : "Conecta Dieta, objetivo de agua")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.nutrition")
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+            Button { showingExperiments = true } label: {
+                navRow(icon: "flask.fill", title: "Experimentos", sub: "¿Descansar más te hace más fuerte? Pruébalo en ti")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.experiments")
+            .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
             Button { showingCoach = true } label: {
                 navRow(icon: "sparkles", title: "Coach IA", sub: "Pregunta por tu rutina, técnica o progresión")
             }
@@ -466,8 +558,8 @@ struct SettingsTabView: View {
         HStack(spacing: 12) {
             IconTile(symbol: icon, p: p)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.fig(15, .semibold)).foregroundColor(tint ?? p.ink)
-                Text(sub).font(.fig(12, .medium)).foregroundColor(p.mute)
+                Text((title).loc).font(.fig(15, .semibold)).foregroundColor(tint ?? p.ink)
+                Text((sub).loc).font(.fig(12, .medium)).foregroundColor(p.mute)
             }
             Spacer()
             Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundColor(p.mute)
@@ -480,8 +572,8 @@ struct SettingsTabView: View {
     private var backupSub: String {
         let base = "Todo en un fichero. Además, copia automática semanal en Archivos › ChamaFit"
         guard let last = AutoBackup.lastDate else { return base }
-        let f = DateFormatter(); f.locale = Locale(identifier: "es_ES"); f.dateFormat = "d MMM"
-        return base + " (última: \(f.string(from: last)))"
+        let f = DateFormatter(); f.locale = AppLanguage.locale; f.dateFormat = "d MMM"
+        return base + String(localized: " (última: \(f.string(from: last)))")
     }
 
     // MARK: - iPhone y Apple Watch
@@ -511,6 +603,31 @@ struct SettingsTabView: View {
                 }
                 Rectangle().fill(p.line).frame(height: 1)
             }
+            HStack(spacing: 12) {
+                IconTile(symbol: "calendar.badge.plus", p: p)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Calendario del iPhone").font(.fig(15, .semibold)).foregroundColor(p.ink)
+                    Text("Tus próximas dos semanas de sesiones en un calendario «ChamaFit», y las hechas con su resumen")
+                        .font(.fig(12, .medium)).foregroundColor(p.mute).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                PulsoToggle(isOn: Binding(get: { calendarSync }, set: { on in
+                    Task {
+                        if on {
+                            guard await SystemCalendar.requestAccess() else { calendarSync = false; return }
+                            SystemCalendar.enabled = true
+                            calendarSync = true
+                            SystemCalendar.sync(viewModel)
+                        } else {
+                            SystemCalendar.enabled = false
+                            calendarSync = false
+                            SystemCalendar.removeAll()
+                        }
+                    }
+                }), p: p)
+                .accessibilityIdentifier("toggle.calendar")
+            }
+            Rectangle().fill(p.line).frame(height: 1)
             guideRow("button.horizontal.top.press", "Botón de Acción",
                      "Ajustes › Botón de Acción › Atajo › ChamaFit › «Marcar serie». Marca la serie con el móvil bloqueado.")
             guideRow("mic.fill", "Siri",
@@ -539,8 +656,8 @@ struct SettingsTabView: View {
         HStack(alignment: .top, spacing: 12) {
             IconTile(symbol: icon, p: p)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.fig(15, .semibold)).foregroundColor(p.ink)
-                Text(text).font(.fig(12, .medium)).lineSpacing(2).foregroundColor(p.mute)
+                Text((title).loc).font(.fig(15, .semibold)).foregroundColor(p.ink)
+                Text((text).loc).font(.fig(12, .medium)).lineSpacing(2).foregroundColor(p.mute)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -589,7 +706,7 @@ struct ProfileAvatar: View {
             if let data = userManager.profileImageData, let ui = UIImage(data: data) {
                 Image(uiImage: ui).resizable().scaledToFill()
             } else {
-                Text(initials)
+                Text((initials).loc)
                     .font(.bri(fontSize))
                     .foregroundColor(p.onacc)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -620,7 +737,7 @@ struct ProfileSheet: View {
 
     private var bmi: (value: Double, category: String)? {
         guard let h = Double(height.replacingOccurrences(of: ",", with: ".")), h > 0,
-              let w = Double(weight.replacingOccurrences(of: ",", with: ".")), w > 0 else { return nil }
+              let w = Units.parse(weight), w > 0 else { return nil }
         let m = h > 3 ? h / 100 : h
         let v = w / (m * m)
         let cat: String
@@ -667,17 +784,17 @@ struct ProfileSheet: View {
                     HStack(spacing: 8) {
                         numberField("Edad", "años", $age, .numberPad)
                         numberField("Altura", "cm", $height, .numberPad)
-                        numberField("Peso", "kg", $weight, .decimalPad)
+                        numberField("Peso", Units.symbol, $weight, .decimalPad)
                     }
                     .padding(.top, 14)
 
                     if let bmi {
                         VStack(spacing: 0) {
                             UpperLabel(text: "Índice de masa corporal", p: p)
-                            GradientText(text: String(format: "%.1f", bmi.value).replacingOccurrences(of: ".", with: ","),
+                            GradientText(text: AppLanguage.decimal(String(format: "%.1f", bmi.value)),
                                          font: .bri(34), p: p)
                                 .padding(.top, 8)
-                            Text(bmi.category).font(.fig(13, .semibold)).foregroundColor(p.mute).padding(.top, 6)
+                            Text((bmi.category).loc).font(.fig(13, .semibold)).foregroundColor(p.mute).padding(.top, 6)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(16)
@@ -693,7 +810,13 @@ struct ProfileSheet: View {
         } footer: {
             SheetFooter(p: p) {
                 PrimaryButton(title: "Guardar", height: 50, enabled: valid, p: p) {
-                    userManager.saveUserProfile(name: name, age: age, height: height, weight: weight, imageData: photo)
+                    // El peso se escribe en la unidad elegida y se guarda en kg.
+                    let stored = Double(userManager.userWeight.replacingOccurrences(of: ",", with: "."))
+                    let kgText: String
+                    if let stored, weight == Units.number(stored) { kgText = userManager.userWeight }
+                    else if let kg = Units.parse(weight) { kgText = Units.plain((kg * 10).rounded() / 10) }
+                    else { kgText = "" }
+                    userManager.saveUserProfile(name: name, age: age, height: height, weight: kgText, imageData: photo)
                     HapticManager.shared.success()
                     dismiss()
                 }
@@ -703,7 +826,7 @@ struct ProfileSheet: View {
             name = userManager.userName
             age = userManager.userAge
             height = userManager.userHeight
-            weight = userManager.userWeight
+            weight = Double(userManager.userWeight.replacingOccurrences(of: ",", with: ".")).map { Units.number($0) } ?? userManager.userWeight
             photo = userManager.profileImageData
         }
     }
@@ -787,7 +910,7 @@ struct NotificationsSheet: View {
 
     private func chipButton(_ title: String, color: Color, filled: Bool, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.fig(12, .semibold)).foregroundColor(color)
+            Text((title).loc).font(.fig(12, .semibold)).foregroundColor(color)
                 .padding(.horizontal, 14).frame(height: 34)
                 .background(Capsule().fill(filled ? p.soft : .clear))
                 .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
@@ -807,9 +930,9 @@ struct NotificationsSheet: View {
     private func ago(_ date: Date) -> String {
         let s = Int(Date().timeIntervalSince(date))
         if s < 60 { return "ahora" }
-        if s < 3600 { return "hace \(s / 60) min" }
-        if s < 86_400 { return "hace \(s / 3600) h" }
-        return "hace \(s / 86_400) d"
+        if s < 3600 { return String(localized: "hace \(s / 60) min") }
+        if s < 86_400 { return String(localized: "hace \(s / 3600) h") }
+        return String(localized: "hace \(s / 86_400) d")
     }
 
     private func row(_ n: AppNotification) -> some View {
@@ -823,11 +946,11 @@ struct NotificationsSheet: View {
                         .fill(n.read ? AnyShapeStyle(p.soft) : AnyShapeStyle(p.grad)))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(n.title).font(.fig(14, n.read ? .semibold : .bold)).foregroundColor(p.ink)
+                        Text((n.title).loc).font(.fig(14, n.read ? .semibold : .bold)).foregroundColor(p.ink)
                         Spacer(minLength: 8)
-                        Text(ago(n.date)).font(.fig(11, .medium)).foregroundColor(p.mute)
+                        Text((ago(n.date)).loc).font(.fig(11, .medium)).foregroundColor(p.mute)
                     }
-                    Text(n.message).font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
+                    Text((n.message).loc).font(.fig(13, .medium)).lineSpacing(3).foregroundColor(p.mute)
                         .multilineTextAlignment(.leading)
                 }
                 if !n.read {

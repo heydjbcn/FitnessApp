@@ -92,7 +92,7 @@ struct GradientText: View {
     var tracking: CGFloat = 0
 
     var body: some View {
-        Text(text)
+        Text((text).loc)
             .font(font)
             .tracking(tracking)
             .foregroundStyle(p.hgrad)
@@ -106,7 +106,7 @@ struct UpperLabel: View {
     var spacing: CGFloat = 0.06
 
     var body: some View {
-        Text(text.uppercased())
+        Text((text.uppercased()).loc)
             .font(.fig(11, .medium))
             .tracking(spacing * 11)
             .foregroundColor(p.mute)
@@ -124,7 +124,7 @@ struct ScreenHeader<Trailing: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                Text(title)
+                Text((title).loc)
                     .font(.bri(size))
                     .em(-0.03, size: size)
                     .foregroundColor(p.ink)
@@ -133,7 +133,7 @@ struct ScreenHeader<Trailing: View>: View {
                 trailing
             }
             if let subtitle {
-                Text(subtitle)
+                Text((subtitle).loc)
                     .font(.fig(13, .medium))
                     .foregroundColor(p.mute)
                     .padding(.top, size >= 30 ? 4 : 6)
@@ -166,7 +166,7 @@ struct PrimaryButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let icon { Image(systemName: icon).font(.system(size: fontSize - 1, weight: .bold)) }
-                Text(title).font(.fig(fontSize, .bold))
+                Text((title).loc).font(.fig(fontSize, .bold))
             }
             .foregroundColor(enabled ? p.onacc : p.mute)
             .frame(maxWidth: .infinity)
@@ -197,7 +197,7 @@ struct SoftButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let icon { Image(systemName: icon).font(.system(size: fontSize - 1, weight: .semibold)) }
-                Text(title).font(.fig(fontSize, .semibold))
+                Text((title).loc).font(.fig(fontSize, .semibold))
             }
             .foregroundColor(color ?? p.ink)
             .frame(maxWidth: .infinity)
@@ -243,7 +243,7 @@ struct PulsoSegmented: View {
                     withAnimation(.easeOut(duration: 0.2)) { selection = i }
                     HapticManager.shared.segmentChanged()
                 } label: {
-                    Text(options[i])
+                    Text((options[i]).loc)
                         .font(.fig(12, i == selection ? .bold : .semibold))
                         .foregroundColor(i == selection ? p.onacc : p.mute)
                         .padding(.horizontal, 14)
@@ -369,15 +369,15 @@ struct StatTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label)
+            Text((label).loc)
                 .font(.fig(11, .medium))
                 .foregroundColor(p.mute)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(value)
+                Text((value).loc)
                     .font(.bri(18))
                     .foregroundColor(p.ink)
                 if let unit {
-                    Text(unit)
+                    Text((unit).loc)
                         .font(.bri(13))
                         .foregroundColor(p.mute)
                 }
@@ -395,6 +395,8 @@ struct StatTile: View {
 /// Un día de la tira semanal de Inicio.
 struct DayChip: View {
     let day: WorkoutDay
+    /// Texto del chip si no es el día ("A", "B" en secuencia).
+    var title: String? = nil
     let isSelected: Bool
     let isDone: Bool
     let count: Int
@@ -404,7 +406,7 @@ struct DayChip: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 6) {
-                Text(day.shortLabel)
+                Text((title ?? day.shortLabel).loc)
                     .font(.fig(12, isSelected ? .bold : .semibold))
                 if isDone && !isSelected {
                     Image(systemName: "checkmark")
@@ -445,7 +447,7 @@ struct StatusPill: View {
     let p: Palette
 
     var body: some View {
-        Text(text)
+        Text((text).loc)
             .font(.fig(11, .bold))
             .foregroundColor(filled ? p.onacc : p.acc)
             .padding(.horizontal, 9)
@@ -509,11 +511,11 @@ struct ExerciseListRow: View {
                     .foregroundColor(p.acc)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(exercise.name)
+                    Text((exercise.name).loc)
                         .font(.fig(14, .semibold))
                         .foregroundColor(p.ink)
                         .lineLimit(1)
-                    Text(meta)
+                    Text((meta).loc)
                         .font(.fig(12, .medium))
                         .foregroundColor(p.mute)
                         .lineLimit(1)
@@ -541,7 +543,7 @@ struct DayTag: View {
     var body: some View {
         HStack(spacing: 4) {
             if let icon { Image(systemName: icon).font(.system(size: 9, weight: .bold)) }
-            Text(text.uppercased())
+            Text((text.uppercased()).loc)
                 .font(.fig(10, .bold))
                 .tracking(0.4)
         }
@@ -566,12 +568,12 @@ struct EmptyCard<Actions: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             IconTile(symbol: icon, size: 56, radius: 18, p: p)
-            Text(title)
+            Text((title).loc)
                 .font(.fig(17, .bold))
                 .foregroundColor(p.ink)
                 .multilineTextAlignment(.center)
                 .padding(.top, 14)
-            Text(message)
+            Text((message).loc)
                 .font(.fig(13))
                 .lineSpacing(3)
                 .foregroundColor(p.mute)
@@ -598,7 +600,7 @@ struct MonthGrid: View {
 
     private var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
-        c.locale = Locale(identifier: "es_ES")
+        c.locale = AppLanguage.locale
         c.firstWeekday = 2
         return c
     }
@@ -613,7 +615,7 @@ struct MonthGrid: View {
 
     private var monthLabel: String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "es_ES")
+        f.locale = AppLanguage.locale
         f.dateFormat = "LLLL yyyy"
         return f.string(from: month).capitalized
     }
@@ -636,7 +638,7 @@ struct MonthGrid: View {
             HStack {
                 arrow("chevron.left", -1)
                 Spacer()
-                Text(monthLabel)
+                Text((monthLabel).loc)
                     .font(.bri(16))
                     .foregroundColor(p.ink)
                 Spacer()
@@ -646,7 +648,7 @@ struct MonthGrid: View {
 
             HStack(spacing: 0) {
                 ForEach(["L", "M", "X", "J", "V", "S", "D"], id: \.self) { d in
-                    Text(d)
+                    Text((d).loc)
                         .font(.fig(11, .semibold))
                         .foregroundColor(p.mute)
                         .frame(maxWidth: .infinity)
@@ -787,7 +789,7 @@ struct PulsoField: View {
     let p: Palette
 
     var body: some View {
-        TextField("", text: $text, prompt: Text(placeholder).foregroundColor(p.mute.opacity(0.8)))
+        TextField("", text: $text, prompt: Text((placeholder).loc).foregroundColor(p.mute.opacity(0.8)))
             .font(.fig(fontSize, .semibold))
             .foregroundColor(p.ink)
             .keyboardType(keyboard)
@@ -824,7 +826,7 @@ struct PulsoRestTimer: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(clock)
+            Text((clock).loc)
                 .font(.bri(30))
                 .em(-0.02, size: 30)
                 .monospacedDigit()
@@ -836,7 +838,7 @@ struct PulsoRestTimer: View {
             VStack(alignment: .leading, spacing: 0) {
                 UpperLabel(text: "Descanso", p: p)
                     .font(.fig(11, .bold))
-                Text(viewModel.timerLabel)
+                Text((viewModel.timerLabel).loc)
                     .font(.fig(13, .medium))
                     .foregroundColor(p.ink)
                     .lineLimit(1)

@@ -1,0 +1,215 @@
+{
+  "sourceLanguage": "es",
+  "strings": {
+    "Apunta mi peso en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Apunta el meu pes a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Log my weight in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Apunta mi peso en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Apunta una serie en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Apunta una sèrie a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Log a set in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Apunta una serie en ${applicationName}",
+              "Apunta en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Deshaz la serie en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Desfés la sèrie a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Undo the set in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Deshaz la serie en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Empieza el descanso en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Comença el descans a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Rest starts in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Empieza el descanso en ${applicationName}",
+              "Descanso en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Empieza el entreno en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Comença l'entrenament a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Workout starts in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Empieza el entreno en ${applicationName}",
+              "Modo entreno en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Marca una serie en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Marca una sèrie a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Mark a set in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Marca una serie en ${applicationName}",
+              "Serie hecha en ${applicationName}",
+              "Marca serie en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Qué me toca hoy en ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "ca": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Què em toca avui a ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "What's up for me today in ${applicationName}"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Qué me toca hoy en ${applicationName}",
+              "Qué entreno toca en ${applicationName}"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -29,16 +29,15 @@ extension WorkoutViewModel {
     // MARK: - Formato
 
     /// "82,5 kg" / "80 kg", como lo escribe el prototipo.
-    static func kg(_ value: Double) -> String {
-        return "\(number(value)) kg"
-    }
+    /// Un peso guardado (kg) en la unidad elegida: "42,5 kg" / "93,7 lb".
+    static func kg(_ value: Double) -> String { Units.format(value) }
 
     /// 40 → "40", 42.5 → "42,5", 53.75 → "53,75" (discos de 1,25 kg).
     static func number(_ value: Double) -> String {
         var text = String(format: "%.2f", value)
         while text.hasSuffix("0") { text.removeLast() }
         if text.hasSuffix(".") { text.removeLast() }
-        return text.replacingOccurrences(of: ".", with: ",")
+        return AppLanguage.decimal(text)
     }
 
     /// "2:00" / "45 s"
@@ -48,14 +47,16 @@ extension WorkoutViewModel {
 
     /// Línea de datos de un ejercicio: "4 series · 8 reps · 80 kg · RIR 2".
     func meta(for exercise: Exercise) -> String {
-        var parts = ["\(exercise.totalSets) series"]
+        var parts = [String(localized: "\(exercise.totalSets) series")]
         if exercise.segundos > 0 {
             parts.append("\(exercise.segundos) s")
         } else if exercise.repetitions > 0 {
-            parts.append("\(exercise.repetitions) reps")
+            parts.append(String(localized: "\(exercise.repetitions) reps"))
         }
-        if exercise.weight > 0 { parts.append(Self.kg(exercise.weight)) }
-        if exercise.rir > 0 { parts.append("RIR \(exercise.rir)") }
+        if exercise.weight > 0 || exercise.loadKind == .bodyweight {
+            parts.append(Self.weightText(exercise.weight, kind: exercise.loadKind))
+        }
+        if exercise.rir > 0 { parts.append(String(localized: "RIR \(exercise.rir)")) }
         return parts.joined(separator: " · ")
     }
 
@@ -202,10 +203,10 @@ extension WorkoutViewModel {
             for name in names {
                 guard let c = ExerciseCatalog.all.first(where: { $0.name == name }) else { continue }
                 let exercise: Exercise
-                if let existing = availableExercises.first(where: { $0.name == c.name }) {
+                if let existing = availableExercises.first(where: { $0.name == c.name || $0.name == c.name.loc }) {
                     exercise = existing
                 } else {
-                    exercise = Exercise(id: UUID(), name: c.name, repetitions: c.reps, weight: c.weight,
+                    exercise = Exercise(id: UUID(), name: c.name.loc, repetitions: c.reps, weight: c.weight,
                                         totalSets: c.sets, restDuration: defaultRestDuration,
                                         sfSymbolIcon: c.icon, iconColor: "accent",
                                         segundos: c.reps == 0 ? 45 : 0, muscleGroup: c.muscleGroup)

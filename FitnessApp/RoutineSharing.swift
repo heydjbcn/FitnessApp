@@ -37,7 +37,7 @@ struct SharedRoutine: Codable, Equatable {
     var days: [String: [Item]]            // "Lunes": [...]
 
     var exerciseCount: Int { Set(days.values.flatMap { $0 }.map(\.name)).count }
-    var summary: String { "\(days.filter { !$0.value.isEmpty }.count) días · \(exerciseCount) ejercicios" }
+    var summary: String { String(localized: "\(days.filter { !$0.value.isEmpty }.count) días · \(exerciseCount) ejercicios") }
 }
 
 /// El fichero que sale por la hoja de compartir.
@@ -48,7 +48,7 @@ struct RoutineFile: Transferable, Sendable {
         FileRepresentation(exportedContentType: .chamafitRoutine) { file in
             let (name, data) = try await file.make()
             let safe = name.replacingOccurrences(of: "/", with: "-")
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("Rutina \(safe).chamafit")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(String(localized: "Rutina \(safe).chamafit"))
             try data.write(to: url, options: .atomic)
             return SentTransferredFile(url)
         }

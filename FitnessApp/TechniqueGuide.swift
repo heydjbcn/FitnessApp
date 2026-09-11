@@ -49,10 +49,56 @@ enum TechniqueGuide {
         "Bicicleta estática": ["Sillín a la altura de la cadera de pie.", "Rodilla casi estirada abajo, sin bloquear.", "Espalda recta y hombros relajados.", "Ajusta resistencia para mantener buena cadencia."],
         "Elíptica": ["Erguido, sin apoyarte del todo en las asas.", "Empuja con todo el pie, no solo con la punta.", "Brazos y piernas coordinados.", "Sube resistencia antes que velocidad."],
         "Remo": ["Secuencia: piernas, cadera, brazos; vuelta al revés.", "Espalda recta todo el recorrido.", "Tira hacia la parte baja del pecho.", "La fuerza sale de las piernas, no de los brazos."],
+        "Press de banca con mancuernas": ["Escápulas juntas, pies firmes.", "Baja las mancuernas a los lados del pecho.", "Codos a unos 45°, muñecas sobre los codos.", "Sube juntándolas un poco arriba."],
+        "Cruce de poleas": ["Un pie adelantado y el torso algo inclinado.", "Codos ligeramente flexionados y fijos.", "Junta las manos delante del pecho.", "Vuelve despacio hasta notar el estiramiento."],
+        "Press de pecho en máquina": ["Asiento con las asas a la altura del pecho medio.", "Espalda pegada al respaldo.", "Empuja sin bloquear los codos.", "Vuelve lento hasta notar el pecho estirado."],
+        "Flexiones inclinadas": ["Manos en un banco o una mesa firme.", "Cuerpo recto de cabeza a talones.", "Pecho hacia el borde del banco.", "Cuanto más alto el apoyo, más fácil."],
+        "Flexiones declinadas": ["Pies en un banco, manos en el suelo.", "Aprieta glúteo y abdomen para no hundir la cadera.", "Baja el pecho hacia el suelo.", "Carga más la parte alta del pecho y el hombro."],
+        "Remo con mancuerna": ["Rodilla y mano del mismo lado en el banco.", "Espalda plana, paralela al suelo.", "Tira de la mancuerna hacia la cadera.", "Baja estirando del todo el brazo."],
+        "Dominadas asistidas": ["Elige la ayuda justa para acabar las repeticiones con esfuerzo.", "Rodillas o pies firmes en la plataforma.", "Tira con los codos hacia las costillas.", "Baja lento hasta estirar los brazos."],
+        "Remo invertido": ["Barra a la altura de la cadera, cuerpo recto debajo.", "Tira del pecho hacia la barra.", "Junta las escápulas arriba.", "Pies más adelante = más difícil."],
+        "Pullover en polea": ["De pie frente a la polea alta, brazos casi rectos.", "Baja la barra en arco hasta los muslos.", "Nota el dorsal, no el tríceps.", "Vuelve despacio a la altura de los ojos."],
+        "Hiperextensiones": ["Apoyo en la cadera, no en el abdomen.", "Baja con la espalda neutra.", "Sube apretando el glúteo hasta alinear el cuerpo.", "No subas más allá de la línea recta."],
+        "Press de hombros con mancuernas": ["Sentado con respaldo casi vertical.", "Mancuernas a la altura de las orejas, codos algo adelante.", "Empuja hacia arriba y un poco hacia dentro.", "Baja controlando hasta la altura inicial."],
+        "Face pull": ["Polea a la altura de la cara, cuerda con agarre neutro.", "Tira hacia la frente separando las manos.", "Codos altos, a la altura de los hombros.", "Pausa un segundo y vuelve lento."],
+        "Press Arnold": ["Empieza con las palmas hacia ti a la altura del pecho.", "Gira las muñecas mientras subes.", "Termina con las palmas hacia delante arriba.", "Deshaz el giro al bajar."],
+        "Flexiones en pica": ["Cadera alta, cuerpo en V invertida.", "Baja la cabeza hacia el suelo entre las manos.", "Codos hacia atrás, no abiertos.", "Empuja hasta estirar los brazos."],
+        "Curl en polea": ["Cerca de la polea, codos pegados.", "Sube sin mover los hombros.", "Aprieta arriba.", "La polea mantiene la tensión abajo: aprovéchala."],
+        "Curl con banda": ["Pisa la banda con los pies al ancho de cadera.", "Codos pegados al cuerpo.", "Sube hasta el hombro y aprieta.", "Baja despacio, que la banda no te devuelva."],
+        "Curl concentrado": ["Sentado, codo apoyado en la cara interna del muslo.", "Sube la mancuerna hacia el hombro.", "Aprieta arriba un segundo.", "Baja del todo, sin mover el codo."],
+        "Extensión de tríceps sobre la cabeza": ["Mancuerna con las dos manos detrás de la cabeza.", "Codos apuntando al techo y cerrados.", "Estira los brazos hacia arriba.", "Core firme para no arquear la espalda."],
+        "Patada de tríceps": ["Torso inclinado, codo pegado al costado y alto.", "Estira el brazo hacia atrás del todo.", "Solo se mueve el antebrazo.", "Vuelve despacio a 90°."],
+        "Flexiones diamante": ["Manos juntas bajo el pecho formando un rombo.", "Codos pegados al cuerpo al bajar.", "Cuerpo recto.", "Si cuesta, apoya las rodillas."],
+        "Press de banca agarre cerrado": ["Manos al ancho de los hombros, no más juntas.", "Codos pegados al cuerpo.", "Baja la barra a la parte baja del pecho.", "Empuja con el tríceps hasta estirar."],
+        "Sentadilla goblet": ["Mancuerna vertical pegada al pecho.", "Pies al ancho de hombros, puntas algo abiertas.", "Baja entre las piernas con el pecho arriba.", "Codos por dentro de las rodillas abajo."],
+        "Sentadilla búlgara": ["Empeine de la pierna de atrás en el banco.", "Pie de delante lejos, a un paso largo.", "Baja en vertical hasta que la rodilla de atrás casi toque.", "Empuja con el talón de delante."],
+        "Peso muerto rumano": ["De pie con la barra, rodillas algo flexionadas y fijas.", "Lleva la cadera atrás deslizando la barra por los muslos.", "Baja hasta notar el femoral, espalda recta.", "Sube apretando el glúteo."],
+        "Sentadilla sin peso": ["Brazos al frente para equilibrarte.", "Cadera atrás y abajo.", "Rodillas en la línea de los pies.", "Sube empujando el suelo con todo el pie."],
+        "Subida al banco": ["Pie entero sobre el banco.", "Sube empujando con la pierna de arriba.", "La de abajo solo acompaña.", "Baja despacio, controlando."],
+        "Gemelos sentado": ["Almohadilla sobre la parte baja del muslo.", "Baja el talón hasta estirar.", "Sube lo más alto posible.", "Pausa arriba un segundo."],
+        "Swing con kettlebell": ["Pies algo más abiertos que la cadera.", "Lleva la pesa atrás entre las piernas con la cadera.", "Extiende la cadera de golpe: la pesa sube sola.", "Arriba, cuerpo recto y glúteo apretado."],
+        "Puente de glúteo a una pierna": ["Una pierna apoyada, la otra estirada o doblada arriba.", "Sube la cadera empujando con el talón.", "Cadera recta, sin inclinarse.", "Baja despacio."],
+        "Paso lateral con banda": ["Banda por encima de las rodillas o en los tobillos.", "Media sentadilla, pecho arriba.", "Paso al lado sin juntar del todo los pies.", "Rodillas empujando hacia fuera."],
+        "Plancha lateral": ["Codo bajo el hombro.", "Cuerpo recto de cabeza a pies.", "Cadera arriba, sin caer.", "Respira normal; cambia de lado."],
+        "Dead bug": ["Tumbado, brazos al techo y rodillas a 90°.", "Lumbar pegado al suelo.", "Estira brazo y pierna contrarios despacio.", "Vuelve y cambia de lado."],
+        "Rueda abdominal": ["De rodillas, manos en la rueda bajo los hombros.", "Abdomen y glúteo apretados.", "Rueda hacia delante hasta donde mantengas la espalda recta.", "Vuelve tirando con el abdomen."],
+        "Pallof press": ["De lado a la polea, a la altura del pecho.", "Manos en el pecho, empuja al frente.", "Aguanta sin dejar que la polea te gire.", "Vuelve despacio; cambia de lado."],
+        "Escaladores": ["Posición de flexión, manos bajo los hombros.", "Lleva una rodilla al pecho y cambia.", "Cadera baja y estable.", "Ritmo constante que puedas mantener."],
+        "Bird dog": ["A cuatro patas, espalda plana.", "Estira brazo y pierna contrarios.", "Cadera quieta, sin girar.", "Pausa arriba y cambia."],
+        "Burpees": ["Agáchate y apoya las manos.", "Salta atrás a plancha.", "Vuelve los pies a las manos.", "Salta con los brazos arriba."],
+        "Comba": ["Codos pegados, gira con las muñecas.", "Saltos bajos sobre las puntas.", "Rodillas algo flexionadas.", "Mirada al frente."],
+        "Jumping jacks": ["Salta abriendo piernas y subiendo brazos.", "Vuelve cerrando.", "Aterriza suave sobre las puntas.", "Mantén un ritmo constante."],
+        "Gato-camello": ["A cuatro patas, manos bajo los hombros.", "Redondea la espalda llevando la mirada al ombligo.", "Luego arquéala mirando al frente.", "Muévete con la respiración."],
+        "Movilidad de cadera 90/90": ["Sentado, piernas a 90° delante y detrás.", "Espalda recta, inclínate sobre la pierna de delante.", "Respira y aguanta.", "Cambia de lado girando las rodillas."],
+        "Rotaciones torácicas": ["A cuatro patas, una mano en la nuca.", "Gira el codo hacia el techo.", "Sigue el codo con la mirada.", "La cadera no se mueve."],
+        "Dislocaciones de hombro con banda": ["Banda con agarre muy abierto.", "Brazos rectos, pásala por encima de la cabeza hasta atrás.", "Vuelve al frente.", "Cierra el agarre poco a poco con las semanas."],
+        "Estiramiento de isquiotibiales": ["Pierna estirada en un banco o en el suelo.", "Inclínate desde la cadera con la espalda recta.", "Para al notar tensión, sin dolor.", "Respira y aguanta."],
+        "Movilidad de tobillo": ["Pie a un palmo de la pared.", "Lleva la rodilla a tocar la pared sin levantar el talón.", "Rodilla en la línea del dedo gordo.", "Aléjate un poco cuando sea fácil."],
     ]
 
     /// Técnica para un ejercicio (por nombre, sin mirar mayúsculas ni tildes).
-    static func entry(for name: String) -> (cues: [String], photo: TechniquePhotos.Photo?)? {
+    static func entry(for raw: String) -> (cues: [String], photo: TechniquePhotos.Photo?)? {
+        let name = ExerciseCatalog.canonicalName(raw)
         let key = fold(name)
         guard let match = cues.keys.first(where: { fold($0) == key }) else { return nil }
         return (cues[match] ?? [], TechniquePhotos.byName[match])
@@ -78,13 +124,13 @@ struct TechniqueCard: View {
                         .frame(maxWidth: .infinity, maxHeight: 190)
                         .padding(10)
                         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
-                        .accessibilityLabel("Ilustración de \(name)")
+                        .accessibilityLabel(String(localized: "Ilustración de \(name)"))
                 }
                 ForEach(Array(t.cues.enumerated()), id: \.offset) { i, cue in
                     HStack(alignment: .top, spacing: 10) {
                         Text("\(i + 1)").font(.bri(12)).foregroundColor(p.onacc)
                             .frame(width: 22, height: 22).background(Circle().fill(p.grad))
-                        Text(cue).font(.fig(13, .medium)).foregroundColor(p.ink)
+                        Text((cue).loc).font(.fig(13, .medium)).foregroundColor(p.ink)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

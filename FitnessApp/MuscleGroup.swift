@@ -10,6 +10,6 @@ import Foundation
 enum MuscleGroup {
     static let all: [String] = [
         "Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps",
-        "Piernas", "Glúteos", "Core", "Cardio"
+        "Piernas", "Glúteos", "Core", "Cardio", "Movilidad"
     ]
 }

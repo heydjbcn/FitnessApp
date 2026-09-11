@@ -25,16 +25,22 @@ enum PlateMath {
     }
 
     /// Lo que falta (o sobra) para el total exacto con esos discos.
-    static func residual(target: Double, bar: Double) -> Double {
-        target - (perSide(target: target, bar: bar).reduce(0) { $0 + $1.plate * Double($1.count) } * 2 + bar)
+    static func residual(target: Double, bar: Double, plates: [Double] = plates) -> Double {
+        target - (perSide(target: target, bar: bar, plates: plates).reduce(0) { $0 + $1.plate * Double($1.count) } * 2 + bar)
     }
 
-    /// "20 + 5 + 2,5" por lado; "solo la barra" si no lleva discos.
-    static func sideText(target: Double, bar: Double) -> String {
-        let side = perSide(target: target, bar: bar)
+    /// "20 + 5 + 2,5" por lado; "solo la barra" si no lleva discos. Todo en
+    /// la misma unidad que `plates`.
+    static func sideText(target: Double, bar: Double, plates: [Double] = plates) -> String {
+        let side = perSide(target: target, bar: bar, plates: plates)
         guard !side.isEmpty else { return "solo la barra" }
-        return side.flatMap { Array(repeating: WorkoutViewModel.number($0.plate), count: $0.count) }
+        return side.flatMap { Array(repeating: Units.plain($0.plate), count: $0.count) }
             .joined(separator: " + ")
+    }
+
+    /// Discos por lado para un peso guardado en kg, en la unidad elegida.
+    static func sideTextKg(target kg: Double, barKg: Double) -> String {
+        sideText(target: Units.fromKg(kg), bar: (Units.fromKg(barKg) * 100).rounded() / 100, plates: Units.plates)
     }
 
     /// Redondea a lo que se puede montar: múltiplos de 2,5 (1,25 por lado).
@@ -50,16 +56,25 @@ enum PlateMath {
     /// Series de calentamiento para una serie de trabajo de `work` kg:
     /// barra × 10, 50 % × 5, 70 % × 3 y, en cargas altas, 85 % × 1. Nada por
     /// debajo de la barra ni repetido; con cargas ligeras, solo la barra.
-    static func warmup(for work: Double, bar: Double = 20) -> [WarmupSet] {
+    static func warmup(for work: Double, bar: Double = 20, step: Double = 2.5, heavy: Double = 60) -> [WarmupSet] {
         guard work > bar else { return [] }
         var sets = [WarmupSet(weight: bar, reps: 10)]
         var steps: [(Double, Int)] = [(0.5, 5), (0.7, 3)]
-        if work >= 60 { steps.append((0.85, 1)) }
+        if work >= heavy { steps.append((0.85, 1)) }
         for (pct, reps) in steps {
-            let w = roundToLoadable(work * pct)
+            let w = roundToLoadable(work * pct, step: step)
             guard w > (sets.last?.weight ?? 0), w < work else { continue }
             sets.append(WarmupSet(weight: w, reps: reps))
         }
         return sets
+    }
+
+    /// El calentamiento para un peso en kg, calculado en la unidad elegida
+    /// (en libras, múltiplos de 5 lb) y devuelto en kg.
+    static func warmupKg(for workKg: Double, barKg: Double) -> [WarmupSet] {
+        guard Units.weight == .lb else { return warmup(for: workKg, bar: barKg) }
+        let bar = (Units.fromKg(barKg)).rounded()
+        return warmup(for: Units.fromKg(workKg), bar: bar, step: 5, heavy: 135)
+            .map { WarmupSet(weight: Units.toKg($0.weight), reps: $0.reps) }
     }
 }

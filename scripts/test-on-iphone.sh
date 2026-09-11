@@ -7,6 +7,7 @@
 #   scripts/test-on-iphone.sh unit       # solo unitarias (~10 s)
 #   scripts/test-on-iphone.sh ui         # solo UI en modo oscuro
 #   scripts/test-on-iphone.sh light      # solo UI en modo claro
+#   scripts/test-on-iphone.sh lang       # la app en inglés y en catalán
 #
 # La app arranca con `--ui-tests`: dominio de UserDefaults aparte, así que los
 # datos reales del iPhone no se tocan (se comprueba al final con un md5).
@@ -34,23 +35,39 @@ snapshot() {
 # Con el iPhone bloqueado la app no arranca y xcodebuild se queda esperando
 # sin decir nada. Mientras la app de pruebas está abierta la pantalla no se
 # apaga, pero entre compilación y prueba sí: mejor Bloqueo automático = Nunca.
-if xcrun devicectl device info lockState --device $DEVICE 2>/dev/null | grep -q "passcodeRequired: true"; then
-  echo "⚠️ El iPhone está bloqueado: desbloquéalo (y pon Bloqueo automático en Nunca mientras dura)."
-  until ! xcrun devicectl device info lockState --device $DEVICE 2>/dev/null | grep -q "passcodeRequired: true"; do sleep 5; done
-fi
-
-echo "▸ Copia de los datos reales antes de empezar…"
-BEFORE=$(snapshot antes)
+wait_unlocked() {
+  if xcrun devicectl device info lockState --device $DEVICE 2>/dev/null | grep -q "passcodeRequired: true"; then
+    echo "⚠️ El iPhone está bloqueado: desbloquéalo (y pon Bloqueo automático en Nunca mientras dura)."
+    until ! xcrun devicectl device info lockState --device $DEVICE 2>/dev/null | grep -q "passcodeRequired: true"; do sleep 3; done
+  fi
+}
 
 echo "▸ Compilando app y tests…"
 xcodebuild build-for-testing -scheme FitnessApp -destination "platform=iOS,id=$DEVICE" \
   -allowProvisioningUpdates -derivedDataPath "$DD" 2>&1 | grep -E 'error:|TEST BUILD (SUCCEEDED|FAILED)' | sort -u
 RUN=$(ls "$DD"/Build/Products/FitnessApp_FitnessApp_iphoneos*.xctestrun | head -1)
 
+wait_unlocked
+echo "▸ Copia de los datos reales antes de empezar…"
+BEFORE=$(snapshot antes)
+
 run() {  # nombre, filtro -only-testing
   echo "▸ $1…"
-  xcodebuild test-without-building -xctestrun "$RUN" -destination "platform=iOS,id=$DEVICE" \
-    -only-testing:"$2" -resultBundlePath "$OUT/$1.xcresult" > "$OUT/$1.log" 2>&1
+  # Si el iPhone se bloquea al lanzar, el runner no llega a arrancar: se espera
+  # a que lo desbloqueen y se vuelve a intentar (hasta 30 veces).
+  for attempt in $(seq 1 30); do
+    wait_unlocked   # justo antes: compilar tarda y el iPhone se bloquea mientras
+    rm -rf "$OUT/$1.xcresult"
+    xcodebuild test-without-building -xctestrun "$RUN" -destination "platform=iOS,id=$DEVICE" \
+      -only-testing:"$2" -resultBundlePath "$OUT/$1.xcresult" > "$OUT/$1.log" 2>&1
+    if grep -q "Lost pending connection to the test runner before launch\|because the device is locked\|may need to be unlocked\|Timed out waiting for all destinations" "$OUT/$1.log" \
+       && ! grep -q "Test [Cc]ase.*passed" "$OUT/$1.log"; then
+      echo "   (el iPhone se bloqueó al lanzar; reintento $attempt)"
+      sleep 5
+      continue
+    fi
+    break
+  done
   grep -E "Test [Cc]ase.*(passed|failed)|Test run with|TEST EXECUTE" "$OUT/$1.log" | sed 's/^/   /' | tail -60
 }
 
@@ -58,9 +75,11 @@ case $WHAT in
   unit)  run unitarias FitnessAppTests ;;
   ui)    run ui-oscuro FitnessAppUITests/ChamaFitUITests ;;
   light) run ui-claro FitnessAppUITests/LightModeUITests ;;
+  lang)  run idiomas FitnessAppUITests/LanguageUITests ;;
   *)     run unitarias FitnessAppTests
          run ui-oscuro FitnessAppUITests/ChamaFitUITests
-         run ui-claro FitnessAppUITests/LightModeUITests ;;
+         run ui-claro FitnessAppUITests/LightModeUITests
+         run idiomas FitnessAppUITests/LanguageUITests ;;
 esac
 
 echo "▸ Crash logs del iPhone…"
@@ -71,5 +90,9 @@ if [ -n "$CRASHES" ]; then echo "   ⚠️ crashes de ChamaFit:"; echo "$CRASHES
 
 echo "▸ Datos reales tras las pruebas…"
 AFTER=$(snapshot despues)
-if [ "$BEFORE" = "$AFTER" ]; then echo "   intactos (md5 $AFTER)"; else echo "   ⚠️ HAN CAMBIADO: $BEFORE → $AFTER"; fi
+if [ "$BEFORE" = "$AFTER" ]; then echo "   intactos (md5 $AFTER)"
+else
+  # El JSON de los diccionarios cambia de orden en cada guardado: se compara el contenido.
+  python3 scripts/compare-real-data.py "$OUT/antes.plist" "$OUT/despues.plist" | sed 's/^/   /'
+fi
 echo "✓ Resultados en $OUT (abrir los .xcresult con Xcode para ver capturas)"

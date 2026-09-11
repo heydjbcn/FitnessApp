@@ -12,16 +12,18 @@ struct PlateCalculatorView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.dismiss) private var dismiss
 
+    /// Peso objetivo y barra en la unidad de la pantalla (kg o lb).
     @State private var target: Double
-    @State private var barWeight: Double = 20
+    @State private var barWeight: Double = Units.bars[0]
 
     private var p: Palette { themeManager.p }
     init(initialWeight: Double = 0) {
-        _target = State(initialValue: max(0, initialWeight))
+        _target = State(initialValue: max(0, (Units.fromKg(initialWeight) * 10).rounded() / 10))
     }
 
-    private var perSide: [(plate: Double, count: Int)] { PlateMath.perSide(target: target, bar: barWeight) }
-    private var residual: Double { PlateMath.residual(target: target, bar: barWeight) }
+    private var perSide: [(plate: Double, count: Int)] { PlateMath.perSide(target: target, bar: barWeight, plates: Units.plates) }
+    private var residual: Double { PlateMath.residual(target: target, bar: barWeight, plates: Units.plates) }
+    private var bigStep: Double { Units.step * 2 }
 
     var body: some View {
         PulsoSheet(p: p) {
@@ -42,13 +44,13 @@ struct PlateCalculatorView: View {
                     HStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Peso objetivo").font(.fig(11, .medium)).foregroundColor(p.mute)
-                            Text(WorkoutViewModel.kg(target)).font(.bri(28)).foregroundColor(p.ink).monospacedDigit()
+                            Text((Units.formatDisplay(target)).loc).font(.bri(28)).foregroundColor(p.ink).monospacedDigit()
                         }
                         Spacer(minLength: 0)
-                        small("−5") { target = max(0, target - 5) }
-                        small("+5") { target += 5 }
-                        big("minus") { target = max(0, target - 2.5) }
-                        big("plus") { target += 2.5 }
+                        small("−\(Units.plain(bigStep))") { target = max(0, target - bigStep) }
+                        small("+\(Units.plain(bigStep))") { target += bigStep }
+                        big("minus") { target = max(0, target - Units.step) }
+                        big("plus") { target += Units.step }
                     }
                     .padding(.horizontal, 14).padding(.vertical, 12)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(p.soft))
@@ -56,10 +58,10 @@ struct PlateCalculatorView: View {
                     // Barra
                     UpperLabel(text: "Barra", p: p).padding(.top, 18).padding(.bottom, 8)
                     HStack(spacing: 6) {
-                        ForEach([20.0, 15.0, 10.0], id: \.self) { b in
+                        ForEach(Units.bars, id: \.self) { b in
                             let on = barWeight == b
                             Button { barWeight = b; HapticManager.shared.selectionFeedback() } label: {
-                                Text("\(Int(b)) kg")
+                                Text((Units.formatDisplay(b)).loc)
                                     .font(.fig(13, on ? .bold : .semibold))
                                     .foregroundColor(on ? p.onacc : p.mute)
                                     .frame(maxWidth: .infinity)
@@ -83,7 +85,7 @@ struct PlateCalculatorView: View {
                             ForEach(perSide, id: \.plate) { item in
                                 HStack {
                                     plateChip(item.plate)
-                                    Text(WorkoutViewModel.kg(item.plate))
+                                    Text((Units.formatDisplay(item.plate)).loc)
                                         .font(.fig(15, .semibold)).foregroundColor(p.ink)
                                     Spacer()
                                     Text("× \(item.count)")
@@ -94,7 +96,7 @@ struct PlateCalculatorView: View {
                             }
                         }
                         if abs(residual) > 0.01 {
-                            Text("Aproximado: faltan \(WorkoutViewModel.kg(abs(residual))) para el total exacto.")
+                            Text("Aproximado: faltan \(Units.formatDisplay(abs(residual))) para el total exacto.")
                                 .font(.fig(12, .semibold))
                                 .foregroundColor(Pulso.warning(isDark: p.dark))
                                 .padding(.top, 10)
@@ -144,7 +146,7 @@ struct PlateCalculatorView: View {
     }
 
     private func plateChip(_ plate: Double) -> some View {
-        Text(WorkoutViewModel.number(plate))
+        Text((Units.plain(plate)).loc)
             .font(.bri(11))
             .foregroundColor(p.onacc)
             .frame(width: 34, height: 34)
@@ -152,7 +154,7 @@ struct PlateCalculatorView: View {
     }
 
     private func note(_ text: String) -> some View {
-        Text(text)
+        Text((text).loc)
             .font(.fig(13, .medium)).foregroundColor(p.mute)
             .frame(maxWidth: .infinity)
             .padding(16)
@@ -173,7 +175,7 @@ struct PlateCalculatorView: View {
 
     private func small(_ title: String, _ action: @escaping () -> Void) -> some View {
         Button { action(); HapticManager.shared.selectionFeedback() } label: {
-            Text(title)
+            Text((title).loc)
                 .font(.fig(12, .bold))
                 .foregroundColor(p.ink)
                 .frame(width: 40, height: 44)

@@ -25,7 +25,7 @@ struct ExerciseCatalogPicker: View {
         PulsoSheet(p: p) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    UpperLabel(text: "\(ExerciseCatalog.all.count) ejercicios", p: p)
+                    UpperLabel(text: String(localized: "\(ExerciseCatalog.all.count) ejercicios"), p: p)
                     Text("Catálogo").font(.bri(22)).em(-0.02, size: 22).foregroundColor(p.ink)
                 }
                 Spacer()
@@ -100,8 +100,8 @@ struct ExerciseCatalogPicker: View {
                                     IconTile(symbol: ex.icon, size: 40, radius: 13, p: p)
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(ex.name).font(.fig(14, .semibold)).foregroundColor(p.ink)
-                                    Text("\(ex.muscleGroup) · \(ex.sets) × \(ex.reps > 0 ? "\(ex.reps)" : "tiempo")\(ex.weight > 0 ? " · \(Int(ex.weight)) kg" : "")")
+                                    Text((ex.name).loc).font(.fig(14, .semibold)).foregroundColor(p.ink)
+                                    Text("\(ex.muscleGroup) · \(ex.sets) × \(ex.reps > 0 ? "\(ex.reps)" : "tiempo")\(ex.weight > 0 ? " · \(Units.format(ex.weight))" : "")")
                                         .font(.fig(12, .medium)).foregroundColor(p.mute)
                                 }
                                 Spacer()
@@ -124,7 +124,7 @@ struct ExerciseCatalogPicker: View {
 
     private func chip(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button { action(); HapticManager.shared.selectionFeedback() } label: {
-            Text(title)
+            Text((title).loc)
                 .font(.fig(13, active ? .bold : .semibold))
                 .foregroundColor(active ? p.onacc : p.mute)
                 .padding(.horizontal, 14)
