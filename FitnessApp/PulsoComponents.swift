@@ -212,6 +212,7 @@ struct SoftButton: View {
 /// Botón redondo de 36 con la ✕ de cerrar las hojas.
 struct CloseCircle: View {
     let p: Palette
+    var id = "sheet.close"
     let action: () -> Void
 
     var body: some View {
@@ -224,7 +225,7 @@ struct CloseCircle: View {
                 .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("sheet.close")
+        .accessibilityIdentifier(id)
         .accessibilityLabel("Cerrar")
     }
 }

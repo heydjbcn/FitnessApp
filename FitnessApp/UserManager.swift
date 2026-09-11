@@ -102,6 +102,6 @@ class UserManager: ObservableObject {
     func getMotivationalQuote() -> String {
         let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
         let index = (dayOfYear - 1) % UserManager.motivationalQuotes.count
-        return UserManager.motivationalQuotes[index]
+        return UserManager.motivationalQuotes[index].loc
     }
 }

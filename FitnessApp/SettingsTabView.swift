@@ -241,6 +241,7 @@ struct SettingsTabView: View {
                 Spacer(minLength: 8)
                 PulsoSegmented(options: ["kg", "lb"], selection: unitIndex, onCard: false, p: p)
                     .frame(width: 110)
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("settings.unit")
             }
             .padding(.vertical, 12)

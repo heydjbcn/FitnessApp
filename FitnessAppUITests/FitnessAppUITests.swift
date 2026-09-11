@@ -155,6 +155,9 @@ class ChamaFitUITests: XCTestCase {
 
     func type(_ text: String, into field: XCUIElement) {
         tap(field)
+        // Si el toque cae mientras la pantalla aún se anima, el campo no coge el foco: otro toque.
+        if !app.keyboards.firstMatch.waitForExistence(timeout: 3) { field.tap() }
+        _ = app.keyboards.firstMatch.waitForExistence(timeout: 3)
         field.typeText(text)
     }
 
@@ -349,8 +352,10 @@ class ChamaFitUITests: XCTestCase {
         tap(app.buttons["rest.Press de banca"])
         XCTAssertTrue(exists(timer))
         tap(app.buttons["timer.stop"])
+        // Con la sesión del lunes empezada, «la de hoy» es la del lunes: se mira otro día y se vuelve.
+        selectDay("Miércoles")
         tap(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Volver a hoy'")).firstMatch)
-        XCTAssertEqual(app.buttons["day.Lunes"].value as? String, "5", "Lunes deja de estar seleccionado")
+        XCTAssertEqual(app.buttons["day.Lunes"].value as? String, "seleccionado", "vuelve a la sesión empezada")
         snap("inicio")
 
         // La cabecera de sesión enseña progreso.
@@ -380,12 +385,12 @@ class ChamaFitUITests: XCTestCase {
         selectDay("Lunes")
         tap(app.buttons["info.Press de banca"])
         tap(app.buttons["detail.superset"])
-        tap(app.buttons["Superserie A"])
+        tap(app.buttons["Bloque A"])
         XCTAssertTrue(exists(app.buttons["Superserie A"]))
         closeSheet()
         tap(app.buttons["info.Aperturas"])
         tap(app.buttons["detail.superset"])
-        tap(app.buttons["Superserie A"])
+        tap(app.buttons["Bloque A"])
         closeSheet()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'superserie a'")).firstMatch.waitForExistence(timeout: 5),
                       "cabecera del grupo en Inicio")
@@ -697,7 +702,10 @@ class ChamaFitUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Guardar y activar"].isEnabled)
         let key = app.secureTextFields.firstMatch
         type("sk-ant-prueba", into: key)
+        // Un campo seguro a veces pierde lo tecleado si el teclado aún subía: se repite.
+        if !app.buttons["Guardar y activar"].isEnabled { type("sk-ant-prueba", into: key) }
         dismissKeyboard()
+        XCTAssertTrue(app.buttons["Guardar y activar"].isEnabled, "la key no se escribió")
         tap(app.buttons["Guardar y activar"])
         XCTAssertTrue(exists(app.textViews.firstMatch) || exists(app.textFields.firstMatch))
         closeSheet()
@@ -901,6 +909,8 @@ class ChamaFitUITests: XCTestCase {
         launch()
         selectDay("Lunes")
         tap(app.buttons["info.Press de banca"])
+        // Si el toque cae mientras la página del día aún se desliza, la ficha no se abre: otro toque.
+        if !app.buttons["sheet.close"].waitForExistence(timeout: 3) { tap(app.buttons["info.Press de banca"]) }
         search(app.otherElements["library.mistakes"])
         XCTAssertTrue(exists(app.staticTexts["Rebotar la barra en el pecho para subirla."]))
         XCTAssertTrue(exists(app.buttons["library.video"]))
@@ -1008,7 +1018,7 @@ class ChamaFitUITests: XCTestCase {
         tap(app.buttons["block.round"])
         XCTAssertEqual(app.staticTexts["block.rounds"].label, "2 vueltas")
         snap("amrap")
-        tap(app.buttons["sheet.close"])
+        tap(app.buttons["block.close"])
         confirm("Terminar y guardar")
         XCTAssertTrue(exists(app.staticTexts.matching(NSPredicate(format: "label == 'Extensiones en polea'")).firstMatch, 8),
                       "cerrado el bloque, sigue lo siguiente")

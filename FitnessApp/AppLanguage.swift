@@ -22,7 +22,7 @@ nonisolated enum AppLanguage {
         switch code {
         case "en": return Locale(identifier: "en_GB")
         case "ca": return Locale(identifier: "ca_ES")
-        default: return AppLanguage.locale
+        default: return Locale(identifier: "es_ES")
         }
     }
 

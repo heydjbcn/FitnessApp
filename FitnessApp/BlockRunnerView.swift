@@ -36,7 +36,7 @@ struct BlockRunnerView: View {
             PulsoBackground(p: p)
             VStack(spacing: 0) {
                 HStack {
-                    CloseCircle(p: p) { if engine.running || rounds > 0 || !loggedMinutes.isEmpty { confirmStop = true } else { dismiss() } }
+                    CloseCircle(p: p, id: "block.close") { if engine.running || rounds > 0 || !loggedMinutes.isEmpty { confirmStop = true } else { dismiss() } }
                     Spacer()
                     Text("\(settings.kind.label) · \(settings.minutes) min").font(.fig(15, .bold)).foregroundColor(p.ink)
                     Spacer()
