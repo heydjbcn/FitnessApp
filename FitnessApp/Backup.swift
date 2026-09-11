@@ -89,13 +89,96 @@ extension WorkoutViewModel {
         }
     }
 
-    /// Sustituye TODO por el contenido de la copia. La sesión de hoy se
-    /// reconstruye desde la plantilla que traiga el fichero.
-    func restore(from data: Data) throws {
+    enum RestoreMode { case replace, merge }
+
+    static func decodeBackup(_ data: Data) throws -> ChamaFitBackup {
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
         guard let backup = try? dec.decode(ChamaFitBackup.self, from: data) else { throw RestoreError.unreadable }
         guard backup.version <= 1 else { throw RestoreError.newerVersion(backup.version) }
+        return backup
+    }
+
+    /// Restaura una copia. `.replace` sustituye todo; `.merge` añade lo que no
+    /// tengas (ejercicios, días de historial, pesos, notas, rutinas) y, si algo
+    /// choca, se queda lo tuyo. La rutina activa y el perfil no se tocan al fusionar.
+    func restore(from data: Data, mode: RestoreMode) throws {
+        let backup = try Self.decodeBackup(data)
+        guard mode == .merge else { try restore(from: data); return }
+
+        // Ejercicios: por id; si el id es nuevo pero el nombre ya existe, se enlaza al tuyo.
+        var remap: [UUID: UUID] = [:]
+        for ex in backup.exercises {
+            if availableExercises.contains(where: { $0.id == ex.id }) { continue }
+            if let same = availableExercises.first(where: { $0.name.caseInsensitiveCompare(ex.name) == .orderedSame }) {
+                remap[ex.id] = same.id
+            } else {
+                availableExercises.append(ex)
+            }
+        }
+        func fix(_ recs: [WorkoutExercise]) -> [WorkoutExercise] {
+            recs.map { var r = $0; if let to = remap[r.exerciseId] { r.exerciseId = to }; return r }
+        }
+        var history = workoutHistory
+        for (date, byDay) in backup.history {
+            var mine = history[date] ?? [:]
+            for (day, recs) in byDay where mine[day] == nil { mine[day] = fix(recs) }
+            if !mine.isEmpty { history[date] = mine }
+        }
+        workoutHistory = history
+        for (date, kg) in backup.bodyWeight where bodyWeightHistory[date] == nil { bodyWeightHistory[date] = kg }
+        for (date, note) in backup.notes where sessionNotes[date] == nil { sessionNotes[date] = note }
+        for (key, value) in backup.profile where Self.profileKeys.contains(key) && (userDefaults.string(forKey: key) ?? "").isEmpty {
+            userDefaults.set(value, forKey: key)
+        }
+        let known = Set(savedRoutines.map(\.id))
+        savedRoutines += (backup.routines ?? []).filter { !known.contains($0.id) }.map { r in
+            var r = r
+            r.plan = r.plan.mapValues(fix)
+            return r
+        }
+        saveNow()
+        publishSummary()
+        HapticManager.shared.success()
+    }
+
+    /// Antes de restaurar, lo que hay ahora se guarda aparte para poder deshacer.
+    @discardableResult
+    func saveUndoCopy(in dir: URL? = nil, now: Date = Date()) -> URL? {
+        let target = dir ?? AutoBackup.folder
+        do {
+            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd-HHmm"
+            let url = target.appendingPathComponent("ChamaFit-antes-de-restaurar-\(f.string(from: now)).json")
+            try backupData().write(to: url, options: .atomic)
+            userDefaults.set(url.lastPathComponent, forKey: "UndoRestoreFile")
+            userDefaults.set(now, forKey: "UndoRestoreDate")
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    /// La copia de antes de la última restauración, si tiene menos de 7 días.
+    func undoRestoreFile(in dir: URL? = nil, now: Date = Date()) -> URL? {
+        guard let name = userDefaults.string(forKey: "UndoRestoreFile"),
+              let when = userDefaults.object(forKey: "UndoRestoreDate") as? Date,
+              now.timeIntervalSince(when) < 7 * 86_400 else { return nil }
+        let url = (dir ?? AutoBackup.folder).appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    func undoLastRestore(in dir: URL? = nil) throws {
+        guard let url = undoRestoreFile(in: dir) else { return }
+        try restore(from: Data(contentsOf: url))
+        userDefaults.removeObject(forKey: "UndoRestoreFile")
+        userDefaults.removeObject(forKey: "UndoRestoreDate")
+    }
+
+    /// Sustituye TODO por el contenido de la copia. La sesión de hoy se
+    /// reconstruye desde la plantilla que traiga el fichero.
+    func restore(from data: Data) throws {
+        let backup = try Self.decodeBackup(data)
 
         availableExercises = backup.exercises
         dailyWorkoutRecords = backup.plan

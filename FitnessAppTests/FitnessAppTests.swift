@@ -1208,3 +1208,144 @@ struct SharingBackupTests {
 }
 
 import UniformTypeIdentifiers
+
+// MARK: - Tramo 0: fallos de la propuesta de producto
+
+@Suite(.serialized) @MainActor
+struct Tramo0Tests {
+
+    /// Deja una sesión del ejercicio hace `daysAgo` días y devuelve su referencia.
+    func pastSession(_ box: TestBox, _ ex: Exercise, daysAgo: Int, weights: [Double]) -> HistoryRef {
+        let date = TestBox.daysAgo(daysAgo)
+        var rec = WorkoutExercise(exerciseId: ex.id)
+        rec.setLogs = weights.enumerated().map { SetLog(reps: 8, weight: $0.element, date: date.addingTimeInterval(3600 + Double($0.offset) * 200)) }
+        rec.completedSets = weights.count
+        box.vm.workoutHistory[date] = [.monday: [rec]]
+        return box.vm.historyRef(for: ex.id, on: date)!
+    }
+
+    @Test func editPastSetsRecomputesRecords() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, on: .monday)
+        let ref = pastSession(box, ex, daysAgo: 3, weights: [60, 60, 60])
+        #expect(box.vm.personalRecord(for: ex.id)?.weight == 60)
+        var log = box.vm.historyRecord(ref)!.setLogs[1]
+        log.weight = 65; log.rpe = 9
+        box.vm.updatePastSet(log, ref)
+        #expect(box.vm.personalRecord(for: ex.id)?.weight == 65, "el récord se recalcula")
+        #expect(box.vm.exportCSV().contains(",65,8,9"))
+        box.vm.addPastSet(ref, weight: 62.5, reps: 6)
+        #expect(box.vm.historyRecord(ref)?.completedSets == 4)
+        box.vm.deletePastSet(log.id, ref)
+        #expect(box.vm.personalRecord(for: ex.id)?.weight == 62.5)
+        for l in box.vm.historyRecord(ref)!.setLogs { box.vm.deletePastSet(l.id, ref) }
+        #expect(!box.vm.hasWorkoutForDate(TestBox.daysAgo(3)), "sin series el día deja de contar")
+        // Persistió.
+        let again = WorkoutViewModel(defaults: box.defaults)
+        #expect(again.workoutHistory[TestBox.daysAgo(3)] == nil)
+    }
+
+    @Test func editTodayGoesThroughTheSession() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, rec) = box.add("Press", sets: 4, weight: 50, on: .monday)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 50, reps: 8)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 55, reps: 8)
+        box.vm.completeSet(for: rec.id, in: .monday, weight: 60, reps: 8)
+        box.vm.stopTimer(silent: true)
+        let ref = box.vm.historyRef(for: ex.id, on: Date())!
+        let middle = box.vm.historyRecord(ref)!.setLogs[1]
+        box.vm.deletePastSet(middle.id, ref)
+        let today = box.vm.dailyWorkoutRecords[.monday]!.first!
+        #expect(today.completedSets == 2 && today.setLogs.map(\.weight) == [50, 60], "borrar una del medio")
+        #expect(box.vm.workoutHistory[TestBox.today]?[.monday]?.first?.setLogs.count == 2)
+        box.vm.addPastSet(ref, weight: 57.5, reps: 5)
+        box.vm.stopTimer(silent: true)
+        #expect(box.vm.dailyWorkoutRecords[.monday]!.first!.completedSets == 3)
+    }
+
+    @Test func restTimerSurvivesRelaunch() {
+        let box = TestBox(); defer { box.tearDown() }
+        box.vm.timerLabel = "Press · siguiente serie 2 de 4"
+        box.vm.startTimer(duration: 120)
+        let end = box.vm.timerEndDate!
+        let again = WorkoutViewModel(defaults: box.defaults)
+        #expect(again.timerActive && again.timerEndDate == end)
+        #expect(again.timerLabel == "Press · siguiente serie 2 de 4" && again.currentTimerDuration == 120)
+        again.stopTimer(silent: true)
+        box.vm.stopTimer(silent: true)
+        let third = WorkoutViewModel(defaults: box.defaults)
+        #expect(!third.timerActive, "parado a mano no vuelve")
+        // Uno que ya venció mientras la app estaba cerrada tampoco.
+        box.defaults.set(Date().addingTimeInterval(-5), forKey: "RestTimerEnd")
+        let fourth = WorkoutViewModel(defaults: box.defaults)
+        #expect(!fourth.timerActive && box.defaults.object(forKey: "RestTimerEnd") == nil)
+    }
+
+    @Test func suggestionRespectsRecovery() {
+        let box = TestBox(); defer { box.tearDown() }
+        let (ex, _) = box.add("Press", sets: 3, weight: 60, reps: 8, on: .monday)
+        var rec = WorkoutExercise(exerciseId: ex.id)
+        let d = TestBox.daysAgo(3)
+        rec.setLogs = (0..<3).map { SetLog(reps: 8, weight: 60, rpe: $0 == 2 ? 8 : nil, date: d.addingTimeInterval(Double($0) * 200)) }
+        rec.completedSets = 3
+        box.vm.workoutHistory[d] = [.monday: [rec]]
+        #expect(box.vm.suggestion(for: ex, recovery: .good)?.weight == 62.5)
+        #expect(box.vm.suggestion(for: ex, recovery: nil)?.weight == 62.5)
+        let red = box.vm.suggestion(for: ex, recovery: .easy)
+        #expect(red?.trend == .same && red?.weight == 60 && red?.reason.contains("Recuperación baja") == true)
+        #expect(box.vm.suggestion(for: ex, recovery: .normal)?.trend == .same, "ámbar con RPE 8: no sube")
+        // Con RPE 7 en ámbar, sí.
+        rec.setLogs[2].rpe = 7
+        box.vm.workoutHistory[d] = [.monday: [rec]]
+        #expect(box.vm.suggestion(for: ex, recovery: .normal)?.weight == 62.5)
+    }
+
+    @Test func mergeRestoreKeepsMineAndAddsTheRest() throws {
+        let a = TestBox(); defer { a.tearDown() }
+        let (press, _) = a.add("Press", sets: 3, weight: 60, on: .monday)
+        a.vm.workoutHistory[TestBox.daysAgo(10)] = [.monday: [WorkoutExercise(exerciseId: press.id, completedSets: 2,
+                                                                               setLogs: [SetLog(reps: 8, weight: 60), SetLog(reps: 8, weight: 60)])]]
+        a.vm.updateBodyWeight(for: TestBox.daysAgo(10), weight: 80)
+        let backup = try a.vm.backupData()
+
+        let b = TestBox(); defer { b.tearDown() }
+        let (myPress, _) = b.add("press", sets: 5, weight: 70, on: .friday)       // mismo nombre, otro id
+        let (squat, _) = b.add("Sentadilla", sets: 3, weight: 90, on: .monday)
+        b.vm.workoutHistory[TestBox.daysAgo(2)] = [.friday: [WorkoutExercise(exerciseId: squat.id, completedSets: 1,
+                                                                             setLogs: [SetLog(reps: 5, weight: 90)])]]
+        b.vm.updateBodyWeight(for: TestBox.daysAgo(10), weight: 78)
+        b.vm.renameActiveRoutine("La mía")
+        try b.vm.restore(from: backup, mode: .merge)
+        #expect(b.vm.availableExercises.count == 2, "el Press de la copia se enlaza al tuyo por nombre")
+        #expect(b.vm.workoutHistory[TestBox.daysAgo(10)]?[.monday]?.first?.exerciseId == myPress.id)
+        #expect(b.vm.workoutHistory[TestBox.daysAgo(2)] != nil, "lo tuyo se queda")
+        #expect(b.vm.bodyWeightForDate(TestBox.daysAgo(10)) == 78, "si choca, gana lo tuyo")
+        #expect(b.vm.activeRoutineName == "La mía" && b.vm.dailyWorkoutRecords[.friday]?.count == 1)
+    }
+
+    @Test func undoCopyBeforeRestore() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("chamafit-undo-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let a = TestBox(); defer { a.tearDown() }
+        a.add("De la copia", on: .monday)
+        let other = try a.vm.backupData()
+        let b = TestBox(); defer { b.tearDown() }
+        b.add("Mío", on: .tuesday)
+        #expect(b.vm.saveUndoCopy(in: dir) != nil)
+        try b.vm.restore(from: other, mode: .replace)
+        #expect(b.vm.availableExercises.map(\.name) == ["De la copia"])
+        #expect(b.vm.undoRestoreFile(in: dir) != nil)
+        #expect(b.vm.undoRestoreFile(in: dir, now: Date().addingTimeInterval(8 * 86_400)) == nil, "caduca a los 7 días")
+        try b.vm.undoLastRestore(in: dir)
+        #expect(b.vm.availableExercises.map(\.name) == ["Mío"])
+        #expect(b.vm.undoRestoreFile(in: dir) == nil)
+    }
+
+    @Test func coachContextWithoutHealth() {
+        let box = TestBox(); defer { box.tearDown() }
+        box.add("Press", on: .monday)
+        let without = box.vm.coachContext(recovery: nil)
+        let with = box.vm.coachContext(recovery: Recovery(sleepHours: 6, restingHR: 60, restingHRAvg: 55))
+        #expect(!without.contains("RECUPERACIÓN") && with.contains("RECUPERACIÓN"))
+    }
+}

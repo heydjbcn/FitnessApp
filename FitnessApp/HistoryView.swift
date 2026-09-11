@@ -21,6 +21,8 @@ struct HistoryView: View {
     @State private var noteInput = ""
     @State private var confirmDelete = false
     @State private var detail: Exercise? = nil
+    /// Fecha con la que se abre la ficha (desde lo hecho ese día: editar esas series).
+    @State private var detailDate: Date? = nil
     @FocusState private var weightFocused: Bool
 
     private var p: Palette { themeManager.p }
@@ -76,7 +78,7 @@ struct HistoryView: View {
             }
         }
         .sheet(item: $detail) { ex in
-            ExerciseDetailSheet(exerciseId: ex.id)
+            ExerciseDetailSheet(exerciseId: ex.id, focusDate: detailDate)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
@@ -346,7 +348,7 @@ struct HistoryView: View {
         } else {
             VStack(spacing: 8) {
                 ForEach(items, id: \.record.id) { item in
-                    Button { detail = item.exercise } label: {
+                    Button { detailDate = date; detail = item.exercise } label: {
                         HStack(spacing: 12) {
                             ExerciseIcon(exercise: item.exercise, size: 42, radius: 14, p: p)
                             VStack(alignment: .leading, spacing: 2) {
@@ -406,7 +408,7 @@ struct HistoryView: View {
             } else {
                 VStack(spacing: 6) {
                     ForEach(Array(prs.enumerated()), id: \.element.exercise.id) { i, pr in
-                        Button { detail = pr.exercise } label: {
+                        Button { detailDate = nil; detail = pr.exercise } label: {
                             HStack(spacing: 12) {
                                 Text("\(i + 1)")
                                     .font(.bri(12))

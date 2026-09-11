@@ -393,10 +393,22 @@ struct SettingsTabView: View {
             .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
 
             Button { importingBackup = true } label: {
-                navRow(icon: "square.and.arrow.down", title: "Restaurar copia", sub: "Sustituye todo por el contenido de una copia")
+                navRow(icon: "square.and.arrow.down", title: "Restaurar copia", sub: "Fusiona con lo tuyo o sustituye todo")
             }
             .buttonStyle(.plain)
             .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+
+            if viewModel.undoRestoreFile() != nil {
+                Button {
+                    do { try viewModel.undoLastRestore(); userManager.reloadProfile() }
+                    catch { restoreError = error.localizedDescription }
+                } label: {
+                    navRow(icon: "arrow.uturn.backward.circle", title: "Deshacer la última restauración",
+                           sub: "Vuelve a como estaba antes (disponible 7 días)")
+                }
+                .buttonStyle(.plain)
+                .overlay(alignment: .bottom) { Rectangle().fill(p.line).frame(height: 1) }
+            }
 
             Button { confirmReset = true } label: {
                 navRow(icon: "trash", title: "Borrar todos los datos", sub: "Ejercicios, rutina, historial, peso y notas", tint: p.danger)
@@ -413,9 +425,10 @@ struct SettingsTabView: View {
         .confirmationDialog("¿Restaurar esta copia?", isPresented: Binding(get: { pendingRestore != nil },
                                                                          set: { if !$0 { pendingRestore = nil } }),
                             titleVisibility: .visible) {
-            Button("Sustituir todo por la copia", role: .destructive) { restore() }
+            Button("Fusionar con lo mío") { restore(.merge) }
+            Button("Sustituir todo por la copia", role: .destructive) { restore(.replace) }
         } message: {
-            Text("Lo que hay ahora en la app se pierde. Si no estás seguro, haz antes una copia de seguridad.")
+            Text("Fusionar añade lo que no tengas y, si algo choca, se queda lo tuyo. Sustituir cambia todo por la copia. En los dos casos se guarda antes una copia de lo actual para poder deshacer.")
         }
         .confirmationDialog("¿Borrar todos los datos?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Borrar ejercicios, rutina e historial", role: .destructive) {
@@ -433,14 +446,16 @@ struct SettingsTabView: View {
         }
     }
 
-    private func restore() {
+    private func restore(_ mode: WorkoutViewModel.RestoreMode) {
         guard let url = pendingRestore else { return }
         pendingRestore = nil
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         do {
             let data = try Data(contentsOf: url)
-            try viewModel.restore(from: data)
+            _ = try WorkoutViewModel.decodeBackup(data)       // antes de tocar nada, que sea una copia válida
+            viewModel.saveUndoCopy()
+            try viewModel.restore(from: data, mode: mode)
             userManager.reloadProfile()
         } catch {
             restoreError = error.localizedDescription

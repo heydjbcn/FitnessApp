@@ -150,7 +150,7 @@ struct WeeklyCalendarView: View {
         .sheet(item: $detail) { target in
             ExerciseDetailSheet(exerciseId: target.exerciseId,
                                 workoutExerciseId: target.workoutExerciseId,
-                                day: target.day)
+                                day: target.day, focusDate: target.focusDate)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
@@ -165,6 +165,7 @@ struct WeeklyCalendarView: View {
         let exerciseId: UUID
         let workoutExerciseId: UUID?
         let day: WorkoutDay?
+        var focusDate: Date? = nil
         var id: String { "\(exerciseId)-\(workoutExerciseId?.uuidString ?? "")" }
     }
 
@@ -457,7 +458,8 @@ struct WeeklyCalendarView: View {
                         ExerciseListRow(exercise: item.exercise,
                                         meta: "\(item.record.completedSets)/\(item.exercise.totalSets) series · \(viewModel.meta(for: item.exercise))",
                                         p: p) {
-                            detail = DetailTarget(exerciseId: item.exercise.id, workoutExerciseId: nil, day: nil)
+                            detail = DetailTarget(exerciseId: item.exercise.id, workoutExerciseId: nil, day: nil,
+                                                  focusDate: selectedDate)
                         }
                     }
                 } else if let weekday {

@@ -63,6 +63,22 @@ final class LiveActivityManager {
         self.activity = nil
     }
 
+    /// La app se cerró con un descanso en marcha: si su Live Activity sigue viva
+    /// se vuelve a enganchar (y se cierran las demás); si no, se crea otra.
+    func reattach(endDate: Date, label: String, sessionName: String, style: ActivityStyle) {
+        let live = Activity<RestActivityAttributes>.activities
+        if let keep = live.first(where: { !$0.content.state.finished && $0.activityState == .active }) {
+            activity = keep
+            for other in live where other.id != keep.id {
+                Task { await other.end(ActivityContent(state: other.content.state, staleDate: Date()), dismissalPolicy: .immediate) }
+            }
+            update(endDate: endDate, label: label)
+        } else {
+            endAllOrphans()
+            start(endDate: endDate, label: label, sessionName: sessionName, style: style)
+        }
+    }
+
     /// Al arrancar la app, cierra actividades huérfanas de una ejecución anterior.
     func endAllOrphans() {
         for a in Activity<RestActivityAttributes>.activities {

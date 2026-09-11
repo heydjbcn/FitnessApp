@@ -19,6 +19,10 @@ struct CoachAIView: View {
     @ObservedObject private var health = HealthManager.shared
     @Environment(\.dismiss) private var dismiss
     @AppStorage("coachEngine", store: AppDefaults.store) private var engineRaw = CoachEngine.apple.rawValue
+    /// Datos de Salud en el contexto: sí con el motor del iPhone (no sale de él), no con Claude salvo que lo pidas.
+    @AppStorage("coachHealthApple", store: AppDefaults.store) private var healthApple = true
+    @AppStorage("coachHealthClaude", store: AppDefaults.store) private var healthClaude = false
+    @State private var showingContext = false
 
     @State private var prompt = ""
     @State private var thread: [(question: String, answer: String)] = []
@@ -59,14 +63,63 @@ struct CoachAIView: View {
                     .padding(.top, 12)
                     .accessibilityIdentifier("coach.engine")
             }
+            if !needsKey { privacyRow }
             if needsKey { keyEntry } else { chat }
         }
+        .sheet(isPresented: $showingContext) { contextSheet }
         .sheet(isPresented: $showingGenerator) {
             RoutineGeneratorSheet(engine: engine)
                 .environmentObject(viewModel)
                 .environmentObject(themeManager)
         }
         .onDisappear { streamTask?.cancel() }
+    }
+
+    // MARK: - Qué ve el coach
+
+    private var includeHealth: Bool { engine == .apple ? healthApple : healthClaude }
+
+    private var privacyRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: engine == .apple ? "lock.iphone" : "network")
+                .font(.system(size: 13, weight: .semibold)).foregroundColor(p.acc)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Incluir mis datos de Salud").font(.fig(13, .semibold)).foregroundColor(p.ink)
+                Text(engine == .apple ? "Sueño y pulso · no salen de tu iPhone" : "Sueño y pulso · se enviarían a Anthropic")
+                    .font(.fig(11, .medium)).foregroundColor(p.mute)
+            }
+            Spacer(minLength: 4)
+            Button("Ver lo que se envía") { showingContext = true }
+                .font(.fig(11, .bold)).foregroundColor(p.acc)
+                .accessibilityIdentifier("coach.context")
+            PulsoToggle(isOn: engine == .apple ? $healthApple : $healthClaude, p: p)
+                .accessibilityIdentifier("toggle.coachHealth")
+        }
+        .padding(.horizontal, 22).padding(.top, 10)
+    }
+
+    private var contextSheet: some View {
+        PulsoSheet(p: p) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    UpperLabel(text: engine == .apple ? "Se queda en tu iPhone" : "Se envía a Anthropic con cada pregunta", p: p)
+                    Text("Lo que ve el coach").font(.bri(22)).foregroundColor(p.ink)
+                }
+                Spacer()
+                CloseCircle(p: p) { showingContext = false }
+            }
+            .padding(.horizontal, 22).padding(.top, 22)
+            ScrollView {
+                Text(viewModel.coachContext(compact: engine == .apple, recovery: includeHealth ? health.recovery : nil))
+                    .font(.system(size: 12, design: .monospaced)).foregroundColor(p.ink)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(p.soft))
+                    .padding(.horizontal, 22).padding(.vertical, 14)
+                    .accessibilityIdentifier("coach.contextText")
+            }
+        }
     }
 
     private var header: some View {
@@ -274,7 +327,7 @@ struct CoachAIView: View {
         thread.append((q, ""))
         let index = thread.count - 1
         let useApple = engine == .apple
-        let ctx = viewModel.coachContext(compact: useApple, recovery: health.recovery)
+        let ctx = viewModel.coachContext(compact: useApple, recovery: includeHealth ? health.recovery : nil)
         streamTask = Task {
             do {
                 let stream = useApple

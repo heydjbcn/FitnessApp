@@ -109,7 +109,8 @@ final class WorkoutViewModel: ObservableObject {
         WorkoutDay.allCases.forEach { dailyWorkoutRecords[$0] = [] }
         loadData()
         ensureSession()
-        liveActivity.endAllOrphans()
+        // Si la app murió con un descanso en marcha, vuelve donde estaba.
+        if !resumeSavedTimer() { liveActivity.endAllOrphans() }
         // Los botones de la Live Activity (+30 s / Parar) llegan por aquí. Si el
         // intent despertó la app en frío antes de existir el modelo, la orden
         // quedó apuntada en el puente y se aplica ahora.
@@ -285,6 +286,19 @@ final class WorkoutViewModel: ObservableObject {
         if let ex = getExercise(by: dailyWorkoutRecords[day]![idx].exerciseId) {
             checkRecord(weight: updated.weight, exerciseId: ex.id, excluding: updated.id, name: ex.name)
         }
+    }
+
+    /// Quita una serie cualquiera de la sesión de hoy (no solo la última).
+    func deleteSetLog(_ logId: UUID, for workoutExerciseId: UUID, in day: WorkoutDay) {
+        guard let idx = dailyWorkoutRecords[day]?.firstIndex(where: { $0.id == workoutExerciseId }) else { return }
+        var record = dailyWorkoutRecords[day]![idx]
+        guard let logIdx = record.setLogs.firstIndex(where: { $0.id == logId }) else { return }
+        record.setLogs.remove(at: logIdx)
+        record.completedSets = record.setLogs.count
+        if record.completedSets == 0 { record.lastSetCompletedAt = nil }
+        dailyWorkoutRecords[day]![idx] = record
+        recordHistory(for: day)
+        HapticManager.shared.warning()
     }
 
     func setSupersetGroup(_ group: Int?, for workoutExerciseId: UUID, in day: WorkoutDay) {
@@ -639,9 +653,46 @@ final class WorkoutViewModel: ObservableObject {
                            sessionName: sessionName, style: activityStyle)
         PhoneConnectivity.shared.sendTimer(endDate: end, label: timerLabel)
         syncRestState()
+        saveTimerState()
+        scheduleTicker()
+    }
+
+    private func scheduleTicker() {
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             DispatchQueue.main.async { self?.tick() }
         }
+    }
+
+    /// El descanso en curso, guardado para retomarlo si la app se cierra.
+    private func saveTimerState() {
+        if timerActive, let end = timerEndDate {
+            userDefaults.set(end, forKey: "RestTimerEnd")
+            userDefaults.set(timerLabel, forKey: "RestTimerLabel")
+            userDefaults.set(currentTimerDuration, forKey: "RestTimerDuration")
+        } else {
+            ["RestTimerEnd", "RestTimerLabel", "RestTimerDuration"].forEach { userDefaults.removeObject(forKey: $0) }
+        }
+    }
+
+    /// Al arrancar: si había un descanso sin vencer, se reanuda con su Live
+    /// Activity y el reloj. Devuelve si lo ha hecho.
+    @discardableResult
+    func resumeSavedTimer(now: Date = Date()) -> Bool {
+        guard let end = userDefaults.object(forKey: "RestTimerEnd") as? Date else { return false }
+        guard end > now else { saveTimerState(); return false }
+        timerEndDate = end
+        timerLabel = userDefaults.string(forKey: "RestTimerLabel") ?? ""
+        currentTimerDuration = max(1, userDefaults.integer(forKey: "RestTimerDuration"))
+        timeRemaining = Int(ceil(end.timeIntervalSince(now)))
+        timerActive = true
+        if !AppDefaults.isTesting {
+            liveActivity.reattach(endDate: end, label: timerLabel.isEmpty ? "Descanso" : timerLabel,
+                                  sessionName: sessionName, style: activityStyle)
+        }
+        syncRestState()
+        scheduleTicker()
+        return true
     }
 
     /// Recalcula lo que queda contra el reloj de pared (también al volver del fondo).
@@ -668,6 +719,7 @@ final class WorkoutViewModel: ObservableObject {
         liveActivity.update(endDate: newEnd)
         PhoneConnectivity.shared.sendTimer(endDate: newEnd, label: timerLabel)
         syncRestState()
+        saveTimerState()
         HapticManager.shared.buttonTapped()
     }
 
@@ -683,6 +735,7 @@ final class WorkoutViewModel: ObservableObject {
         liveActivity.end()
         if wasActive { PhoneConnectivity.shared.sendTimer(endDate: nil, label: "") }
         if wasActive { syncRestState() }
+        saveTimerState()
     }
 
     private func completeTimer() {
@@ -694,6 +747,7 @@ final class WorkoutViewModel: ObservableObject {
         liveActivity.finish()
         PhoneConnectivity.shared.sendTimer(endDate: nil, label: "")
         syncRestState()
+        saveTimerState()
         HapticManager.shared.timerCompleted()
         VoiceCoach.shared.restDone(next: nextUpText(in: trainingDay))
         notify(.restTimer, title: "Descanso terminado", message: "Cuando quieras, a por la siguiente serie.")

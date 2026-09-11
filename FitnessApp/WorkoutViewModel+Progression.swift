@@ -41,7 +41,33 @@ extension WorkoutViewModel {
     }
 
     /// Peso y reps para hoy. nil si nunca se ha hecho o es por tiempo.
+    /// Con la recuperación en rojo no sube; en ámbar, solo si la última vez fue fácil (RPE ≤ 7).
     func suggestion(for exercise: Exercise) -> WeightSuggestion? {
+        suggestion(for: exercise, recovery: HealthManager.shared.isAvailable ? HealthManager.shared.recovery.level : nil)
+    }
+
+    func suggestion(for exercise: Exercise, recovery: Recovery.Level?) -> WeightSuggestion? {
+        guard let base = baseSuggestion(for: exercise), base.trend == .up else { return baseSuggestion(for: exercise) }
+        let lastRPE = pastWorkSessions(for: exercise.id).first?.compactMap(\.rpe).max()
+        let holdWeight = base.weight > 0 ? lastTopWeight(exercise) : 0
+        let holdReps = base.weight > 0 ? base.reps : max(1, base.reps - 1)
+        switch recovery {
+        case .easy:
+            return WeightSuggestion(weight: holdWeight, reps: holdReps, trend: .same,
+                                    reason: "Recuperación baja hoy (sueño o pulsaciones): mantén lo de la última vez.")
+        case .normal where (lastRPE ?? 10) > 7:
+            return WeightSuggestion(weight: holdWeight, reps: holdReps, trend: .same,
+                                    reason: "Día normal según tu recuperación: sube solo cuando la última vez fuera fácil (RPE 7 o menos).")
+        default:
+            return base
+        }
+    }
+
+    private func lastTopWeight(_ exercise: Exercise) -> Double {
+        pastWorkSessions(for: exercise.id).first?.map(\.weight).max() ?? exercise.weight
+    }
+
+    private func baseSuggestion(for exercise: Exercise) -> WeightSuggestion? {
         guard exercise.segundos == 0 else { return nil }
         let sessions = pastWorkSessions(for: exercise.id)
         guard let last = sessions.first, !last.isEmpty else { return nil }

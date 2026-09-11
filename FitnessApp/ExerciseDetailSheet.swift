@@ -14,6 +14,8 @@ struct ExerciseDetailSheet: View {
     let exerciseId: UUID
     var workoutExerciseId: UUID? = nil
     var day: WorkoutDay? = nil
+    /// Abrir directamente el editor de las series de esa fecha (desde Historial).
+    var focusDate: Date? = nil
 
     @EnvironmentObject var viewModel: WorkoutViewModel
     @EnvironmentObject var themeManager: ThemeManager
@@ -21,6 +23,7 @@ struct ExerciseDetailSheet: View {
 
     @State private var showingPlates = false
     @State private var showingEdit = false
+    @State private var editingPast: HistoryRef? = nil
 
     private var p: Palette { themeManager.p }
     private var exercise: Exercise? { viewModel.getExercise(by: exerciseId) }
@@ -74,6 +77,16 @@ struct ExerciseDetailSheet: View {
                     }
                 }
             }
+        }
+        .sheet(item: $editingPast) { ref in
+            if let ex = exercise {
+                PastSetsEditor(ref: ref, exercise: ex)
+                    .environmentObject(viewModel)
+                    .environmentObject(themeManager)
+            }
+        }
+        .onAppear {
+            if let d = focusDate, editingPast == nil { editingPast = viewModel.historyRef(for: exerciseId, on: d) }
         }
         .sheet(isPresented: $showingPlates) {
             PlateCalculatorView(initialWeight: exercise?.weight ?? 0)
@@ -215,10 +228,20 @@ struct ExerciseDetailSheet: View {
                         .strokeBorder(p.line, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
             } else {
                 ForEach(Array(rec.setLogs.enumerated()), id: \.element.id) { idx, log in
-                    SetLogRow(index: idx + 1, log: log, p: p) { updated in
-                        if let wid = workoutExerciseId, let d = day {
-                            viewModel.updateSetLog(updated, for: wid, in: d)
+                    HStack(spacing: 6) {
+                        SetLogRow(index: idx + 1, log: log, p: p) { updated in
+                            if let wid = workoutExerciseId, let d = day {
+                                viewModel.updateSetLog(updated, for: wid, in: d)
+                            }
                         }
+                        Button {
+                            if let wid = workoutExerciseId, let d = day { viewModel.deleteSetLog(log.id, for: wid, in: d) }
+                        } label: {
+                            Image(systemName: "trash").font(.system(size: 13, weight: .semibold)).foregroundColor(p.danger)
+                                .frame(width: 34, height: 34)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Borrar la serie \(idx + 1)")
                     }
                 }
             }
@@ -271,6 +294,13 @@ struct ExerciseDetailSheet: View {
                             Text(WeeklyCalendarView.longDate(e.date)).font(.fig(14, .semibold)).foregroundColor(p.ink)
                             Spacer()
                             Text(e.text).font(.fig(12, .semibold)).foregroundColor(p.mute)
+                            Button { editingPast = viewModel.historyRef(for: ex.id, on: e.date) } label: {
+                                Image(systemName: "pencil").font(.system(size: 12, weight: .bold)).foregroundColor(p.acc)
+                                    .frame(width: 28, height: 28).background(Circle().fill(p.card))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Corregir las series del \(WeeklyCalendarView.longDate(e.date))")
+                            .accessibilityIdentifier("history.edit.\(MonthGrid.stamp(e.date))")
                         }
                         // Cada serie de ese día: kg × reps, con su tipo y RPE si los tiene.
                         if !e.logs.isEmpty {
@@ -347,7 +377,7 @@ struct ExerciseDetailSheet: View {
 // MARK: - Fila editable de una serie registrada
 
 /// Tipo de serie (menú), peso, repeticiones y RPE de una serie ya hecha.
-private struct SetLogRow: View {
+struct SetLogRow: View {
     let index: Int
     let log: SetLog
     let p: Palette
