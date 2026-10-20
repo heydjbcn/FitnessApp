@@ -148,6 +148,17 @@ class ChamaFitUITests: XCTestCase {
         element.waitForExistence(timeout: timeout)
     }
 
+    /// La biblioteca de Ejercicios tiene `n` tarjetas (la cabecera ya no dice cuántas hay).
+    func libraryHas(_ n: Int, _ timeout: TimeInterval = 5) -> Bool {
+        let cards = app.descendants(matching: .any).matching(identifier: "library.card")
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if cards.count == n { return true }
+            usleep(300_000)
+        } while Date() < deadline
+        return false
+    }
+
     func assertGone(_ element: XCUIElement, _ timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) {
         let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
         XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: timeout), .completed, "sigue en pantalla: \(element)", file: file, line: line)
@@ -374,7 +385,7 @@ class ChamaFitUITests: XCTestCase {
         selectDay("Viernes")
         XCTAssertTrue(exists(app.buttons["set.Sentadilla.1"]))
         tab("Ejercicios")
-        XCTAssertTrue(exists(app.staticTexts["15 en tu biblioteca"]))
+        XCTAssertTrue(libraryHas(15))
         snap("ejercicios")
     }
 
@@ -455,7 +466,7 @@ class ChamaFitUITests: XCTestCase {
         for _ in 0..<5 { secUp.tap() }
         tap(app.buttons["Guardar ejercicio"])
         XCTAssertTrue(exists(app.staticTexts["Fondos"].firstMatch), "aparece en la biblioteca")
-        XCTAssertTrue(exists(app.staticTexts["16 en tu biblioteca"]))
+        XCTAssertTrue(libraryHas(16))
 
         // Editar desde el detalle y borrar.
         tap(app.staticTexts["Fondos"].firstMatch)
@@ -474,9 +485,9 @@ class ChamaFitUITests: XCTestCase {
         for _ in 0..<4 { tap(app.buttons["Siguiente"]) }
         tap(app.buttons["Eliminar ejercicio"].firstMatch)
         confirm("Eliminar ejercicio")
-        XCTAssertTrue(exists(app.staticTexts["Ejercicio no disponible"], 8) || exists(app.staticTexts["15 en tu biblioteca"], 8))
+        XCTAssertTrue(exists(app.staticTexts["Ejercicio no disponible"], 8) || libraryHas(15, 8))
         if app.buttons["sheet.close"].exists { closeSheet() }
-        XCTAssertTrue(exists(app.staticTexts["15 en tu biblioteca"], 8))
+        XCTAssertTrue(libraryHas(15, 8))
         snap("biblioteca")
 
         // Nuevo desde cero con nombre escrito a mano y cerrar sin guardar.
@@ -484,7 +495,7 @@ class ChamaFitUITests: XCTestCase {
         type("Prueba", into: app.textFields.firstMatch)
         dismissKeyboard()
         tap(app.buttons["Atrás"])
-        XCTAssertTrue(exists(app.staticTexts["15 en tu biblioteca"]))
+        XCTAssertTrue(libraryHas(15))
     }
 
     // MARK: - 6. Calendario: semana, nombres, reordenar, duplicar, rutinas, mes
@@ -1093,6 +1104,37 @@ class ChamaFitUITests: XCTestCase {
         XCTAssertTrue(heard.label.contains("80 kg") && heard.label.contains("8 reps"), heard.label)
         XCTAssertTrue(exists(app.buttons["timer.stop"]) || exists(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Serie 2'")).firstMatch),
                       "la serie quedó apuntada")
+    }
+
+    // MARK: - 22. Cabecera: margen bajo el chip y fundido del scroll (solo capturas)
+
+    /// Arrastra el contenido ~160 pt hacia arriba y lo sujeta, sin inercia:
+    /// deja una tarjeta a medio pasar bajo la cabecera.
+    func nudgeUp() {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.42))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
+        sleep(1)
+    }
+
+    func test22_HeaderFade() {
+        launch()
+        sleep(2)
+        snap("01-inicio-reposo")
+        nudgeUp()
+        snap("02-inicio-scroll")
+        app.swipeDown(velocity: .fast)
+        selectDay("Lunes")
+        sleep(1)
+        snap("03-inicio-otro-dia")
+        nudgeUp()
+        snap("04-inicio-otro-dia-scroll")
+        for (i, name) in ["Calendario", "Ejercicios", "Historial", "Ajustes"].enumerated() {
+            tab(name)
+            sleep(1)
+            nudgeUp()
+            snap(String(format: "%02d-%@-scroll", i + 5, name.lowercased()))
+        }
     }
 }
 

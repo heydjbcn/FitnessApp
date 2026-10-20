@@ -112,10 +112,6 @@ struct WeeklyCalendarView: View {
         ZStack(alignment: .top) {
             PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHeader(title: "Calendario", size: 26,
-                             subtitle: "Tu semana de entrenamiento · toca un día para ver su sesión", p: p) {
-                    PulsoSegmented(options: ["Semana", "Mes"], selection: $mode, p: p)
-                }
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         if mode == 0 {
@@ -126,10 +122,14 @@ struct WeeklyCalendarView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 4)
+                    .padding(.top, 16)
                     .padding(.bottom, 120)
                 }
-                .padding(.top, 10)
+                .pulsoFadingHeader {
+                    ScreenHeader(title: "Calendario", size: 26, p: p) {
+                        PulsoSegmented(options: ["Semana", "Mes"], selection: $mode, p: p)
+                    }
+                }
             }
         }
         .onAppear { viewModel.updateTimerEnabledState(themeManager.isTimerEnabled) }

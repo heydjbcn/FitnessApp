@@ -48,7 +48,6 @@ struct SettingsTabView: View {
         ZStack(alignment: .top) {
             PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHeader(title: "Configuración", p: p)
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         profileRow
@@ -78,10 +77,10 @@ struct SettingsTabView: View {
                             .padding(.top, 22)
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 4)
+                    .padding(.top, 16)
                     .padding(.bottom, 120)
                 }
-                .padding(.top, 10)
+                .pulsoFadingHeader { ScreenHeader(title: "Configuración", p: p) }
             }
         }
         .sheet(isPresented: $showingProfile) {

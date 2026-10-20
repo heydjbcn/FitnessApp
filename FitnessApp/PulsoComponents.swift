@@ -72,6 +72,12 @@ extension View {
             )
     }
 
+    /// Cabecera fija sobre el scroll: el contenido pasa por debajo y se desvanece en un
+    /// fundido largo que acaba justo donde empieza en reposo, sin sumar altura.
+    func pulsoFadingHeader<Header: View>(fade: CGFloat = 72, @ViewBuilder header: () -> Header) -> some View {
+        modifier(PulsoFadingHeader(fade: fade, header: header()))
+    }
+
     /// Superficie secundaria dentro de una tarjeta.
     func pulsoSoft(_ p: Palette, radius: CGFloat, bordered: Bool = false) -> some View {
         background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(p.soft))
@@ -79,6 +85,31 @@ extension View {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(bordered ? p.line : .clear, lineWidth: 1)
             )
+    }
+}
+
+/// Es una máscara y no una capa encima: el fondo con resplandores sigue intacto.
+/// El fundido termina justo en el borde inferior de la cabecera: en reposo la
+/// primera tarjeta (16 pt más abajo) se ve entera y solo se desvanece al pasar por debajo.
+struct PulsoFadingHeader<Header: View>: ViewModifier {
+    let fade: CGFloat
+    let header: Header
+    @State private var height: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .mask(VStack(spacing: 0) {
+                Color.clear.frame(height: max(0, height - fade))
+                LinearGradient(stops: [.init(color: .clear, location: 0),
+                                       .init(color: .black.opacity(0.35), location: 0.5),
+                                       .init(color: .black, location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: fade)
+                Color.black
+            })
+            .safeAreaInset(edge: .top, spacing: 0) {
+                header.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            }
     }
 }
 

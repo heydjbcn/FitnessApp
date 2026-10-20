@@ -23555,6 +23555,22 @@
         }
       }
     },
+    "Racha: %@": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ratxa: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak: %@"
+          }
+        }
+      }
+    },
     "Rebotar abajo.": {
       "extractionState": "stale",
       "localizations": {
@@ -30696,6 +30712,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Start over"
+          }
+        }
+      }
+    },
+    "Volver a hoy": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tornar a avui"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to today"
           }
         }
       }

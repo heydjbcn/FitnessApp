@@ -31,7 +31,6 @@ struct HistoryView: View {
         ZStack(alignment: .top) {
             PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHeader(title: "Historial", subtitle: "Progreso, peso corporal, notas y récords", p: p)
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         weekCard.padding(.bottom, 8)
@@ -60,11 +59,11 @@ struct HistoryView: View {
                         muscleCard.padding(.top, 10)
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 4)
+                    .padding(.top, 16)
                     .padding(.bottom, 120)
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .padding(.top, 10)
+                .pulsoFadingHeader { ScreenHeader(title: "Historial", p: p) }
             }
         }
         .onChange(of: date) { _, _ in

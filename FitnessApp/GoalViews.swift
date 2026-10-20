@@ -13,6 +13,8 @@ struct WeekGoalRing: View {
     let done: Int
     let goal: Int
     let p: Palette
+    /// Sin la palabra «semana», para la cabecera de una sola fila.
+    var compact = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -26,7 +28,7 @@ struct WeekGoalRing: View {
                 }
             }
             .frame(width: 16, height: 16)
-            Text("\(done)/\(goal) semana").font(.fig(12, .semibold)).foregroundColor(p.ink)
+            Text(compact ? "\(done)/\(goal)" : "\(done)/\(goal) semana").font(.fig(12, .semibold)).foregroundColor(p.ink)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

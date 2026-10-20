@@ -23,26 +23,6 @@ struct ExercisesView: View {
         ZStack(alignment: .top) {
             PulsoBackground(p: p)
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHeader(title: "Ejercicios",
-                             subtitle: String(localized: "\(viewModel.availableExercises.count) en tu biblioteca"), p: p) {
-                    Button {
-                        HapticManager.shared.buttonTapped()
-                        creating = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus").font(.system(size: 13, weight: .bold))
-                            Text("Nuevo").font(.fig(13, .bold))
-                        }
-                        .foregroundColor(p.onacc)
-                        .padding(.leading, 12)
-                        .padding(.trailing, 16)
-                        .frame(height: 40)
-                        .background(Capsule().fill(p.hgrad))
-                        .shadow(color: p.glow1, radius: 10, y: 8)
-                    }
-                    .buttonStyle(.plain)
-                }
-
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         if viewModel.availableExercises.isEmpty {
@@ -64,10 +44,30 @@ struct ExercisesView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 4)
+                    .padding(.top, 16)
                     .padding(.bottom, 120)
                 }
-                .padding(.top, 10)
+                .pulsoFadingHeader {
+                    ScreenHeader(title: "Ejercicios", p: p) {
+                        Button {
+                            HapticManager.shared.buttonTapped()
+                            creating = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "plus").font(.system(size: 13, weight: .bold))
+                                Text("Nuevo").font(.fig(13, .bold))
+                            }
+                            .foregroundColor(p.onacc)
+                            .padding(.leading, 12)
+                            .padding(.trailing, 16)
+                            .frame(height: 40)
+                            .background(Capsule().fill(p.hgrad))
+                            .shadow(color: p.glow1, radius: 10, y: 8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.bottom, 8)
+                }
             }
         }
         .sheet(item: $detail) { ex in
@@ -129,6 +129,8 @@ struct ExercisesView: View {
         .pulsoCard(p, radius: 22)
         .contentShape(Rectangle())
         .onTapGesture { detail = ex }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("library.card")
     }
 }
 

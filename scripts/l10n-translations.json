@@ -5615,6 +5615,10 @@
   "en": "Current streak: %lld days. Routine mode: %@.",
   "ca": "Ratxa actual: %lld dies. Mode de la rutina: %@."
  },
+ "Racha: %@": {
+  "en": "Streak: %@",
+  "ca": "Ratxa: %@"
+ },
  "Rebotar abajo.": {
   "en": "Bouncing at the bottom.",
   "ca": "Rebotar a baix."
@@ -7314,6 +7318,10 @@
  "Volver a empezar": {
   "en": "Start over",
   "ca": "Tornar a començar"
+ },
+ "Volver a hoy": {
+  "en": "Back to today",
+  "ca": "Tornar a avui"
  },
  "Volver a la de hoy": {
   "en": "Back to today's",

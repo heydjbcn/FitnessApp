@@ -38,7 +38,6 @@ struct HomeView: View {
             PulsoBackground(p: p)
 
             VStack(alignment: .leading, spacing: 0) {
-                header
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         sessionCard
@@ -59,6 +58,7 @@ struct HomeView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 120)
                 }
+                .pulsoFadingHeader { header }
             }
         }
         .sheet(item: $detail) { target in
@@ -131,73 +131,75 @@ struct HomeView: View {
 
     // MARK: - Cabecera fija
 
+    /// Una fila: el día con el chip de material y, a la derecha, semana y racha
+    /// (o volver a hoy si se está viendo otro día).
     private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Text((saludo).loc)
-                    .font(.fig(14, .medium))
-                    .foregroundColor(p.mute)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                WeekGoalRing(done: viewModel.weekStats().sessions, goal: viewModel.weeklySessionGoal, p: p)
+        HStack(alignment: .center, spacing: 8) {
+            // El nombre de la rutina solo si cabe: la fila no puede pasar del ancho
+            // de la pantalla o arrastra todo Inicio hacia un lado.
+            ViewThatFits(in: .horizontal) {
                 HStack(spacing: 6) {
+                    dayTitle
+                    if let label = viewModel.label(for: selectedDay) {
+                        GradientText(text: label, font: .bri(26), p: p, tracking: -0.03 * 26)
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                }
+                dayTitle
+            }
+
+            equipmentMenu.fixedSize()
+            Spacer(minLength: 0)
+
+            WeekGoalRing(done: viewModel.weekStats().sessions, goal: viewModel.weeklySessionGoal, p: p, compact: true)
+                .fixedSize()
+
+            if selectedDay != today {
+                Button {
+                    withAnimation { selectedDay = today }
+                    HapticManager.shared.buttonTapped()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(p.acc)
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(p.card))
+                        .overlay(Circle().strokeBorder(p.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.scheduleMode == .fixedWeek ? "Volver a hoy" : "Volver a la de hoy")
+            } else {
+                let streak = viewModel.consecutiveWorkoutDays()
+                HStack(spacing: 4) {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(p.acc)
-                    Text((Self.streakText(viewModel.consecutiveWorkoutDays())).loc)
+                    Text("\(streak)")
                         .font(.fig(12, .semibold))
                         .foregroundColor(p.ink)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 9)
                 .padding(.vertical, 6)
                 .background(Capsule().fill(p.card))
                 .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
+                .fixedSize()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(String(localized: "Racha: \(Self.streakText(streak))"))
             }
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text((viewModel.slotName(selectedDay)).loc)
-                    .font(.bri(34))
-                    .em(-0.03, size: 34)
-                    .foregroundColor(p.ink)
-                if let label = viewModel.label(for: selectedDay) {
-                    GradientText(text: label, font: .bri(34), p: p, tracking: -0.03 * 34)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                }
-            }
-            .padding(.top, 8)
-
-            if let hint = viewModel.sessionHint(for: selectedDay) {
-                Text((hint).loc)
-                    .font(.fig(13, .medium)).foregroundColor(p.mute)
-                    .padding(.top, 4)
-                    .accessibilityIdentifier("home.hint")
-            }
-
-            HStack(spacing: 8) {
-                equipmentMenu
-                if selectedDay != today {
-                    Button {
-                        withAnimation { selectedDay = today }
-                        HapticManager.shared.buttonTapped()
-                    } label: {
-                        Text(viewModel.scheduleMode == .fixedWeek ? "Estás viendo otro día · Volver a hoy" : "Volver a la de hoy")
-                            .font(.fig(12, .semibold))
-                            .foregroundColor(p.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .padding(.horizontal, 12)
-                            .frame(height: 30)
-                            .background(Capsule().fill(p.soft))
-                            .overlay(Capsule().strokeBorder(p.line, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.top, 10)
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
+        .padding(.bottom, 8)
+    }
+
+    private var dayTitle: some View {
+        Text((viewModel.slotName(selectedDay)).loc)
+            .font(.bri(26))
+            .em(-0.03, size: 26)
+            .foregroundColor(p.ink)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 
     /// Dónde entrenas hoy: cambia las alternativas y las rutinas que se proponen.
@@ -224,13 +226,6 @@ struct HomeView: View {
         }
         .accessibilityIdentifier("home.equipment")
         .accessibilityLabel("Material: \(viewModel.activeEquipment.name)")
-    }
-
-    private var saludo: String {
-        let h = Calendar.current.component(.hour, from: Date())
-        let g = ((6..<12).contains(h) ? "Buenos días" : (12..<22).contains(h) ? "Buenas tardes" : "Buenas noches").loc
-        let nombre = userManager.userName.trimmingCharacters(in: .whitespaces)
-        return nombre.isEmpty ? g : "\(g), \(nombre)"
     }
 
     /// "1 día", "5 días".
